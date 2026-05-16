@@ -3,26 +3,32 @@
 	import { onMount } from 'svelte';
 
 	let { lang } = $props();
-
-	let card = $state<BEMCardData | null>(null);
+ 
+	let cardId = $state<number | null>(null);
 	let revealed = $state(false);
-
+ 
+	const card = $derived.by(() => {
+		if (cardId === null) return null;
+		return cardsData[lang]?.find((c) => c.id === cardId) || null;
+	});
+ 
 	onMount(() => {
 		const roll = Math.random();
 		if (roll < 0.7) return; // 70% chance of nothing
-
+ 
 		const cardRoll = Math.random();
 		let targetRarity: CardRarity = 'Common';
-		
+ 
 		// Probabilities within the 30% drop rate
 		if (cardRoll < 0.05) targetRarity = 'Legendary';
-		else if (cardRoll < 0.20) targetRarity = 'Epic';
-		else if (cardRoll < 0.50) targetRarity = 'Rare';
+		else if (cardRoll < 0.2) targetRarity = 'Epic';
+		else if (cardRoll < 0.5) targetRarity = 'Rare';
 		else targetRarity = 'Common';
-
-		const pool = cardsData[lang]?.filter(c => c.rarity === targetRarity) || [];
+ 
+		const pool = cardsData[lang]?.filter((c) => c.rarity === targetRarity) || [];
 		if (pool.length > 0) {
-			card = pool[Math.floor(Math.random() * pool.length)];
+			const selected = pool[Math.floor(Math.random() * pool.length)];
+			cardId = selected.id;
 		}
 	});
 

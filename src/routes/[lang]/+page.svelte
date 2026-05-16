@@ -5,6 +5,8 @@
 
 	import SEO from '$lib/components/SEO.svelte';
 	import HeroSection from '$lib/components/sections/HeroSection.svelte';
+	import IntroductionSection from '$lib/components/sections/IntroductionSection.svelte';
+
 
 	import TextSection from '$lib/components/sections/TextSection.svelte';
 	import ArchitectureSection from '$lib/components/sections/ArchitectureSection.svelte';
@@ -23,6 +25,8 @@
 
 <SEO {...content.seo} {lang} />
 <HeroSection {...content.hero} />
+<IntroductionSection {...content.introduction} />
+<BEMCard {lang} />
 <TextSection {...content.positioning} />
 <BEMCard {lang} />
 <ArchitectureSection {...content.architecture} />

@@ -17,6 +17,23 @@ export const bemContent = {
 			]
 		},
 
+		introduction: {
+			title: 'Is the BEM Framework for You?',
+			subtitle: 'Moving beyond superficial mechanics to deep systemic design.',
+			paragraphs: [
+				'Gamification is a powerful tool in the right hands and with the right focus. With BEM, it is possible to level up products, courses, innovation processes, loyalty campaigns, and interactive marketing.',
+				'BEM is for those who seek more than just tricks and want to delve into the depth of game psychology. It is a discipline for designers, leaders, and educators who understand that true engagement isn\'t about points—it\'s about architecture.'
+			],
+			target: {
+				title: 'Who is this for?',
+				items: [
+					{ label: 'Product Leaders', desc: 'Scale retention and user value.' },
+					{ label: 'UX Designers', desc: 'Master decision architecture.' },
+					{ label: 'L&D Specialists and Teachers', desc: 'Create high-impact learning cycles.' },
+					{ label: 'Growth Marketers', desc: 'Build meaningful loyalty ecosystems.' }
+				]
+			}
+		},
 		positioning: {
 			title: 'Gamification Has a Structural Problem',
 			paragraphs: [
@@ -144,6 +161,23 @@ export const bemContent = {
 			]
 		},
 
+		introduction: {
+			title: '¿Es el Framework BEM para ti?',
+			subtitle: 'Más allá de las mecánicas superficiales: diseño sistémico profundo.',
+			paragraphs: [
+				'La gamificación es una herramienta muy poderosa en las manos adecuadas y con el enfoque adecuado. Con BEM es posible subir de nivel productos, cursos, procesos de innovación, campañas de lealtad y campañas de marketing interactivo.',
+				'BEM es para quienes buscan más que trucos y quieren adentrarse en la psicología del juego en su profundidad. Es una disciplina para diseñadores, líderes y educadores que entienden que el verdadero compromiso no se trata de puntos, sino de arquitectura.'
+			],
+			target: {
+				title: '¿Para quién es esto?',
+				items: [
+					{ label: 'Líderes de Producto', desc: 'Para escalar la retención y el valor del usuario.' },
+					{ label: 'Diseñadores UX', desc: 'Para dominar la arquitectura de decisiones.' },
+					{ label: 'Especialistas L&D y Educadores', desc: 'Para crear ciclos de aprendizaje de alto impacto.' },
+					{ label: 'Growth Marketers', desc: 'Para construir ecosistemas de lealtad significativos.' }
+				]
+			}
+		},
 		positioning: {
 			title: 'La Gamificación Tiene un Problema Estructural',
 			paragraphs: [
