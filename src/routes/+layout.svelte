@@ -17,24 +17,33 @@
 		}
 	});
 
+	let isMobileMenuOpen = $state(false);
+ 
 	const navLinks = $derived([
 		{ 
 			label: lang === 'en' ? 'Framework' : 'Marco',
 			href: `/${lang}/framework`,
 			submenu: [
-				{ label: lang === 'en' ? 'Overview' : 'Visión General', href: `/${lang}/framework/overview` },
-				{ label: lang === 'en' ? 'Mechanics' : 'Mecánicas', href: `/${lang}/framework/mechanics` },
-				{ label: lang === 'en' ? 'Structure' : 'Estructura', href: `/${lang}/framework/structure` },
-				{ label: lang === 'en' ? 'Case Studies' : 'Casos de Estudio', href: `/${lang}/framework/cases` }
+				{ label: lang === 'en' ? 'Foundations' : 'Fundamentos', href: `/${lang}/framework/foundations` },
+				{ label: lang === 'en' ? 'Subframeworks' : 'Subframeworks', href: `/${lang}/framework/subframeworks` },
+				{ label: lang === 'en' ? 'Experiments' : 'Experimentos', href: `/${lang}/framework/experiments` }
 			]
 		},
 		{ 
 			label: lang === 'en' ? 'Learning' : 'Aprendizaje',
-			href: `/${lang}/blog`,
+			href: `/${lang}/learning`,
+			submenu: [
+				{ label: lang === 'en' ? 'Interactive Learning' : 'Aprendizaje Interactivo', href: `/${lang}/learning/interactive` },
+				{ label: lang === 'en' ? 'Learning Cycles' : 'Ciclos de Aprendizaje', href: `/${lang}/learning/cycles` },
+				{ label: lang === 'en' ? 'Feedback & Assessment' : 'Feedback y Evaluación', href: `/${lang}/learning/feedback` }
+			]
+		},
+		{ 
+			label: lang === 'en' ? 'Resources' : 'Recursos',
+			href: `/${lang}/resources`,
 			submenu: [
 				{ label: lang === 'en' ? 'Blog' : 'Blog', href: `/${lang}/blog` },
-				{ label: lang === 'en' ? 'Book' : 'Libro', href: `/${lang}/book` },
-				{ label: lang === 'en' ? 'Workshops' : 'Talleres', href: `/${lang}/workshops` }
+				{ label: lang === 'en' ? 'Books' : 'Libros', href: `/${lang}/book` }
 			]
 		},
 		{ 
@@ -72,7 +81,7 @@
 			<img src="/bem-logo.png" alt="BEM Framework" />
 		</a>
 
-		<nav>
+		<nav class="desktop-nav">
 			{#each navLinks as link}
 				<div class="nav-item">
 					<a href={link.href} class="nav-link">{link.label}</a>
@@ -90,8 +99,49 @@
 				{lang === 'en' ? 'ES' : 'EN'}
 			</a>
 		</nav>
+ 
+		<button 
+			class="mobile-menu-toggle" 
+			onclick={() => isMobileMenuOpen = !isMobileMenuOpen}
+			aria-label="Toggle menu"
+		>
+			<div class="hamburger" class:open={isMobileMenuOpen}>
+				<span></span>
+				<span></span>
+				<span></span>
+			</div>
+		</button>
 	</div>
 </header>
+ 
+{#if isMobileMenuOpen}
+	<div class="mobile-menu-overlay" onclick={() => isMobileMenuOpen = false}>
+		<nav class="mobile-nav" onclick={(e) => e.stopPropagation()}>
+			<div class="mobile-nav-header">
+				<a href={switchLangPath} class="lang" onclick={() => isMobileMenuOpen = false}>
+					{lang === 'en' ? 'ES' : 'EN'}
+				</a>
+			</div>
+			
+			<div class="mobile-links">
+				{#each navLinks as link}
+					<div class="mobile-nav-group">
+						<a href={link.href} class="mobile-parent-link" onclick={() => isMobileMenuOpen = false}>
+							{link.label}
+						</a>
+						{#if link.submenu}
+							<div class="mobile-submenu">
+								{#each link.submenu as sub}
+									<a href={sub.href} onclick={() => isMobileMenuOpen = false}>{sub.label}</a>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</nav>
+	</div>
+{/if}
 
 <main>
 	{@render children()}
@@ -125,30 +175,37 @@
 	width: auto;
 }
 
-nav {
+.desktop-nav {
 	display: flex;
 	gap: 1.5rem;
 	font-weight: 700;
 	align-items: center;
 }
-
+ 
+@media (max-width: 1024px) {
+	.desktop-nav {
+		display: none;
+	}
+}
+ 
 .nav-item {
 	position: relative;
 }
-
+ 
 .nav-link {
 	color: var(--color-text);
 	transition: var(--transition-normal);
 	display: block;
 	padding: 0.5rem 0;
 	font-size: 0.95rem;
+	text-decoration: none;
 }
-
+ 
 .nav-item:hover .nav-link {
 	color: var(--color-purple);
 	transform: translateY(-1px);
 }
-
+ 
 .submenu {
 	position: absolute;
 	top: calc(100% + 5px);
@@ -167,13 +224,13 @@ nav {
 	flex-direction: column;
 	z-index: 1000;
 }
-
+ 
 .nav-item:hover .submenu {
 	opacity: 1;
 	visibility: visible;
 	transform: translateX(-50%) translateY(0);
 }
-
+ 
 .submenu a {
 	padding: 0.85rem 1.25rem;
 	font-size: 0.9rem;
@@ -181,13 +238,14 @@ nav {
 	transition: var(--transition-fast);
 	font-weight: 600;
 	color: var(--color-text-muted);
+	text-decoration: none;
 }
-
+ 
 .submenu a:hover {
 	background: var(--color-bg-alt);
 	color: var(--color-purple);
 }
-
+ 
 .lang {
 	color: var(--color-purple);
 	font-size: 0.85rem;
@@ -197,13 +255,124 @@ nav {
 	border-radius: var(--radius-full);
 	margin-left: 1rem;
 	transition: var(--transition-normal);
+	text-decoration: none;
 }
-
+ 
 .lang:hover {
 	background: var(--color-purple);
 	color: white;
 }
-
+ 
+/* Mobile Nav Styles */
+.mobile-menu-toggle {
+	display: none;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	padding: 0.5rem;
+	z-index: 2000;
+}
+ 
+@media (max-width: 1024px) {
+	.mobile-menu-toggle {
+		display: block;
+	}
+}
+ 
+.hamburger {
+	width: 24px;
+	height: 20px;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+ 
+.hamburger span {
+	display: block;
+	height: 2px;
+	width: 100%;
+	background: var(--color-text);
+	border-radius: 2px;
+	transition: all 0.3s ease;
+}
+ 
+.hamburger.open span:nth-child(1) {
+	transform: translateY(9px) rotate(45deg);
+}
+ 
+.hamburger.open span:nth-child(2) {
+	opacity: 0;
+}
+ 
+.hamburger.open span:nth-child(3) {
+	transform: translateY(-9px) rotate(-45deg);
+}
+ 
+.mobile-menu-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0,0,0,0.5);
+	backdrop-filter: blur(5px);
+	z-index: 1500;
+	display: flex;
+	justify-content: flex-end;
+}
+ 
+.mobile-nav {
+	width: 85%;
+	max-width: 350px;
+	height: 100%;
+	background: white;
+	padding: var(--space-xl) var(--space-md);
+	overflow-y: auto;
+	box-shadow: -10px 0 30px rgba(0,0,0,0.1);
+}
+ 
+.mobile-nav-header {
+	margin-bottom: var(--space-xl);
+	display: flex;
+	justify-content: flex-end;
+}
+ 
+.mobile-links {
+	display: flex;
+	flex-direction: column;
+	gap: 2rem;
+}
+ 
+.mobile-parent-link {
+	display: block;
+	font-size: 1.5rem;
+	font-weight: 800;
+	color: var(--color-text);
+	text-decoration: none;
+	margin-bottom: 1rem;
+}
+ 
+.mobile-submenu {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding-left: 1rem;
+	border-left: 2px solid var(--color-border);
+}
+ 
+.mobile-submenu a {
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--color-text-muted);
+	text-decoration: none;
+	padding: 0.25rem 0;
+}
+ 
+.mobile-submenu a:hover {
+	color: var(--color-purple);
+}
+ 
 .footer {
 	margin-top: var(--space-xl);
 	padding: var(--space-xl) 0;
@@ -212,7 +381,7 @@ nav {
 	color: var(--color-text-muted);
 	text-align: center;
 }
-
+ 
 .footer p {
 	font-weight: 600;
 	font-size: 0.9rem;
