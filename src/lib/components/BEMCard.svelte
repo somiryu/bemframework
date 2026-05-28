@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { cardsData, type BEMCardData, type CardRarity } from '$lib/content/cards';
 	import { onMount } from 'svelte';
+	import { gameActions } from '$lib/gameStore';
 
-	let { lang } = $props();
+	let { lang, slotIndex = undefined }: { lang: 'en' | 'es'; slotIndex?: number } = $props();
  
 	let cardId = $state<number | null>(null);
 	let revealed = $state(false);
@@ -14,12 +15,12 @@
  
 	onMount(() => {
 		const roll = Math.random();
-		if (roll < 0.7) return; // 70% chance of nothing
+		// If we are playing the discovery game, guarantee some card drops so it's not frustrating!
+		if (slotIndex === undefined && roll < 0.7) return; // 70% chance of nothing for ambient cards
  
 		const cardRoll = Math.random();
 		let targetRarity: CardRarity = 'Common';
  
-		// Probabilities within the 30% drop rate
 		if (cardRoll < 0.05) targetRarity = 'Legendary';
 		else if (cardRoll < 0.2) targetRarity = 'Epic';
 		else if (cardRoll < 0.5) targetRarity = 'Rare';
@@ -33,7 +34,13 @@
 	});
 
 	const flip = () => {
-		if (card && !revealed) revealed = true;
+		if (card && !revealed) {
+			revealed = true;
+			if (slotIndex !== undefined) {
+				gameActions.discoverSlot(slotIndex);
+				gameActions.unlockCard(card.id, card.title);
+			}
+		}
 	};
 </script>
 
@@ -189,13 +196,12 @@
 	50% { opacity: 0.8; }
 }
 
-/* BACK (CONTENT OF CARD) */
 .card-back {
 	transform: rotateY(180deg);
 	display: flex;
 	flex-direction: column;
 	padding: 2rem;
-	color: white;
+	color: white !important;
 }
 
 .rarity-badge {
@@ -207,40 +213,47 @@
 	font-size: 0.7rem;
 	font-weight: 800;
 	text-transform: uppercase;
-	background: rgba(0,0,0,0.3);
+	background: rgba(0,0,0,0.4);
+	color: white !important;
 }
 
 .type-label {
 	font-size: 0.8rem;
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
-	opacity: 0.8;
+	opacity: 0.85;
+	color: rgba(255, 255, 255, 0.75) !important;
 }
 
 h3 {
 	font-size: 1.8rem;
 	margin: 0.5rem 0 1.5rem;
 	line-height: 1.2;
+	color: white !important;
+	text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .card-body {
-	background: white;
+	background: rgba(0, 0, 0, 0.3) !important;
 	padding: 1.5rem;
 	border-radius: var(--radius-md);
-	color: #1a1a1a;
+	color: white !important;
 	text-align: center;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	flex-grow: 1;
-	box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+	box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(4px);
 }
 
 .card-body p {
 	font-size: 1rem;
 	line-height: 1.5;
 	margin: 0;
-	font-weight: 500;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.95) !important;
 }
 
 /* RARITY COLORS */

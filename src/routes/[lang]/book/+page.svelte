@@ -3,7 +3,7 @@
 	import HeroSection from '$lib/components/sections/HeroSection.svelte';
 
 	let { data }: { data: PageData } = $props();
-	const lang = $derived(data.lang);
+	const lang = $derived(data.lang as 'en' | 'es');
 	const content = {
 		en: { title: 'Beyond Mechanics', desc: 'The definitive book on the BEM framework.' },
 		es: { title: 'Beyond Mechanics', desc: 'El libro definitivo sobre el marco BEM.' }

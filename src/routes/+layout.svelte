@@ -3,6 +3,7 @@
 	import '../styles/variables.css';
 	import '../styles/base.css';
 	import { page } from '$app/state';
+	import DiscipleWidget from '$lib/components/DiscipleWidget.svelte';
 
 	let { children } = $props();
 
@@ -26,22 +27,27 @@
 			submenu: [
 				{ label: lang === 'en' ? 'Foundations' : 'Fundamentos', href: `/${lang}/framework/foundations` },
 				{ label: lang === 'en' ? 'Subframeworks' : 'Subframeworks', href: `/${lang}/framework/subframeworks` },
-				{ label: lang === 'en' ? 'Experiments' : 'Experimentos', href: `/${lang}/framework/experiments` }
+				{ label: lang === 'en' ? 'Experiments' : 'Experimentos', href: `/${lang}/framework/experiments` },
+				{ label: lang === 'en' ? 'Compare BEM' : 'Comparar BEM', href: `/${lang}/framework/compare` }
 			]
 		},
 		{ 
 			label: lang === 'en' ? 'Learning' : 'Aprendizaje',
 			href: `/${lang}/learning`,
 			submenu: [
-				{ label: lang === 'en' ? 'Interactive Learning' : 'Aprendizaje Interactivo', href: `/${lang}/learning/interactive` },
+				{ label: lang === 'en' ? 'Overview' : 'Visión General', href: `/${lang}/learning` },
+				{ label: lang === 'en' ? 'Learning as Interaction' : 'Aprendizaje como Interacción', href: `/${lang}/learning/interaction` },
 				{ label: lang === 'en' ? 'Learning Cycles' : 'Ciclos de Aprendizaje', href: `/${lang}/learning/cycles` },
-				{ label: lang === 'en' ? 'Feedback & Assessment' : 'Feedback y Evaluación', href: `/${lang}/learning/feedback` }
+				{ label: lang === 'en' ? 'Designing Objectives' : 'Diseño de Objetivos', href: `/${lang}/learning/objectives` },
+				{ label: lang === 'en' ? 'Interfaces & Points' : 'Interfaces y Puntos', href: `/${lang}/learning/feedback` }
 			]
 		},
 		{ 
 			label: lang === 'en' ? 'Resources' : 'Recursos',
 			href: `/${lang}/resources`,
 			submenu: [
+				{ label: lang === 'en' ? 'Tools' : 'Herramientas', href: `/${lang}/resources/tools` },
+				{ label: lang === 'en' ? 'Play & Learn' : 'Jugar y Aprender', href: `/${lang}/resources/play-and-learn` },
 				{ label: lang === 'en' ? 'Blog' : 'Blog', href: `/${lang}/blog` },
 				{ label: lang === 'en' ? 'Books' : 'Libros', href: `/${lang}/book` }
 			]
@@ -146,6 +152,8 @@
 <main>
 	{@render children()}
 </main>
+
+<DiscipleWidget />
 
 <footer class="footer">
 	<div class="container">

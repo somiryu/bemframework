@@ -1,6 +1,16 @@
 <script lang="ts">
 	import HeroSection from './HeroSection.svelte';
-	let { title, description, longExplanation, color } = $props();
+	let { 
+		title, 
+		description, 
+		longExplanation = undefined, 
+		color 
+	}: {
+		title: string;
+		description: string;
+		longExplanation?: string[];
+		color: string;
+	} = $props();
 </script>
 
 <div class={`driver-page ${color}`}>
