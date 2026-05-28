@@ -175,6 +175,7 @@
 	title={`${post.title} | BEM Blog`} 
 	description={post.excerpt} 
 	{lang} 
+	faq={post.faq}
 />
 
 <!-- SCROLL PROGRESS BAR -->
@@ -219,10 +220,19 @@
 					<p>{rewardMessage}</p>
 					
 					{#if rolledCard}
-						<div class="rolled-card-display">
-							<span class="rarity-indicator">{t.unlockedRarity} <strong>{rolledCard.rarity}</strong></span>
+						<div class="rolled-card-display rarity-{rolledCard.rarity.toLowerCase()}">
+							<div class="card-glow"></div>
+							{#if rolledCard.rarity === 'Epic' || rolledCard.rarity === 'Legendary'}
+								<div class="card-sparkles"></div>
+							{/if}
+							<div class="card-header-row">
+								<span class="card-type">{rolledCard.type}</span>
+								<span class="rarity-tag">{rolledCard.rarity}</span>
+							</div>
 							<h4>{rolledCard.title}</h4>
-							<p>{rolledCard.description}</p>
+							<div class="card-body-text">
+								<p>{rolledCard.description}</p>
+							</div>
 						</div>
 					{/if}
 				</div>
@@ -440,66 +450,288 @@
 /* GAMIFIED REWARDS */
 .reward-box {
 	position: relative;
-	background: linear-gradient(135deg, var(--color-purple) 0%, #1e1b4b 100%);
+	background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.25), transparent 50%),
+	            linear-gradient(135deg, #130f40 0%, #000000 100%);
 	border-radius: var(--radius-lg);
-	border: 1px solid rgba(255,255,255,0.1);
+	border: 1px solid rgba(255, 255, 255, 0.12);
 	padding: 2.5rem;
-	color: white;
+	color: #ffffff !important;
 	margin: var(--space-xl) 0;
 	overflow: hidden;
-	box-shadow: var(--shadow-lg);
+	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 
+	            0 0 30px rgba(139, 92, 246, 0.2), 
+	            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+	transition: var(--transition-normal);
+}
+
+.reward-box::before {
+	content: '';
+	position: absolute;
+	top: -50%;
+	left: -50%;
+	width: 200%;
+	height: 200%;
+	background: radial-gradient(circle, rgba(124, 58, 237, 0.08) 0%, transparent 60%);
+	animation: slow-rotate 20s linear infinite;
+	pointer-events: none;
+	z-index: 0;
+}
+
+@keyframes slow-rotate {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+.reward-sparkles {
+	position: absolute;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background-image: 
+		radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+		radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px),
+		radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+	background-size: 80px 80px;
+	pointer-events: none;
+	z-index: 1;
+}
+
+.reward-content {
+	position: relative;
+	z-index: 2;
 }
 
 .reward-badge {
 	display: inline-block;
-	background: var(--color-green);
-	color: #064e3b;
+	background: rgba(34, 197, 94, 0.15);
+	border: 1px solid rgba(34, 197, 94, 0.4);
+	color: #4ade80 !important;
 	font-weight: 800;
 	font-size: 0.75rem;
-	letter-spacing: 0.1em;
-	padding: 0.4rem 0.8rem;
-	border-radius: var(--radius-sm);
-	margin-bottom: 1rem;
+	letter-spacing: 0.12em;
+	padding: 0.5rem 1rem;
+	border-radius: var(--radius-full);
+	margin-bottom: 1.25rem;
+	text-shadow: 0 0 10px rgba(74, 222, 128, 0.3);
+	box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);
 }
 
 .reward-content h3 {
-	font-size: 1.75rem;
-	margin: 0 0 0.5rem;
+	font-family: var(--font-sans);
+	font-size: 2.25rem;
+	font-weight: 800;
+	margin: 0 0 0.75rem;
+	color: #ffffff !important;
+	letter-spacing: -0.025em;
+	text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
 
 .reward-content p {
-	font-size: 1.05rem;
-	opacity: 0.9;
-	margin: 0 0 1.5rem;
+	font-family: var(--font-sans);
+	font-size: 1.15rem;
+	line-height: 1.6;
+	color: rgba(255, 255, 255, 0.85) !important;
+	margin: 0 0 2rem;
+	max-width: 600px;
 }
 
 .rolled-card-display {
-	background: rgba(255, 255, 255, 0.1);
-	border-radius: var(--radius-md);
-	padding: 1.5rem;
-	border-left: 4px solid var(--color-green);
+	position: relative;
+	border-radius: var(--radius-lg);
+	padding: 2rem;
+	overflow: hidden;
+	transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+	            box-shadow 0.4s ease, 
+	            border-color 0.4s ease;
+	cursor: pointer;
+	border: 1.5px solid rgba(255, 255, 255, 0.15);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
 }
 
-.rarity-indicator {
+.rolled-card-display:hover {
+	transform: translateY(-5px) scale(1.01);
+}
+
+.card-glow {
+	position: absolute;
+	top: -50%;
+	left: -50%;
+	width: 200%;
+	height: 200%;
+	background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 60%);
+	pointer-events: none;
+	z-index: 0;
+}
+
+.card-header-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1.25rem;
+	position: relative;
+	z-index: 2;
+}
+
+.card-type {
 	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.15em;
+	font-weight: 700;
+	color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.rarity-tag {
+	font-size: 0.7rem;
 	font-weight: 800;
 	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	display: block;
-	margin-bottom: 0.5rem;
-	color: var(--color-green);
+	letter-spacing: 0.08em;
+	padding: 0.25rem 0.75rem;
+	border-radius: var(--radius-full);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .rolled-card-display h4 {
-	font-size: 1.3rem;
-	margin: 0 0 0.5rem;
+	font-family: var(--font-sans);
+	font-size: 1.6rem;
+	margin: 0 0 1rem;
 	font-weight: 800;
+	color: #ffffff !important;
+	letter-spacing: -0.01em;
+	position: relative;
+	z-index: 2;
+	text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
-.rolled-card-display p {
+.card-body-text {
+	background: rgba(0, 0, 0, 0.25);
+	padding: 1.25rem;
+	border-radius: var(--radius-md);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	position: relative;
+	z-index: 2;
+	box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.card-body-text p {
+	font-family: var(--font-sans);
 	font-size: 0.95rem;
-	margin: 0;
-	opacity: 0.9;
+	line-height: 1.6;
+	margin: 0 !important;
+	color: rgba(255, 255, 255, 0.9) !important;
+	font-weight: 500;
+}
+
+/* RARITY SPECIFIC GRAPHICS & COLOR THEMES */
+
+/* Common Rarity */
+.rolled-card-display.rarity-common {
+	background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(153, 27, 27, 0.2) 100%);
+	border-color: rgba(239, 68, 68, 0.35);
+	border-left: 6px solid #ef4444;
+	box-shadow: 0 10px 30px rgba(239, 68, 68, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.rolled-card-display.rarity-common .rarity-tag {
+	background: rgba(239, 68, 68, 0.2);
+	border: 1px solid rgba(239, 68, 68, 0.4);
+	color: #fca5a5 !important;
+}
+.rolled-card-display.rarity-common:hover {
+	border-color: rgba(239, 68, 68, 0.6);
+	box-shadow: 0 15px 35px rgba(239, 68, 68, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Rare Rarity */
+.rolled-card-display.rarity-rare {
+	background: linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(133, 77, 14, 0.2) 100%);
+	border-color: rgba(234, 179, 8, 0.35);
+	border-left: 6px solid #eab308;
+	box-shadow: 0 10px 30px rgba(234, 179, 8, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.rolled-card-display.rarity-rare .rarity-tag {
+	background: rgba(234, 179, 8, 0.2);
+	border: 1px solid rgba(234, 179, 8, 0.4);
+	color: #fde047 !important;
+}
+.rolled-card-display.rarity-rare:hover {
+	border-color: rgba(234, 179, 8, 0.6);
+	box-shadow: 0 15px 35px rgba(234, 179, 8, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Epic Rarity */
+.rolled-card-display.rarity-epic {
+	background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 101, 52, 0.2) 100%);
+	border-color: rgba(34, 197, 94, 0.35);
+	border-left: 6px solid #22c55e;
+	box-shadow: 0 10px 30px rgba(34, 197, 94, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.rolled-card-display.rarity-epic .rarity-tag {
+	background: rgba(34, 197, 94, 0.2);
+	border: 1px solid rgba(34, 197, 94, 0.4);
+	color: #86efac !important;
+}
+.rolled-card-display.rarity-epic:hover {
+	border-color: rgba(34, 197, 94, 0.6);
+	box-shadow: 0 15px 35px rgba(34, 197, 94, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Legendary Rarity */
+.rolled-card-display.rarity-legendary {
+	background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(107, 33, 168, 0.22) 100%);
+	border-color: rgba(168, 85, 247, 0.4);
+	border-left: 6px solid #a855f7;
+	box-shadow: 0 10px 35px rgba(168, 85, 247, 0.25), 
+	            0 0 15px rgba(168, 85, 247, 0.1), 
+	            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.rolled-card-display.rarity-legendary .rarity-tag {
+	background: rgba(168, 85, 247, 0.25);
+	border: 1px solid rgba(168, 85, 247, 0.5);
+	color: #d8b4fe !important;
+	text-shadow: 0 0 5px rgba(216, 180, 254, 0.4);
+}
+.rolled-card-display.rarity-legendary:hover {
+	border-color: rgba(168, 85, 247, 0.7);
+	box-shadow: 0 20px 45px rgba(168, 85, 247, 0.35), 
+	            0 0 25px rgba(168, 85, 247, 0.2), 
+	            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Animated Shimmer for Epic & Legendary */
+.card-sparkles {
+	position: absolute;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background-image: 
+		radial-gradient(circle at 20% 30%, rgba(255,255,255,0.4) 1px, transparent 1px),
+		radial-gradient(circle at 80% 40%, rgba(255,255,255,0.4) 1.5px, transparent 1.5px),
+		radial-gradient(circle at 40% 80%, rgba(255,255,255,0.4) 1px, transparent 1px),
+		radial-gradient(circle at 70% 70%, rgba(255,255,255,0.4) 2px, transparent 2px);
+	background-size: 100px 100px;
+	animation: sparkle 5s linear infinite;
+	pointer-events: none;
+	opacity: 0.6;
+}
+
+@keyframes sparkle {
+	from { background-position: 0 0; }
+	to { background-position: 100px 100px; }
+}
+
+.rolled-card-display.rarity-legendary::after {
+	content: '';
+	position: absolute;
+	top: -50%; left: -50%; width: 200%; height: 200%;
+	background: linear-gradient(
+		45deg,
+		transparent 45%,
+		rgba(255,255,255,0.12) 50%,
+		transparent 55%
+	);
+	animation: shine 4s infinite;
+	pointer-events: none;
+}
+
+@keyframes shine {
+	0% { transform: translateX(-100%) translateY(-100%); }
+	100% { transform: translateX(100%) translateY(100%); }
 }
 
 .reading-hint {

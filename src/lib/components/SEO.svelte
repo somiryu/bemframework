@@ -8,6 +8,7 @@
 		image?: string;
 		ogType?: string;
 		lang: 'en' | 'es';
+		faq?: Array<{ question: string; answer: string }>;
 	}
 
 	let { 
@@ -16,7 +17,8 @@
 		keywords = '', 
 		image = '/bem-logo.png', 
 		ogType = 'website',
-		lang 
+		lang,
+		faq
 	}: Props = $props();
 
 	const url = $derived(page.url.href);
@@ -56,6 +58,24 @@
 			}
 		}
 	});
+
+	// Structured Data for FAQ Page (AEO / AI optimization)
+	const faqJsonLd = $derived(
+		faq && faq.length > 0
+			? {
+					'@context': 'https://schema.org',
+					'@type': 'FAQPage',
+					mainEntity: faq.map((item) => ({
+						'@type': 'Question',
+						name: item.question,
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: item.answer
+						}
+					}))
+			  }
+			: null
+	);
 </script>
 
 <svelte:head>
@@ -91,4 +111,7 @@
 
 	<!-- Structured Data -->
 	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}<\/script>`}
+	{#if faqJsonLd}
+		{@html `<script type="application/ld+json">${JSON.stringify(faqJsonLd)}<\/script>`}
+	{/if}
 </svelte:head>

@@ -1,8 +1,9 @@
 import { redirect, error } from '@sveltejs/kit';
+import type { LayoutServerLoad } from './$types';
 
 const supported = ['en', 'es'];
 
-export const load = async ({ params }) => {
+export const load: LayoutServerLoad = async ({ params }) => {
 	const { lang } = params;
 
 	if (!supported.includes(lang)) {

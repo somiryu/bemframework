@@ -49,7 +49,7 @@
 	const filteredArticles = $derived(
 		articles.filter((article) => {
 			const matchesCategory =
-				selectedCategory === t.all || article.category === selectedCategory;
+				selectedCategory === 'All' || article.category === selectedCategory;
 			const matchesSearch =
 				article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				article.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
