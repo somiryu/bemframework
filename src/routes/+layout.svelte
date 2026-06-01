@@ -2,6 +2,7 @@
 	import '../styles/reset.css';
 	import '../styles/variables.css';
 	import '../styles/base.css';
+	import '../styles/learn.css';
 	import { page } from '$app/state';
 	import DiscipleWidget from '$lib/components/DiscipleWidget.svelte';
 
@@ -70,6 +71,11 @@
 			]
 		}
 	]);
+
+	const isGamifiedRoute = $derived(
+		page.url.pathname.includes('/learn') || 
+		page.url.pathname.includes('/login')
+	);
 </script>
 
 <svelte:head>
@@ -81,85 +87,91 @@
 	/>
 </svelte:head>
 
-<header class="site-header">
-	<div class="container header-inner">
-		<a href={`/${lang}`} class="logo">
-			<img src="/bem-logo.png" alt="BEM Framework" />
-		</a>
-
-		<nav class="desktop-nav">
-			{#each navLinks as link}
-				<div class="nav-item">
-					<a href={link.href} class="nav-link">{link.label}</a>
-					{#if link.submenu}
-						<div class="submenu">
-							{#each link.submenu as sub}
-								<a href={sub.href}>{sub.label}</a>
-							{/each}
-						</div>
-					{/if}
-				</div>
-			{/each}
-			
-			<a href={switchLangPath} class="lang">
-				{lang === 'en' ? 'ES' : 'EN'}
+{#if isGamifiedRoute}
+	<main class="learn-theme">
+		{@render children()}
+	</main>
+{:else}
+	<header class="site-header">
+		<div class="container header-inner">
+			<a href={`/${lang}`} class="logo">
+				<img src="/bem-logo.png" alt="BEM Framework" />
 			</a>
-		</nav>
- 
-		<button 
-			class="mobile-menu-toggle" 
-			onclick={() => isMobileMenuOpen = !isMobileMenuOpen}
-			aria-label="Toggle menu"
-		>
-			<div class="hamburger" class:open={isMobileMenuOpen}>
-				<span></span>
-				<span></span>
-				<span></span>
-			</div>
-		</button>
-	</div>
-</header>
- 
-{#if isMobileMenuOpen}
-	<div class="mobile-menu-overlay" onclick={() => isMobileMenuOpen = false}>
-		<nav class="mobile-nav" onclick={(e) => e.stopPropagation()}>
-			<div class="mobile-nav-header">
-				<a href={switchLangPath} class="lang" onclick={() => isMobileMenuOpen = false}>
-					{lang === 'en' ? 'ES' : 'EN'}
-				</a>
-			</div>
-			
-			<div class="mobile-links">
+
+			<nav class="desktop-nav">
 				{#each navLinks as link}
-					<div class="mobile-nav-group">
-						<a href={link.href} class="mobile-parent-link" onclick={() => isMobileMenuOpen = false}>
-							{link.label}
-						</a>
+					<div class="nav-item">
+						<a href={link.href} class="nav-link">{link.label}</a>
 						{#if link.submenu}
-							<div class="mobile-submenu">
+							<div class="submenu">
 								{#each link.submenu as sub}
-									<a href={sub.href} onclick={() => isMobileMenuOpen = false}>{sub.label}</a>
+									<a href={sub.href}>{sub.label}</a>
 								{/each}
 							</div>
 						{/if}
 					</div>
 				{/each}
-			</div>
-		</nav>
-	</div>
+				
+				<a href={switchLangPath} class="lang">
+					{lang === 'en' ? 'ES' : 'EN'}
+				</a>
+			</nav>
+	 
+			<button 
+				class="mobile-menu-toggle" 
+				onclick={() => isMobileMenuOpen = !isMobileMenuOpen}
+				aria-label="Toggle menu"
+			>
+				<div class="hamburger" class:open={isMobileMenuOpen}>
+					<span></span>
+					<span></span>
+					<span></span>
+				</div>
+			</button>
+		</div>
+	</header>
+	 
+	{#if isMobileMenuOpen}
+		<div class="mobile-menu-overlay" onclick={() => isMobileMenuOpen = false}>
+			<nav class="mobile-nav" onclick={(e) => e.stopPropagation()}>
+				<div class="mobile-nav-header">
+					<a href={switchLangPath} class="lang" onclick={() => isMobileMenuOpen = false}>
+						{lang === 'en' ? 'ES' : 'EN'}
+					</a>
+				</div>
+				
+				<div class="mobile-links">
+					{#each navLinks as link}
+						<div class="mobile-nav-group">
+							<a href={link.href} class="mobile-parent-link" onclick={() => isMobileMenuOpen = false}>
+								{link.label}
+							</a>
+							{#if link.submenu}
+								<div class="mobile-submenu">
+									{#each link.submenu as sub}
+										<a href={sub.href} onclick={() => isMobileMenuOpen = false}>{sub.label}</a>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			</nav>
+		</div>
+	{/if}
+
+	<main>
+		{@render children()}
+	</main>
+
+	<DiscipleWidget />
+
+	<footer class="footer">
+		<div class="container">
+			<p>© {new Date().getFullYear()} BEM Framework</p>
+		</div>
+	</footer>
 {/if}
-
-<main>
-	{@render children()}
-</main>
-
-<DiscipleWidget />
-
-<footer class="footer">
-	<div class="container">
-		<p>© {new Date().getFullYear()} BEM Framework</p>
-	</div>
-</footer>
 
 <style>
 .site-header {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import SEO from '$lib/components/SEO.svelte';
+	import NewsletterSubscription from '$lib/components/NewsletterSubscription.svelte';
 	import { gameActions, gameState } from '$lib/gameStore';
 	import { cardsData } from '$lib/content/cards';
 	import { onMount } from 'svelte';
@@ -242,6 +243,8 @@
 				<span>💡</span> {t.rollTip}
 			</div>
 		{/if}
+
+		<NewsletterSubscription {lang} />
 
 		<!-- REACTIONS SECTION -->
 		<section class="reactions-section">

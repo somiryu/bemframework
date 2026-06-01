@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import SEO from '$lib/components/SEO.svelte';
 	import HeroSection from '$lib/components/sections/HeroSection.svelte';
+	import NewsletterSubscription from '$lib/components/NewsletterSubscription.svelte';
 	import { cardsData } from '$lib/content/cards';
 	import { gameState, gameActions, userLevel } from '$lib/gameStore';
 	import { fade, slide } from 'svelte/transition';
@@ -320,6 +321,10 @@
 		{/if}
 	</div>
 </section>
+
+<div class="container">
+	<NewsletterSubscription {lang} />
+</div>
 
 <style>
 .downloads {

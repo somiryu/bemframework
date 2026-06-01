@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import HeroSection from '$lib/components/sections/HeroSection.svelte';
 	import SEO from '$lib/components/SEO.svelte';
+	import NewsletterSubscription from '$lib/components/NewsletterSubscription.svelte';
 
 	let { data }: { data: PageData } = $props();
 	const lang = $derived(data.lang as 'en' | 'es');
@@ -119,6 +120,10 @@
 		</div>
 	</div>
 </section>
+
+<div class="container">
+	<NewsletterSubscription {lang} />
+</div>
 
 <style>
 .play-learn-view {

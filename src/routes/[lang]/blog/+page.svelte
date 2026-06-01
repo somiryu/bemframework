@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import HeroSection from '$lib/components/sections/HeroSection.svelte';
 	import SEO from '$lib/components/SEO.svelte';
+	import NewsletterSubscription from '$lib/components/NewsletterSubscription.svelte';
 	import { blogData } from '$lib/content/blogData';
 	import { gameState } from '$lib/gameStore';
 	import { fade } from 'svelte/transition';
@@ -137,6 +138,10 @@
 		{/if}
 	</div>
 </section>
+
+<div class="container">
+	<NewsletterSubscription {lang} />
+</div>
 
 <style>
 .blog-hub {

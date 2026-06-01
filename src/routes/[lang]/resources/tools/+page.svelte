@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import HeroSection from '$lib/components/sections/HeroSection.svelte';
 	import SEO from '$lib/components/SEO.svelte';
+	import NewsletterSubscription from '$lib/components/NewsletterSubscription.svelte';
 	import { gameActions } from '$lib/gameStore';
 	import { cardsData } from '$lib/content/cards';
 	import { fade, slide } from 'svelte/transition';
@@ -329,6 +330,10 @@
 		</div>
 	</div>
 </section>
+
+<div class="container">
+	<NewsletterSubscription {lang} />
+</div>
 
 <style>
 .profiler-tool-view {

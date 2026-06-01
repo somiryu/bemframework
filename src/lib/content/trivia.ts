@@ -62,7 +62,7 @@ export const triviaData = {
 			{
 				question: '¿Por qué el marco BEM distingue entre "Mecánicas de Juego" y "Disciplina de Diseño"?',
 				options: [
-					{ text: 'Porque las mecánicas son solo para entretenimiento, mientras que la disciplina es para el trabajo.', isCorrect: false },
+					{ text: 'Como las mecánicas son solo para entretenimiento, mientras que la disciplina es para el trabajo.', isCorrect: false },
 					{ text: 'Porque las mecánicas son simples herramientas, mientras que el diseño es la disciplina rigurosa que les da sentido sistémico.', isCorrect: true },
 					{ text: 'Porque las mecánicas se centran en puntos y medallas, mientras que el diseño se centra en la historia.', isCorrect: false }
 				],
@@ -116,3 +116,309 @@ export const triviaData = {
 		]
 	}
 };
+
+// 35 curados escenarios de entrenamiento (5 por cada uno de los 7 drivers)
+export interface TrainingQuestion {
+	id: string;
+	driver: string;
+	scenario: string;
+	options: string[];
+	correct: string;
+	explanation: string;
+}
+
+export const trainingQuestionsPool: TrainingQuestion[] = [
+	// 1. HEDONISMO (5)
+	{
+		id: 'hedo1',
+		driver: 'Hedonismo',
+		scenario: 'Diseñar un sistema de portafolios interactivo donde el alumno personalice su perfil con temas visuales, avatares artísticos y música de fondo.',
+		options: ['Hedonismo', 'Eficiencia', 'Relacionamiento', 'Empoderamiento'],
+		correct: 'Hedonismo',
+		explanation: 'El Hedonismo se asocia con el deleite estético, la personalización sensorial y la experiencia agradable por el mero disfrute visual.'
+	},
+	{
+		id: 'hedo2',
+		driver: 'Hedonismo',
+		scenario: 'Crear un entorno virtual de aprendizaje que cambia su interfaz según las estaciones del año, con sonidos de la naturaleza y una paleta de colores relajantes.',
+		options: ['Hedonismo', 'Relacionamiento', 'Maestría', 'Descubrimiento'],
+		correct: 'Hedonismo',
+		explanation: 'El deleite estético y el bienestar sensorial provocado por el ambiente y el sonido son disparadores puros del Hedonismo.'
+	},
+	{
+		id: 'hedo3',
+		driver: 'Hedonismo',
+		scenario: 'Estructurar la presentación de diapositivas de la lección con animaciones fluidas, ilustraciones de alta gama tipo cómic y transiciones armoniosas que cautivan visualmente.',
+		options: ['Hedonismo', 'Eficiencia', 'Empoderamiento', 'Propósito'],
+		correct: 'Hedonismo',
+		explanation: 'La atracción magnética de un diseño visual impecable y estimulante satisface la búsqueda de belleza, propia del Hedonismo.'
+	},
+	{
+		id: 'hedo4',
+		driver: 'Hedonismo',
+		scenario: 'Un diario de clase digital donde cada estudiante puede decorar sus notas con pegatinas virtuales, marcos artísticos y tipografías caligráficas exclusivas.',
+		options: ['Hedonismo', 'Maestría', 'Descubrimiento', 'Relacionamiento'],
+		correct: 'Hedonismo',
+		explanation: 'La decoración cosmética y la expresión del gusto estético personal son disparadores puros del Hedonismo.'
+	},
+	{
+		id: 'hedo5',
+		driver: 'Hedonismo',
+		scenario: 'Realizar lecturas dramatizadas en el aula utilizando disfraces de época y luces tenues para sumergirse sensorialmente en la atmósfera de la novela.',
+		options: ['Hedonismo', 'Eficiencia', 'Empoderamiento', 'Descubrimiento'],
+		correct: 'Hedonismo',
+		explanation: 'Sumergirse en una atmósfera sensorialmente rica estimula la inmersión lúdica y emocional, un disparador clave del Hedonismo.'
+	},
+
+	// 2. EFICIENCIA (5)
+	{
+		id: 'efi1',
+		driver: 'Eficiencia',
+		scenario: 'Implementar un sistema de "Farming de Tareas" donde los estudiantes optimizan sus tiempos de entrega cooperando para minimizar el desperdicio de recursos escolares.',
+		options: ['Eficiencia', 'Relacionamiento', 'Descubrimiento', 'Propósito'],
+		correct: 'Eficiencia',
+		explanation: 'La optimización de tiempos, ahorro de recursos y la maximización de la productividad son expresiones directas de la Eficiencia.'
+	},
+	{
+		id: 'efi2',
+		driver: 'Eficiencia',
+		scenario: 'Crear atajos rápidos y plantillas prediseñadas en el aula virtual que permiten a los alumnos entregar reportes técnicos en un solo clic.',
+		options: ['Eficiencia', 'Maestría', 'Empoderamiento', 'Descubrimiento'],
+		correct: 'Eficiencia',
+		explanation: 'Hacer que el flujo operativo de tareas sea lo más rápido, ágil y libre de fricción posible apela a la Eficiencia.'
+	},
+	{
+		id: 'efi3',
+		driver: 'Eficiencia',
+		scenario: 'Una dinámica donde los estudiantes pueden "eximirse" de un cuestionario repetitivo si logran automatizar una hoja de cálculo para resolver problemas aritméticos rápidamente.',
+		options: ['Hedonismo', 'Eficiencia', 'Maestría', 'Empoderamiento'],
+		correct: 'Eficiencia',
+		explanation: 'La automatización para ahorrar esfuerzo cognitivo futuro es la esencia misma del driver de Eficiencia y Productividad.'
+	},
+	{
+		id: 'efi4',
+		driver: 'Eficiencia',
+		scenario: 'Permitir a los alumnos entregar sus reportes semanales mediante notas de voz grabadas en Telegram en lugar de extensos reportes escritos para ahorrar tiempo.',
+		options: ['Eficiencia', 'Relacionamiento', 'Descubrimiento', 'Propósito'],
+		correct: 'Eficiencia',
+		explanation: 'Optimizar el método de entrega reduciendo la fricción burocrática y el tiempo invertido es un motivador de Eficiencia.'
+	},
+	{
+		id: 'efi5',
+		driver: 'Eficiencia',
+		scenario: 'Estructurar una rúbrica express en la que el estudiante puede auto-evaluarse en 30 segundos usando una botonera digital interactiva de semáforo.',
+		options: ['Hedonismo', 'Eficiencia', 'Maestría', 'Descubrimiento'],
+		correct: 'Eficiencia',
+		explanation: 'Simplificar y acelerar los procesos administrativos del aula apela a la búsqueda del ahorro de energía (Eficiencia).'
+	},
+
+	// 3. RELACIONAMIENTO (5)
+	{
+		id: 'rela1',
+		driver: 'Relacionamiento',
+		scenario: 'Diseñar una actividad en parejas rotativas donde uno actúa de mentor y otro de aprendiz para superar un desafío cooperativo.',
+		options: ['Relacionamiento', 'Maestría', 'Descubrimiento', 'Propósito'],
+		correct: 'Relacionamiento',
+		explanation: 'Las dinámicas de conexión social, ayuda mutua, confianza y empatía están ligadas directamente al Relacionamiento.'
+	},
+	{
+		id: 'rela2',
+		driver: 'Relacionamiento',
+		scenario: 'Un espacio virtual "Mural de Agradecimientos" donde cada estudiante puede dejar mensajes de aprecio anónimos a sus compañeros por su apoyo en los proyectos.',
+		options: ['Hedonismo', 'Relacionamiento', 'Empoderamiento', 'Propósito'],
+		correct: 'Relacionamiento',
+		explanation: 'Fomentar vínculos afectivos y la pertenencia a una comunidad de aprendizaje se enfoca en el driver de Relacionamiento.'
+	},
+	{
+		id: 'rela3',
+		driver: 'Relacionamiento',
+		scenario: 'Crear un personaje compartido de la clase cuya salud y energía dependen de que todos los integrantes del grupo suban sus resúmenes semanales.',
+		options: ['Eficiencia', 'Relacionamiento', 'Maestría', 'Descubrimiento'],
+		correct: 'Relacionamiento',
+		explanation: 'La interdependencia positiva y la responsabilidad social hacia el grupo activan la empatía y la cohesión (Relacionamiento).'
+	},
+	{
+		id: 'rela4',
+		driver: 'Relacionamiento',
+		scenario: 'Una dinámica de debate grupal tipo "Tribunal de Opinión" donde los estudiantes deben argumentar defendiendo la postura del compañero de al lado.',
+		options: ['Relacionamiento', 'Empoderamiento', 'Descubrimiento', 'Propósito'],
+		correct: 'Relacionamiento',
+		explanation: 'Ponernos activamente en los zapatos del otro estimula la empatía profunda y la conexión social (Relacionamiento).'
+	},
+	{
+		id: 'rela5',
+		driver: 'Relacionamiento',
+		scenario: 'Organizar a la clase en gremios estables durante todo el año, con un nombre e insignia representativa que los estudiantes deciden juntos en equipo.',
+		options: ['Eficiencia', 'Relacionamiento', 'Maestría', 'Propósito'],
+		correct: 'Relacionamiento',
+		explanation: 'La pertenencia gremial e identidad de grupo estimula la lealtad, la colaboración y los lazos de Relacionamiento.'
+	},
+
+	// 4. MAESTRÍA (5)
+	{
+		id: 'maes1',
+		driver: 'Maestría',
+		scenario: 'Un desafío matemático donde la dificultad se adapta dinámicamente al nivel del estudiante (Flow), permitiéndole ganar insignias técnicas a medida que perfecciona su método.',
+		options: ['Maestría', 'Descubrimiento', 'Relacionamiento', 'Hedonismo'],
+		correct: 'Maestría',
+		explanation: 'El balance de dificultad, la superación de retos técnicos y el autoperfeccionamiento apelan al driver de Maestría.'
+	},
+	{
+		id: 'maes2',
+		driver: 'Maestría',
+		scenario: 'Diseñar una "Academia de Habilidades" donde el alumno desbloquea lecciones cada vez más complejas solo tras demostrar precisión impecable en los fundamentos.',
+		options: ['Maestría', 'Eficiencia', 'Empoderamiento', 'Propósito'],
+		correct: 'Maestría',
+		explanation: 'El progreso medible a través de hitos de dificultad creciente alimenta el sentimiento de competencia y Maestría.'
+	},
+	{
+		id: 'maes3',
+		driver: 'Maestría',
+		scenario: 'Permitir a los estudiantes resolver un examen de simulación múltiples veces, mostrando una barra de progreso que indica qué conceptos específicos dominan y cuáles les falta pulir.',
+		options: ['Relacionamiento', 'Maestría', 'Descubrimiento', 'Empoderamiento'],
+		correct: 'Maestría',
+		explanation: 'La visualización clara del crecimiento de competencias y el dominio de un tema es el núcleo del driver de Maestría.'
+	},
+	{
+		id: 'maes4',
+		driver: 'Maestría',
+		scenario: 'Estructurar un sistema de "Logros Técnicos" en el laboratorio donde se premia la precisión del resultado decimal y la pulcritud de los pasos del método.',
+		options: ['Maestría', 'Eficiencia', 'Descubrimiento', 'Propósito'],
+		correct: 'Maestría',
+		explanation: 'El reconocimiento a la excelencia técnica y el rigor del proceso apelan fuertemente a la Maestría.'
+	},
+	{
+		id: 'maes5',
+		driver: 'Maestría',
+		scenario: 'Un torneo de programación donde los alumnos compiten por optimizar el número de líneas de código, refinando su algoritmo una y otra vez.',
+		options: ['Hedonismo', 'Maestría', 'Empoderamiento', 'Descubrimiento'],
+		correct: 'Maestría',
+		explanation: 'El autoperfeccionamiento constante y el reto mental de superar marcas personales son disparadores de Maestría.'
+	},
+
+	// 5. DESCUBRIMIENTO (5)
+	{
+		id: 'desc1',
+		driver: 'Descubrimiento',
+		scenario: 'Esconder "huevos de pascua" con material extra de lectura y pistas ocultas en la plataforma del aula virtual para que el estudiante explore de forma no lineal.',
+		options: ['Descubrimiento', 'Hedonismo', 'Eficiencia', 'Propósito'],
+		correct: 'Descubrimiento',
+		explanation: 'La exploración, la curiosidad ante la incertidumbre y el hallazgo de secretos apelan directamente al Descubrimiento.'
+	},
+	{
+		id: 'desc2',
+		driver: 'Descubrimiento',
+		scenario: 'Un laboratorio virtual donde los estudiantes combinan compuestos químicos al azar para ver qué reacciones inusuales o explosiones visuales se generan.',
+		options: ['Descubrimiento', 'Maestría', 'Empoderamiento', 'Relacionamiento'],
+		correct: 'Descubrimiento',
+		explanation: 'La experimentación libre en modo "Sandbox" para ver qué pasa estimula la curiosidad científica y el Descubrimiento.'
+	},
+	{
+		id: 'desc3',
+		driver: 'Descubrimiento',
+		scenario: 'Proponer a los estudiantes resolver un misterio histórico analizando fuentes contradictorias y cartas antiguas para descubrir un secreto oculto en el tiempo.',
+		options: ['Eficiencia', 'Descubrimiento', 'Empoderamiento', 'Propósito'],
+		correct: 'Descubrimiento',
+		explanation: 'Resolver misterios, descifrar acertijos y la investigación exploratoria son formas puras de Descubrimiento.'
+	},
+	{
+		id: 'desc4',
+		driver: 'Descubrimiento',
+		scenario: 'Ofrecer a la clase una lección interactiva donde el orden de los temas y contenidos es decidido explorando un mapa interactivo lleno de niebla de guerra.',
+		options: ['Hedonismo', 'Descubrimiento', 'Maestría', 'Relacionamiento'],
+		correct: 'Descubrimiento',
+		explanation: 'Explorar lo desconocido y disipar la incertidumbre a través de la exploración estimulan el Descubrimiento.'
+	},
+	{
+		id: 'desc5',
+		driver: 'Descubrimiento',
+		scenario: 'Un desafío de ciencias donde los estudiantes deben clasificar un espécimen digital biológico desconocido basándose en pistas y observaciones botánicas.',
+		options: ['Descubrimiento', 'Eficiencia', 'Empoderamiento', 'Propósito'],
+		correct: 'Descubrimiento',
+		explanation: 'Clasificar lo desconocido y aplicar la deducción exploratoria son manifestaciones de Descubrimiento.'
+	},
+
+	// 6. EMPODERAMIENTO (5)
+	{
+		id: 'empo1',
+		driver: 'Empoderamiento',
+		scenario: 'Permitir que los estudiantes elijan libremente entre tres metodologías diferentes para resolver un proyecto de ciencias sociales, asumiendo el rol de directores de proyecto.',
+		options: ['Empoderamiento', 'Descubrimiento', 'Relacionamiento', 'Propósito'],
+		correct: 'Empoderamiento',
+		explanation: 'La autonomía para elegir el propio camino y tomar el control directo del aprendizaje es la base del Empoderamiento.'
+	},
+	{
+		id: 'empo2',
+		driver: 'Empoderamiento',
+		scenario: 'Diseñar una sesión donde los estudiantes debaten y definen en conjunto los criterios y puntajes de la rúbrica con la que serán evaluados en el semestre.',
+		options: ['Empoderamiento', 'Eficiencia', 'Maestría', 'Relacionamiento'],
+		correct: 'Empoderamiento',
+		explanation: 'Dar voz, voto y capacidad de coger las riendas del sistema de evaluación estimula el Empoderamiento y Control.'
+	},
+	{
+		id: 'empo3',
+		driver: 'Empoderamiento',
+		scenario: 'Un sistema de bitácora sandbox donde el alumno decide qué proyectos opcionales emprender y define sus propias metas de aprendizaje a corto plazo.',
+		options: ['Hedonismo', 'Empoderamiento', 'Descubrimiento', 'Propósito'],
+		correct: 'Empoderamiento',
+		explanation: 'La auto-dirección y el control soberano sobre las decisiones estratégicas de estudio potencian la autonomía (Empoderamiento).'
+	},
+	{
+		id: 'empo4',
+		driver: 'Empoderamiento',
+		scenario: 'Otorgar una cantidad de "monedas de influencia" semanales para que los alumnos voten qué tema secundario de ciencia desean abordar el viernes.',
+		options: ['Empoderamiento', 'Relacionamiento', 'Descubrimiento', 'Propósito'],
+		correct: 'Empoderamiento',
+		explanation: 'La soberanía colectiva y el poder de influir democráticamente en el sistema activan el Empoderamiento.'
+	},
+	{
+		id: 'empo5',
+		driver: 'Empoderamiento',
+		scenario: 'Permitir a los estudiantes auto-gestionar sus tiempos en el laboratorio y decidir en qué orden usar las estaciones de prueba disponibles.',
+		options: ['Eficiencia', 'Empoderamiento', 'Maestría', 'Hedonismo'],
+		correct: 'Empoderamiento',
+		explanation: 'La delegación de autoridad y la auto-organización son disparadores ideales para el Empoderamiento.'
+	},
+
+	// 7. PROPÓSITO (5)
+	{
+		id: 'prop1',
+		driver: 'Propósito',
+		scenario: 'Un proyecto final de clase donde los estudiantes diseñan una campaña de reciclaje real para ayudar a su comunidad local y limpiar un parque municipal.',
+		options: ['Propósito', 'Relacionamiento', 'Maestría', 'Empoderamiento'],
+		correct: 'Propósito',
+		explanation: 'Las actividades alineadas con una causa social superior y un propósito trascendente activan la Identidad Épica y Propósito.'
+	},
+	{
+		id: 'prop2',
+		driver: 'Propósito',
+		scenario: 'Enmarcar el curso entero bajo una narrativa de "Ingenieros del Ecosistema" que buscan mitigar los efectos del calentamiento global en una simulación de crisis.',
+		options: ['Hedonismo', 'Descubrimiento', 'Empoderamiento', 'Propósito'],
+		correct: 'Propósito',
+		explanation: 'La identidad épica ("héroe", "salvador") y la alineación con un bien colectivo mayor apelan directamente al Propósito.'
+	},
+	{
+		id: 'prop3',
+		driver: 'Propósito',
+		scenario: 'Crear un canal de divulgación estudiantil donde los alumnos explican temas de salud a personas mayores del vecindario para prevenir enfermedades comunes.',
+		options: ['Eficiencia', 'Relacionamiento', 'Maestría', 'Propósito'],
+		correct: 'Propósito',
+		explanation: 'Poner el conocimiento escolar al servicio de la salud de otros genera un impacto con sentido y Propósito.'
+	},
+	{
+		id: 'prop4',
+		driver: 'Propósito',
+		scenario: 'Establecer la meta colectiva de que, al dominar la tabla de multiplicar, el grupo donará un lote de libros de cuentos a una escuela rural aliada.',
+		options: ['Propósito', 'Relacionamiento', 'Descubrimiento', 'Empoderamiento'],
+		correct: 'Propósito',
+		explanation: 'La contribución altruista colectiva vincula el esfuerzo personal con una meta trascendente de alto Propósito.'
+	},
+	{
+		id: 'prop5',
+		driver: 'Propósito',
+		scenario: 'Diseñar cartillas ilustradas de física para niños huérfanos de la ciudad, explicando principios físicos complejos de manera sencilla y lúdica.',
+		options: ['Hedonismo', 'Maestría', 'Descubrimiento', 'Propósito'],
+		correct: 'Propósito',
+		explanation: 'Generar valor real para comunidades vulnerables otorga una enorme resonancia y sentido de Propósito.'
+	}
+];
