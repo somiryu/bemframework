@@ -13,65 +13,63 @@
 		onComplete: () => void 
 	} = $props();
 
-	// Check if this student is Javier Velasquez (Super User host)
+	// Host logic (Javier Velasquez or email match)
 	const isHost = $derived(player.email === 'javier@f2p.co');
 
-	// Active slide state (synced with host via Broadcast)
-	let currentSlide = $state(0);
-	
-	// Real-time broadcast connection
+	// Slide navigation and synchronization
+	let currentSlide = $state(0); // 0 to 5 (6 slides total)
+	let activeSlideMode = $state<'actividad' | 'feedback'>('actividad');
 	let channel: any = null;
 
-	// Slide 0 Onboarding
-	let selectedAvatar = $state('eco-engineer'); // 'eco-engineer', 'cyber-botanist', 'solar-scholar'
-	
-	// Slide 1 Gear Focus
-	let selectedGear = $state('holo-notebook'); // 'holo-notebook', 'bio-sensor', 'compass'
+	// Aggregated online trainees
+	let onlinePlayers = $state<any[]>([]);
 
-	// Slide 2 Tienes 15 (BEM Drivers point allocation)
+	// 1. Slide 1 Choice: Guild Cofradía
+	let selectedGuild = $state(''); // 'gary', 'uwe', 'sid', 'will'
+
+	// 2. Slide 2 Choice: Character Profile
+	let selectedCharacter = $state(''); // 'sensei', 'explorador', 'proposito', 'curador', 'estratega', 'socio', 'ingeniero'
+
+	// 3. Slide 3 Choice: Habilidades Points
 	let skillPoints = $state<Record<string, number>>({
-		Hedonismo: 2,
-		Eficiencia: 2,
-		Relacion: 2,
-		Maestria: 3,
-		Descubrimiento: 2,
-		Empoderamiento: 2,
-		Proposito: 2
+		heroismo: 2,
+		poder: 2,
+		explotacion: 2,
+		habilidad: 3,
+		colaboracion: 2,
+		administracion: 2,
+		arte: 2
 	});
 	const totalSkillsAllocated = $derived(
 		Object.values(skillPoints).reduce((a, b) => a + b, 0)
 	);
 
-	// Slide 3 Virtues & Flaws
+	// 4. Slide 4 Choice: Virtues & Flaws
 	let gameVirtues = $state('');
 	let gameFlaws = $state('');
 
-	// Slide 4 Gamer Level
-	let gamerLevel = $state(50);
+	// 5. Slide 5 Choice: Game Preference
+	let selectedPreference = $state(''); // 'misterio', 'roles', 'conquista', 'coordinacion', 'estetico', 'economico', 'dificil'
 
-	// Spectator / Waiting status
-	let hasSubmittedActiveSlide = $state(false);
+	// Track if this student has submitted the active slide
+	let studentCompletedSlides = $state<Record<number, boolean>>({});
+	const hasSubmittedActiveSlide = $derived(studentCompletedSlides[currentSlide] || false);
 
-	// Classmates submissions data (Presence + Broadcast aggregates)
+	// Aggregate real-time submissions of all classmates
 	let classSubmissions = $state<Record<string, any>>({});
-	
-	// List of online presence players
-	let onlinePlayers = $state<any[]>([]);
 
-	// Setup Supabase Realtime Channels
 	onMount(() => {
 		if (supabase) {
-			const channelId = `workshop_session_${instance.code}`;
+			const channelId = `workshop_session_omie_${instance.code}`;
 			channel = supabase.channel(channelId, {
-				config: {
-					presence: { key: player.id }
-				}
+				config: { presence: { key: player.id } }
 			});
 
-			// 1. Listen to broadcast messages
-			channel.on('broadcast', { event: 'slide-change' }, (payload: any) => {
-				currentSlide = payload.payload.slideIndex;
-				hasSubmittedActiveSlide = false; // Reset submission lock for next slide
+			// Setup broadcast handlers
+			channel.on('broadcast', { event: 'slide-sync' }, (payload: any) => {
+				const data = payload.payload;
+				currentSlide = data.slideIndex;
+				activeSlideMode = data.mode;
 			});
 
 			channel.on('broadcast', { event: 'student-submit' }, (payload: any) => {
@@ -82,28 +80,37 @@
 				};
 			});
 
-			// 2. Presence track
+			// Presence sync
 			channel.on('presence', { event: 'sync' }, () => {
 				const state = channel.presenceState();
-				const playersList: any[] = [];
+				const list: any[] = [];
 				Object.keys(state).forEach((key) => {
-					const userPresence = state[key][0];
-					if (userPresence) {
-						playersList.push(userPresence);
-					}
+					const user = state[key][0];
+					if (user) list.push(user);
 				});
-				onlinePlayers = playersList;
+				onlinePlayers = list;
 			});
 
 			channel.subscribe(async (status) => {
 				if (status === 'SUBSCRIBED') {
-					// Share presence
 					await channel.track({
 						playerId: player.id,
 						name: player.name,
 						alias: player.alias,
-						avatar: selectedAvatar
+						email: player.email
 					});
+
+					// Fetch latest workshop state stored in course instance to keep in sync
+					const { data: inst } = await supabase
+						.from('course_instances')
+						.select('current_workshop_state')
+						.eq('code', instance.code)
+						.single();
+
+					if (inst?.current_workshop_state) {
+						currentSlide = inst.current_workshop_state.slide_index ?? 0;
+						activeSlideMode = inst.current_workshop_state.mode ?? 'actividad';
+					}
 				}
 			});
 
@@ -113,45 +120,47 @@
 		}
 	});
 
-	// Host slide change action
-	async function changeSlide(index: number) {
+	// Host broadcast sync triggers
+	async function changeSlide(index: number, mode: 'actividad' | 'feedback') {
 		currentSlide = index;
-		hasSubmittedActiveSlide = false;
+		activeSlideMode = mode;
 		if (channel) {
 			await channel.send({
 				type: 'broadcast',
-				event: 'slide-change',
-				payload: { slideIndex: index }
+				event: 'slide-sync',
+				payload: { slideIndex: index, mode }
 			});
 
-			// Backup save current state in Supabase DB for late arrivals
+			// Save to DB for persistent late entrants
 			await supabase
 				.from('course_instances')
 				.update({
-					current_workshop_state: { world_id: 1, slide_index: index }
+					current_workshop_state: { world_id: 1, slide_index: index, mode }
 				})
 				.eq('code', instance.code);
 		}
 	}
 
-	// Submit current slide choices
-	async function submitSlideData() {
-		hasSubmittedActiveSlide = true;
+	// Submit student choices for the slide
+	async function submitSlideChoice() {
+		studentCompletedSlides = {
+			...studentCompletedSlides,
+			[currentSlide]: true
+		};
 
 		const payloadData = {
 			playerId: player.id,
 			name: player.name,
 			alias: player.alias,
 			slide: currentSlide,
-			avatar: selectedAvatar,
-			gear: selectedGear,
-			drivers: { ...skillPoints },
+			guild: selectedGuild,
+			character: selectedCharacter,
+			skills: { ...skillPoints },
 			virtues: gameVirtues,
 			flaws: gameFlaws,
-			gamerLevel: gamerLevel
+			preference: selectedPreference
 		};
 
-		// Broadcast to everyone
 		if (channel) {
 			await channel.send({
 				type: 'broadcast',
@@ -160,109 +169,273 @@
 			});
 		}
 
-		// Save locally in aggregates
 		classSubmissions = {
 			...classSubmissions,
 			[player.id]: payloadData
 		};
 
-		// If this is Slide 5 (final), we save player character RPG state to Supabase DB!
+		// Slide-specific DB persistence
+		if (currentSlide === 0 && selectedGuild) {
+			const state = player.game_state || {};
+			state[1] = { ...(state[1] || {}), guild: selectedGuild };
+			await supabase
+				.from('course_players')
+				.update({ game_state: state })
+				.eq('id', player.id);
+		}
+
 		if (currentSlide === 5) {
+			// Save complete RPG Character Creator Sheet and award coins
 			const state = player.game_state || {};
 			state[1] = {
-				...state[1],
+				...(state[1] || {}),
 				workshop_completed: true,
 				rpg_character: {
-					avatar: selectedAvatar,
-					gear: selectedGear,
-					drivers: { ...skillPoints },
+					guild: selectedGuild,
+					character: selectedCharacter,
+					skills: { ...skillPoints },
 					virtues: gameVirtues,
 					flaws: gameFlaws,
-					gamerLevel: gamerLevel
+					preference: selectedPreference
 				}
 			};
 
 			await supabase
 				.from('course_players')
 				.update({
-					avatar: selectedAvatar,
 					game_state: state,
-					coins: player.coins + 25 // Award 25 coins for completing workshop RPG character creator!
+					coins: player.coins + 25 // Award 25 coins for completing workshop creator
 				})
 				.eq('id', player.id);
 		}
 	}
 
-	// Helper arrays
-	const avatars = [
-		{ id: 'eco-engineer', label: 'Eco-Ingeniero', desc: 'Sistemas biológicos avanzados.', icon: '🛠️' },
-		{ id: 'cyber-botanist', label: 'Ciber-Botánico', desc: 'Foliación digital de aprendizaje.', icon: '🌱' },
-		{ id: 'solar-scholar', label: 'Erudito Solar', desc: 'Lógica radiante y propósito.', icon: '☀️' }
+	// Slide 1 Content
+	const guilds = [
+		{ id: 'gary', name: 'Gary Gygax', motive: 'Identidad / Inmersión', desc: 'Reconocido por D&D y ser el padre de los juegos de rol. Explora historias ricas e inmersión épica.', banner: '/learn_resoruces/banners/guild_gary_gigax_identity.png' },
+		{ id: 'uwe', name: 'Uwe Rosenberg', motive: 'Eficiencia / Placer (Hedonismo)', desc: 'Reconocido por juegos de mesa de motor económico, buenas gráficas y sistemas de optimización profunda.', banner: '/learn_resoruces/banners/guild_uwe_efficiency_hedonism.png' },
+		{ id: 'sid', name: 'Sid Meier', motive: 'Empoderamiento / Descubrimiento', desc: 'Reconocido por juegos legendarios de exploración, expansión y conquista como Civilization y Pirates.', banner: '/learn_resoruces/banners/guild_sid_meier_empowerment_discovery.png' },
+		{ id: 'will', name: 'Will Wright', motive: 'Maestría / Relacionamiento', desc: 'Reconocido por juegos de simulación social y retos interactivos creativos como Sims y Spores.', banner: '/learn_resoruces/banners/guild_will_wright_mastery_relatedness.png' }
 	];
 
-	const gears = [
-		{ id: 'holo-notebook', label: 'Holo-Bitácora', desc: 'Para registrar motivadores.', icon: '📓' },
-		{ id: 'bio-sensor', label: 'Bio-Sensor Emocional', desc: 'Detecta placer y relatedness.', icon: '📡' },
-		{ id: 'compass', label: 'Brújula Algorítmica', desc: 'Navega en metas de Maestría.', icon: '🧭' }
+	// Slide 2 Content
+	const charProfiles = [
+		{ id: 'sensei', title: 'Agente Sensei', driver: 'Maestría 🏆', desc: 'Busca la excelencia total, retos de alta dificultad y perfeccionar metodologías.', icon: '🎓' },
+		{ id: 'explorador', title: 'Eco-Explorador', driver: 'Descubrimiento 🗺️', desc: 'Ama investigar, descifrar misterios, caminos libres y experimentar.', icon: '🧭' },
+		{ id: 'proposito', title: 'Arquitecto de Propósitos', driver: 'Propósito 🌱', desc: 'Conecta cada aprendizaje con un impacto real, causa ecológica o beneficio humano.', icon: '🌿' },
+		{ id: 'curador', title: 'Curador Lúdico', driver: 'Hedonismo ☀️', desc: 'Se enfoca en la estética deslumbrante, diversión directa y emociones vívidas.', icon: '🎨' },
+		{ id: 'estratega', title: 'Estratega de Misiones', driver: 'Autonomía / Empoderamiento ⚡', desc: 'Valora la toma de decisiones, proyectos autónomos y libertad de acción.', icon: '⚖️' },
+		{ id: 'socio', title: 'Socio de Cofradías', driver: 'Relacionamiento 👥', desc: 'Potencia el aprendizaje cooperativo, gremios sociales y debates colectivos.', icon: '🤝' },
+		{ id: 'ingeniero', title: 'Ingeniero de Ciclos', driver: 'Eficiencia ⚙️', desc: 'Busca optimizar tiempos, feedbacks veloces y flujos organizativos ágiles.', icon: '📊' }
 	];
 
-	// Spectator Aggregate Analytics
-	const gearCounts = $derived.by(() => {
-		const counts: Record<string, number> = { 'holo-notebook': 0, 'bio-sensor': 0, 'compass': 0 };
+	// Slide 5 Preferences
+	const preferences = [
+		{ id: 'misterio', label: 'Un juego de misterio y suspenso (Descubrimiento)', driver: 'Descubrimiento' },
+		{ id: 'roles', label: 'Un juego de roles o identidades secretas (Identidad)', driver: 'Identidad' },
+		{ id: 'conquista', label: 'Un juego de conquista y competencia (Empoderamiento)', driver: 'Empoderamiento' },
+		{ id: 'coordinacion', label: 'Un juego de coordinación social (Relacionamiento)', driver: 'Relacionamiento' },
+		{ id: 'estetico', label: 'Un juego estético y artístico (Hedonismo)', driver: 'Hedonismo' },
+		{ id: 'economico', label: 'Un juego económico y administrativo (Eficiencia)', driver: 'Eficiencia' },
+		{ id: 'dificil', label: 'Un juego difícil y retador (Maestría)', driver: 'Maestría' }
+	];
+
+	const labelKeys = ['Descubrimiento', 'Identidad', 'Empoderamiento', 'Relacionamiento', 'Hedonismo', 'Eficiencia', 'Maestría'];
+
+	// Count submissions dynamically for Host
+	const slideSubmissionsCount = $derived(
+		Object.values(classSubmissions).filter((s: any) => s.slide === currentSlide).length
+	);
+
+	// Slide 1 Waiting analytics
+	const guildCounts = $derived.by(() => {
+		const counts: Record<string, number> = { gary: 0, uwe: 0, sid: 0, will: 0 };
 		Object.values(classSubmissions).forEach((s: any) => {
-			if (s.gear) counts[s.gear] = (counts[s.gear] || 0) + 1;
+			if (s.slide === 0 && s.guild) {
+				counts[s.guild] = (counts[s.guild] || 0) + 1;
+			}
 		});
 		return counts;
 	});
 
-	const driverAverages = $derived.by(() => {
-		const sums: Record<string, number> = {
-			Hedonismo: 0, Eficiencia: 0, Relacion: 0, Maestria: 0, Descubrimiento: 0, Empoderamiento: 0, Proposito: 0
-		};
-		const subsList = Object.values(classSubmissions);
-		if (subsList.length === 0) return sums;
-
-		subsList.forEach((s: any) => {
-			if (s.drivers) {
-				Object.keys(sums).forEach((driver) => {
-					sums[driver] += s.drivers[driver] || 0;
-				});
+	// Slide 2 Waiting analytics
+	const charCounts = $derived.by(() => {
+		const counts: Record<string, number> = {};
+		charProfiles.forEach(p => counts[p.id] = 0);
+		Object.values(classSubmissions).forEach((s: any) => {
+			if (s.slide === 1 && s.character) {
+				counts[s.character] = (counts[s.character] || 0) + 1;
 			}
 		});
+		return counts;
+	});
 
-		Object.keys(sums).forEach((driver) => {
-			sums[driver] = parseFloat((sums[driver] / subsList.length).toFixed(1));
+	// Slide 3 Waiting analytics (Averages of skills points allocated)
+	const skillAverages = $derived.by(() => {
+		const keys = ['heroismo', 'poder', 'explotacion', 'habilidad', 'colaboracion', 'administracion', 'arte'];
+		const avgs: Record<string, number> = {};
+		keys.forEach(k => avgs[k] = 0);
+		
+		const subs = Object.values(classSubmissions).filter((s: any) => s.slide >= 2 && s.skills);
+		if (subs.length === 0) return avgs;
+
+		subs.forEach((s: any) => {
+			keys.forEach(k => {
+				avgs[k] += s.skills[k] || 0;
+			});
+		});
+
+		keys.forEach(k => {
+			avgs[k] = parseFloat((avgs[k] / subs.length).toFixed(1));
+		});
+
+		return avgs;
+	});
+
+	// Slide 4 Waiting Columns
+	const submittedJoys = $derived(
+		Object.values(classSubmissions)
+			.filter((s: any) => s.virtues)
+			.map((s: any) => ({ alias: s.alias, value: s.virtues }))
+	);
+	const submittedFlaws = $derived(
+		Object.values(classSubmissions)
+			.filter((s: any) => s.flaws)
+			.map((s: any) => ({ alias: s.alias, value: s.flaws }))
+	);
+
+	// Slide 5 Preference Counts
+	const preferenceCounts = $derived.by(() => {
+		const counts: Record<string, number> = {};
+		preferences.forEach(p => counts[p.id] = 0);
+		Object.values(classSubmissions).forEach((s: any) => {
+			if (s.slide >= 4 && s.preference) {
+				counts[s.preference] = (counts[s.preference] || 0) + 1;
+			}
+		});
+		return counts;
+	});
+
+	// Dynamic Spider Chart Calculators
+	function calculatePersonalDrivers(sub: any) {
+		const d = {
+			Descubrimiento: 0,
+			Identidad: 0,
+			Empoderamiento: 0,
+			Relacionamiento: 0,
+			Hedonismo: 0,
+			Eficiencia: 0,
+			Maestría: 0
+		};
+
+		if (!sub) return d;
+
+		// 1. Guild mapping
+		if (sub.guild === 'sid') d.Descubrimiento += 2;
+		if (sub.guild === 'sid') d.Empoderamiento += 2;
+		if (sub.guild === 'gary') d.Identidad += 3;
+		if (sub.guild === 'uwe') d.Eficiencia += 2;
+		if (sub.guild === 'uwe') d.Hedonismo += 2;
+		if (sub.guild === 'will') d.Maestría += 2;
+		if (sub.guild === 'will') d.Relacionamiento += 2;
+
+		// 2. Character mapping
+		if (sub.character === 'sensei') d.Maestría += 3;
+		if (sub.character === 'explorador') d.Descubrimiento += 3;
+		if (sub.character === 'proposito') d.Identidad += 3; // Purpose connects identity
+		if (sub.character === 'curador') d.Hedonismo += 3;
+		if (sub.character === 'estratega') d.Empoderamiento += 3;
+		if (sub.character === 'socio') d.Relacionamiento += 3;
+		if (sub.character === 'ingeniero') d.Eficiencia += 3;
+
+		// 3. Skills allocated
+		if (sub.skills) {
+			d.Identidad += sub.skills.heroismo || 0;
+			d.Empoderamiento += sub.skills.poder || 0;
+			d.Descubrimiento += sub.skills.explotacion || 0;
+			d.Maestría += sub.skills.habilidad || 0;
+			d.Relacionamiento += sub.skills.colaboracion || 0;
+			d.Eficiencia += sub.skills.administracion || 0;
+			d.Hedonismo += sub.skills.arte || 0;
+		}
+
+		// 5. Game preference
+		if (sub.preference === 'misterio') d.Descubrimiento += 3;
+		if (sub.preference === 'roles') d.Identidad += 3;
+		if (sub.preference === 'conquista') d.Empoderamiento += 3;
+		if (sub.preference === 'coordinacion') d.Relacionamiento += 3;
+		if (sub.preference === 'estetico') d.Hedonismo += 3;
+		if (sub.preference === 'economico') d.Eficiencia += 3;
+		if (sub.preference === 'dificil') d.Maestría += 3;
+
+		return d;
+	}
+
+	const myDrivers = $derived(
+		calculatePersonalDrivers({
+			guild: selectedGuild,
+			character: selectedCharacter,
+			skills: skillPoints,
+			preference: selectedPreference
+		})
+	);
+
+	const classAverageDrivers = $derived.by(() => {
+		const sums = {
+			Descubrimiento: 0,
+			Identidad: 0,
+			Empoderamiento: 0,
+			Relacionamiento: 0,
+			Hedonismo: 0,
+			Eficiencia: 0,
+			Maestría: 0
+		};
+		const subs = Object.values(classSubmissions);
+		if (subs.length === 0) return sums;
+
+		subs.forEach((s: any) => {
+			const subD = calculatePersonalDrivers(s);
+			Object.keys(sums).forEach((k) => {
+				(sums as any)[k] += (subD as any)[k] || 0;
+			});
+		});
+
+		Object.keys(sums).forEach((k) => {
+			(sums as any)[k] = parseFloat(((sums as any)[k] / subs.length).toFixed(1));
 		});
 
 		return sums;
 	});
 
-	const gamerLevelAverage = $derived.by(() => {
-		const subsList = Object.values(classSubmissions);
-		if (subsList.length === 0) return 0;
-		const sum = subsList.reduce((acc, s: any) => acc + (s.gamerLevel || 0), 0);
-		return Math.round(sum / subsList.length);
-	});
+	// SVG polygon generator for the Radar chart
+	function getRadarPoints(drivers: Record<string, number>, maxVal = 25) {
+		const keys = ['Descubrimiento', 'Identidad', 'Empoderamiento', 'Relacionamiento', 'Hedonismo', 'Eficiencia', 'Maestría'];
+		const center = 150;
+		const radius = 100;
+		const points: string[] = [];
+
+		keys.forEach((key, idx) => {
+			const value = drivers[key] || 0;
+			const angle = (idx * 2 * Math.PI) / 7 - Math.PI / 2;
+			const length = (Math.min(value, maxVal) / maxVal) * radius;
+			const x = center + length * Math.cos(angle);
+			const y = center + length * Math.sin(angle);
+			points.push(`${x},${y}`);
+		});
+
+		return points.join(' ');
+	}
 </script>
 
 <div class="workshop-container">
-	<!-- TOP HEADER SLIDE STEPS MAP -->
-	<div class="steps-progress-dots">
-		{#each Array(6) as _, i}
-			<div class="step-dot" class:active={currentSlide === i} class:host={isHost}>
-				<span class="step-num">{i + 1}</span>
-			</div>
-		{/each}
-	</div>
-
 	<!-- ---------------------------------------------------- -->
 	<!-- HOST CONTROL PANEL OVERLAY (For Javier)              -->
 	<!-- ---------------------------------------------------- -->
 	{#if isHost}
 		<div class="host-controls-banner glass-card" in:slide>
 			<div class="host-title">
-				<span>👑 MENTOR ORQUESTADOR ACTIVO</span>
-				<h4>Panel de Control de Presentación de Javier</h4>
+				<span>👑 MENTOR ORQUESTADOR (JAVIER)</span>
+				<h4>Panel de Sincronización del Taller</h4>
 			</div>
 			
 			<div class="host-actions-row">
@@ -271,16 +444,34 @@
 						type="button" 
 						class="btn-solar-secondary btn-sm"
 						disabled={currentSlide === 0}
-						onclick={() => changeSlide(currentSlide - 1)}
+						onclick={() => changeSlide(currentSlide - 1, 'actividad')}
 					>
 						◀ Slide Anterior
 					</button>
+
+					{#if activeSlideMode === 'actividad'}
+						<button 
+							type="button" 
+							class="btn-solar-accent btn-sm font-bold animate-solar-pulse"
+							onclick={() => changeSlide(currentSlide, 'feedback')}
+						>
+							📢 Activar Feedback en Vivo
+						</button>
+					{:else}
+						<button 
+							type="button" 
+							class="btn-solar-secondary btn-sm font-bold"
+							onclick={() => changeSlide(currentSlide, 'actividad')}
+						>
+							✏️ Regresar a Actividad
+						</button>
+					{/if}
 					
 					{#if currentSlide < 5}
 						<button 
 							type="button" 
-							class="btn-solar-accent btn-sm font-bold"
-							onclick={() => changeSlide(currentSlide + 1)}
+							class="btn-solar-primary btn-sm font-bold"
+							onclick={() => changeSlide(currentSlide + 1, 'actividad')}
 						>
 							Siguiente Slide ▶
 						</button>
@@ -296,98 +487,49 @@
 				</div>
 
 				<div class="presence-tag">
-					🟢 Estudiantes Conectados: <strong>{onlinePlayers.length}</strong>
+					🟢 Estudiantes: <strong>{onlinePlayers.length}</strong> | Respondieron: <strong>{slideSubmissionsCount}</strong>
 				</div>
 			</div>
 		</div>
 	{/if}
 
+	<!-- STEPS TAB NAVIGATION MAP -->
+	<div class="steps-progress-dots">
+		{#each Array(6) as _, i}
+			<div class="step-dot" class:active={currentSlide === i} class:host={isHost}>
+				<span class="step-num">{i + 1}</span>
+			</div>
+		{/each}
+	</div>
+
 	<div class="slide-main-content">
 		<!-- ---------------------------------------------------- -->
-		<!-- SLIDE 1: AVATAR SELECTION                            -->
+		<!-- SLIDE 1: ESCUELA DE COFRADÍAS                        -->
 		<!-- ---------------------------------------------------- -->
 		{#if currentSlide === 0}
 			<div class="slide-card" in:fade>
-				<h3>Paso 1: Iniciación del Trainee y Selección de Avatar</h3>
-				<p class="slide-intro">¡Saludos, Agente! Toda iniciación requiere que configures tu representación holográfica en OMIE.</p>
+				<h3>Slide 1: Escoge tu Cofradía Motivacional</h3>
+				<p class="slide-intro">Cada cofradía está inspirada en un legendario diseñador de juegos y representa dos de los drivers internos de BEM.</p>
 
-				{#if !hasSubmittedActiveSlide}
-					<div class="avatar-select-grid mt-6">
-						{#each avatars as av}
-							<button 
-								type="button" 
-								class="avatar-card-btn" 
-								class:selected={selectedAvatar === av.id}
-								onclick={() => selectedAvatar = av.id}
-							>
-								<div class="av-icon">{av.icon}</div>
-								<h4>{av.label}</h4>
-								<p>{av.desc}</p>
-							</button>
-						{/each}
-					</div>
-
-					<button type="button" class="btn-solar-primary mt-6 w-full justify-center" onclick={submitSlideData}>
-						✓ Guardar y Enviar Avatar
-					</button>
-				{:else}
-					<!-- SPECTATOR STATE -->
-					<div class="spectator-card glass-card text-center" in:fade>
-						<span class="animate-float block text-3xl">👥</span>
-						<h4>Agentes Vinculados en Tiempo Real</h4>
-						<p>Has enviado tu avatar. Esperando a que el Mentor Javier pase a la siguiente fase. Observa quiénes se han unido:</p>
-
-						<div class="online-players-grid mt-4">
-							{#each onlinePlayers as op}
-								<div class="player-roster-pill">
-									👤 <strong>{op.name}</strong> 
-									<span class="text-xs text-solar-green-medium">"{op.alias}"</span>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- ---------------------------------------------------- -->
-		<!-- SLIDE 2: GEAR FOCUS                                  -->
-		<!-- ---------------------------------------------------- -->
-		{#if currentSlide === 1}
-			<div class="slide-card" in:fade>
-				<h3>Paso 2: Equipa tu Herramienta de Campo</h3>
-				<p class="slide-intro">Cada agente utiliza un dispositivo específico para procesar el aprendizaje serious de los drivers.</p>
-
-				{#if !hasSubmittedActiveSlide}
-					<div class="avatar-select-grid mt-6">
-						{#each gears as g}
-							<button 
-								type="button" 
-								class="avatar-card-btn" 
-								class:selected={selectedGear === g.id}
-								onclick={() => selectedGear = g.id}
-							>
-								<div class="av-icon">{g.icon}</div>
-								<h4>{g.label}</h4>
-								<p>{g.desc}</p>
-							</button>
-						{/each}
-					</div>
-
-					<button type="button" class="btn-solar-primary mt-6 w-full justify-center" onclick={submitSlideData}>
-						✓ Guardar y Enviar Herramienta
-					</button>
-				{:else}
-					<!-- SPECTATOR STATE -->
-					<div class="spectator-card glass-card text-center" in:fade>
-						<h4>Estadísticas de Equipamiento de la Clase</h4>
-						<p>Observa qué herramientas están seleccionando tus compañeros en tiempo real:</p>
+				{#if activeSlideMode === 'feedback'}
+					<!-- FEEDBACK VIEW -->
+					<div class="feedback-layout glass-card" in:fade>
+						<span class="m-badge font-bold">ANÁLISIS DE MENTORES BEM</span>
+						<h4 class="f-header mt-2">La Estructura de las Cofradías</h4>
+						<p class="f-desc mt-2">
+							Cada una de estas figuras históricas de la industria del videojuego representa diferentes pilares del marco de gamificación:
+							<strong>Gary Gygax</strong> evoca la inmersión profunda y el desarrollo de la **Identidad**.
+							<strong>Uwe Rosenberg</strong> representa la maximización matemática y el placer estético del **Hedonismo/Eficiencia**.
+							<strong>Sid Meier</strong> activa la motivación intrínseca mediante la exploración y el **Empoderamiento**.
+							<strong>Will Wright</strong> potencia la creatividad estructurada bajo retos de **Maestría** y fuertes vínculos sociales.
+						</p>
 
 						<div class="stats-bars-graph mt-6">
-							{#each gears as g}
-								{@const count = gearCounts[g.id] || 0}
+							<h5 class="font-bold text-sm mb-4">Elecciones de la Clase en Tiempo Real:</h5>
+							{#each guilds as g}
+								{@const count = guildCounts[g.id] || 0}
 								<div class="graph-row mb-4">
-									<div class="graph-label">{g.icon} {g.label} ({count})</div>
+									<div class="graph-label">{g.name} ({count} votos)</div>
 									<div class="graph-bar-track">
 										<div class="graph-bar-fill sky" style="width: {count > 0 ? (count / Object.keys(classSubmissions).length) * 100 : 0}%"></div>
 									</div>
@@ -395,48 +537,200 @@
 							{/each}
 						</div>
 					</div>
+				{:else if hasSubmittedActiveSlide}
+					<!-- WAITING VIEW -->
+					<div class="spectator-card glass-card text-center" in:fade>
+						<span class="animate-float block text-3xl">⏳</span>
+						<h4>Sala de Espera de Cofradía</h4>
+						<p>Has escogido tu gremio. Espera a que el Mentor active la retroalimentación o pase de slide. Observa quiénes se unen:</p>
+
+						<div class="online-players-grid mt-4">
+							{#each Object.values(classSubmissions).filter(s => s.slide === 0) as op}
+								<div class="player-roster-pill">
+									👤 <strong>{op.alias}</strong> ➔ Gremio: <span class="text-solar-green-medium font-bold">{guilds.find(g=>g.id===op.guild)?.name}</span>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{:else}
+					<!-- INTERACTION VIEW -->
+					<div class="guilds-select-grid mt-6">
+						{#each guilds as g}
+							<button 
+								type="button" 
+								class="guild-card" 
+								class:selected={selectedGuild === g.id}
+								onclick={() => selectedGuild = g.id}
+							>
+								<div class="guild-banner-container">
+									<img src={g.banner} alt={g.name} class="guild-banner-img" />
+								</div>
+								<div class="guild-info">
+									<span class="motive-badge">{g.motive}</span>
+									<h4>{g.name}</h4>
+									<p>{g.desc}</p>
+								</div>
+							</button>
+						{/each}
+					</div>
+
+					<button 
+						type="button" 
+						class="btn-solar-primary mt-6 w-full justify-center" 
+						disabled={!selectedGuild}
+						onclick={submitSlideChoice}
+					>
+						✓ Confirmar y Unirse a la Cofradía
+					</button>
 				{/if}
 			</div>
 		{/if}
 
 		<!-- ---------------------------------------------------- -->
-		<!-- SLIDE 3: SKILLS POINT ALLOCATION - TIENES 15          -->
+		<!-- SLIDE 2: SELECCIÓN DE PERSONAJES                     -->
+		<!-- ---------------------------------------------------- -->
+		{#if currentSlide === 1}
+			<div class="slide-card" in:fade>
+				<h3>Slide 2: Selección de Personaje Motivacional</h3>
+				<p class="slide-intro">Configura tu perfil de agente RPG en OMIE. Cada arquetipo está alineado con uno de los 7 drivers en educación.</p>
+
+				{#if activeSlideMode === 'feedback'}
+					<!-- FEEDBACK VIEW -->
+					<div class="feedback-layout glass-card" in:fade>
+						<span class="m-badge font-bold">DIVERSIDAD MOTIVACIONAL</span>
+						<h4 class="f-header mt-2">¿Cómo influyen los arquetipos en el diseño de clases?</h4>
+						<p class="f-desc mt-2">
+							No todos los alumnos interactúan de la misma manera. El arquetipo elegido funciona como una hipótesis de segmentación.
+							Crear misiones con mecánicas diversas asegura enganchar tanto a un **Agente Sensei** (retos difíciles) como a un **Eco-Explorador** (investigación y misterios libres).
+						</p>
+
+						<div class="stats-bars-graph mt-6">
+							<h5 class="font-bold text-sm mb-4">Balance de Arquetipos de la Clase:</h5>
+							{#each charProfiles as cp}
+								{@const count = charCounts[cp.id] || 0}
+								<div class="graph-row mb-4">
+									<div class="graph-label">{cp.icon} {cp.title} - {cp.driver} ({count} alumnos)</div>
+									<div class="graph-bar-track">
+										<div class="graph-bar-fill green" style="width: {count > 0 ? (count / Object.keys(classSubmissions).length) * 100 : 0}%"></div>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{:else if hasSubmittedActiveSlide}
+					<!-- WAITING VIEW -->
+					<div class="spectator-card glass-card text-center" in:fade>
+						<span class="animate-float block text-3xl">🎭</span>
+						<h4>Sala de Espera de Personajes</h4>
+						<p>Tu personaje de campo ha sido asignado. Esperando instrucciones de Javier. Mira qué eligen los demás:</p>
+
+						<div class="online-players-grid mt-4">
+							{#each Object.values(classSubmissions).filter(s => s.slide === 1) as op}
+								<div class="player-roster-pill">
+									👤 <strong>{op.alias}</strong> ➔ {charProfiles.find(c=>c.id===op.character)?.title}
+								</div>
+							{/each}
+						</div>
+					</div>
+				{:else}
+					<!-- INTERACTION VIEW -->
+					<div class="profiles-grid mt-6">
+						{#each charProfiles as cp}
+							<button 
+								type="button" 
+								class="profile-card"
+								class:selected={selectedCharacter === cp.id}
+								onclick={() => selectedCharacter = cp.id}
+							>
+								<span class="p-icon">{cp.icon}</span>
+								<div class="p-main">
+									<h4>{cp.title}</h4>
+									<span class="p-driver">{cp.driver}</span>
+									<p>{cp.desc}</p>
+								</div>
+							</button>
+						{/each}
+					</div>
+
+					<button 
+						type="button" 
+						class="btn-solar-primary mt-6 w-full justify-center" 
+						disabled={!selectedCharacter}
+						onclick={submitSlideChoice}
+					>
+						✓ Asignar mi Personaje de Campo
+					</button>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- ---------------------------------------------------- -->
+		<!-- SLIDE 3: DISTRIBUCIÓN DE HABILIDADES                 -->
 		<!-- ---------------------------------------------------- -->
 		{#if currentSlide === 2}
 			<div class="slide-card" in:fade>
-				<h3>Paso 3: Distribuye tus Drivers Skills (Tienes 15)</h3>
-				<p class="slide-intro">Como agente RPG, tu personalidad está definida por la intensidad de tus drivers BEM. Distribuye **exactamente 15 puntos** entre las 7 dimensiones.</p>
+				<h3>Slide 3: Distribuye tus Habilidades (Tienes 15 Puntos)</h3>
+				<p class="slide-intro">Calibra tus estadísticas RPG de agente. Tienes **exactamente 15 puntos** para distribuir en las 7 habilidades.</p>
 
-				{#if !hasSubmittedActiveSlide}
+				{#if activeSlideMode === 'feedback'}
+					<!-- FEEDBACK VIEW -->
+					<div class="feedback-layout glass-card" in:fade>
+						<span class="m-badge font-bold">CALIBRACIÓN DE MÍNIMOS</span>
+						<h4 class="f-header mt-2">La hipótesis del Driver Dominante</h4>
+						<p class="f-desc mt-2">
+							Nadie está activado por un solo motivador de manera aislada. Tus habilidades reflejan una combinación única de impulsos.
+							En pedagogía, realizar testeos nos permite descubrir qué activa a cada alumno según el contexto y el entorno lúdico.
+						</p>
+
+						<div class="stats-bars-graph mt-6">
+							<h5 class="font-bold text-sm mb-4">Promedio de Habilidades de la Clase:</h5>
+							{#each Object.keys(skillPoints) as k}
+								{@const avg = skillAverages[k]}
+								<div class="graph-row mb-4">
+									<div class="graph-label">{k.toUpperCase()} ({avg} pts promedio)</div>
+									<div class="graph-bar-track">
+										<div class="graph-bar-fill sky" style="width: {(avg / 15) * 100}%"></div>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{:else if hasSubmittedActiveSlide}
+					<!-- WAITING VIEW -->
+					<div class="spectator-card glass-card text-center" in:fade>
+						<span class="animate-float block text-3xl">📊</span>
+						<h4>Sala de Espera de Habilidades</h4>
+						<p>Habilidades guardadas con éxito. Esperando a que el Mentor Javier Velasquez inicie el modo de feedback.</p>
+					</div>
+				{:else}
+					<!-- INTERACTION VIEW -->
 					<div class="skills-point-editor mt-4">
 						<div class="remaining-points-counter" class:perfect={totalSkillsAllocated === 15}>
 							Puntos Utilizados: <strong>{totalSkillsAllocated} / 15</strong>
 							{#if totalSkillsAllocated === 15}
 								<span class="perfect-badge">✓ ¡Distribución Perfecta!</span>
 							{:else}
-								<span class="warning-badge">Faltan o sobran puntos</span>
+								<span class="warning-badge">Debes usar exactamente 15 puntos</span>
 							{/if}
 						</div>
 
 						<div class="skills-sliders-grid mt-4">
-							{#each Object.keys(skillPoints) as driver}
+							{#each Object.keys(skillPoints) as skill}
 								<div class="skill-slider-row">
 									<div class="skill-name-col">
-										<strong>{driver}</strong>
+										<strong>{skill.toUpperCase()}</strong>
 									</div>
-									
 									<div class="slider-control-col">
 										<input 
 											type="range" 
 											min="0" 
 											max="15" 
-											bind:value={skillPoints[driver]} 
+											bind:value={skillPoints[skill]} 
 											class="solar-range-slider"
 										/>
 									</div>
-
 									<div class="slider-value-col">
-										<strong>{skillPoints[driver]} pts</strong>
+										<strong>{skillPoints[skill]} pts</strong>
 									</div>
 								</div>
 							{/each}
@@ -447,28 +741,10 @@
 						type="button" 
 						class="btn-solar-primary mt-6 w-full justify-center" 
 						disabled={totalSkillsAllocated !== 15}
-						onclick={submitSlideData}
+						onclick={submitSlideChoice}
 					>
-						✓ Confirmar Skills BEM
+						✓ Sincronizar mis Estadísticas
 					</button>
-				{:else}
-					<!-- SPECTATOR STATE -->
-					<div class="spectator-card glass-card text-center" in:fade>
-						<h4>Promedio de Drivers Skills de la Clase</h4>
-						<p>Este gráfico muestra el balance promedio de perfiles motivacionales de todo tu grupo activo:</p>
-
-						<div class="stats-bars-graph mt-6">
-							{#each Object.keys(skillPoints) as driver}
-								{@const avg = driverAverages[driver]}
-								<div class="graph-row mb-4">
-									<div class="graph-label">{driver} ({avg} pts)</div>
-									<div class="graph-bar-track">
-										<div class="graph-bar-fill green" style="width: {(avg / 15) * 100}%"></div>
-									</div>
-								</div>
-							{/each}
-						</div>
-					</div>
 				{/if}
 			</div>
 		{/if}
@@ -478,12 +754,50 @@
 		<!-- ---------------------------------------------------- -->
 		{#if currentSlide === 3}
 			<div class="slide-card" in:fade>
-				<h3>Paso 4: Virtudes y Defectos (Gustos de Juego)</h3>
-				<p class="slide-intro">Tus virtudes y defectos se definen por los tipos de juego que amas u odias. Esto calibra tus KBIs motivacionales.</p>
+				<h3>Slide 4: Virtudes y Defectos de Juego</h3>
+				<p class="slide-intro">Comprender qué juegos te fascinan y cuáles detestas permite calibrar y entender tus triggers pedagógicos.</p>
 
-				{#if !hasSubmittedActiveSlide}
+				{#if activeSlideMode === 'feedback'}
+					<!-- FEEDBACK VIEW -->
+					<div class="feedback-layout glass-card" in:fade>
+						<span class="m-badge font-bold">DISEÑO DE LOOPS PEDAGÓGICOS</span>
+						<h4 class="f-header mt-2">No existen juegos perfectos</h4>
+						<p class="f-desc mt-2">
+							Hacer videojuegos completos en el aula es costoso y rara vez estratégico.
+							Sin embargo, entender qué mecánicas hacen que ciertos juegos sean amados u odiados nos permite incorporar miniloops interactivos altamente efectivos en nuestras clases.
+						</p>
+
+						<div class="rpg-roster-split-layout mt-6">
+							<div class="glass-card text-left">
+								<h5 class="font-bold text-solar-green-medium mb-2">💚 Juegos Virtuosos (Amados):</h5>
+								<ul class="text-xs list-disc pl-4 space-y-1">
+									{#each submittedJoys as j}
+										<li><strong>{j.alias}:</strong> {j.value}</li>
+									{/each}
+								</ul>
+							</div>
+
+							<div class="glass-card text-left">
+								<h5 class="font-bold text-solar-terracotta mb-2">💔 Juegos No Virtuosos (Odiados):</h5>
+								<ul class="text-xs list-disc pl-4 space-y-1">
+									{#each submittedFlaws as f}
+										<li><strong>{f.alias}:</strong> {f.value}</li>
+									{/each}
+								</ul>
+							</div>
+						</div>
+					</div>
+				{:else if hasSubmittedActiveSlide}
+					<!-- WAITING VIEW -->
+					<div class="spectator-card glass-card text-center" in:fade>
+						<span class="animate-float block text-3xl">🎮</span>
+						<h4>Sala de Espera de Gustos</h4>
+						<p>Preferencias de juegos subidas. Espera en esta pantalla a que el Mentor pase al Feedback de la Clase.</p>
+					</div>
+				{:else}
+					<!-- INTERACTION VIEW -->
 					<div class="form-group text-left mt-6">
-						<label for="virtues">Virtudes: Juegos que Te Apasionan</label>
+						<label for="virtues" class="font-bold block mb-2">Juegos que Te Apasionan (Virtudes):</label>
 						<input 
 							type="text" 
 							id="virtues" 
@@ -494,7 +808,7 @@
 					</div>
 
 					<div class="form-group text-left mt-4">
-						<label for="flaws">Defectos: Juegos que No Soportas</label>
+						<label for="flaws" class="font-bold block mb-2">Juegos que No Soportas (Defectos):</label>
 						<input 
 							type="text" 
 							id="flaws" 
@@ -504,156 +818,163 @@
 						/>
 					</div>
 
-					<button type="button" class="btn-solar-primary mt-6 w-full justify-center" onclick={submitSlideData}>
-						✓ Confirmar Gustos de Juego
+					<button 
+						type="button" 
+						class="btn-solar-primary mt-6 w-full justify-center" 
+						disabled={!gameVirtues || !gameFlaws}
+						onclick={submitSlideChoice}
+					>
+						✓ Sincronizar mis Virtudes y Defectos
 					</button>
-				{:else}
-					<!-- SPECTATOR STATE -->
-					<div class="spectator-card glass-card text-center" in:fade>
-						<h4>Feed de Preferencias de la Clase</h4>
-						<p>Lo que otros agentes en tu sesión han listado como juegos amados y odiados:</p>
+				{/if}
+			</div>
+		{/if}
 
-						<div class="roster-grid-layout mt-4 max-h-60 overflow-y-auto">
-							{#each Object.values(classSubmissions) as s}
-								<div class="player-roster-card">
-									<strong>{s.alias}:</strong>
-									<div class="text-xs">
-										💚 Virtudes: <span class="text-solar-green-medium">{s.virtues || 'Ninguna'}</span>
-									</div>
-									<div class="text-xs">
-										💔 Defectos: <span class="text-solar-terracotta">{s.flaws || 'Ninguno'}</span>
+		<!-- ---------------------------------------------------- -->
+		<!-- SLIDE 5: PREFERENCIA DE JUEGOS                       -->
+		<!-- ---------------------------------------------------- -->
+		{#if currentSlide === 4}
+			<div class="slide-card" in:fade>
+				<h3>Slide 5: ¿Qué Tipo de Juego Prefieres?</h3>
+				<p class="slide-intro">Escoge la alternativa que mejor describa la experiencia de juego que más disfrutas.</p>
+
+				{#if activeSlideMode === 'feedback'}
+					<!-- FEEDBACK VIEW -->
+					<div class="feedback-layout glass-card" in:fade>
+						<span class="m-badge font-bold">PREFERENCIAS CONSOLIDADAS</span>
+						<h4 class="f-header mt-2">Análisis de la Motivación Central</h4>
+						<p class="f-desc mt-2">
+							Tu elección aquí completa la calibración motivacional y define la forma en la que te desenvuelves bajo entornos lúdicos y de diseño serio.
+						</p>
+
+						<div class="stats-bars-graph mt-6">
+							<h5 class="font-bold text-sm mb-4">Votos Acumulados de la Clase:</h5>
+							{#each preferences as p}
+								{@const count = preferenceCounts[p.id] || 0}
+								<div class="graph-row mb-4">
+									<div class="graph-label">{p.label} ({count} votos)</div>
+									<div class="graph-bar-track">
+										<div class="graph-bar-fill sky" style="width: {count > 0 ? (count / Object.keys(classSubmissions).length) * 100 : 0}%"></div>
 									</div>
 								</div>
 							{/each}
 						</div>
 					</div>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- ---------------------------------------------------- -->
-		<!-- SLIDE 5: GAMER LEVEL SLIDER                          -->
-		<!-- ---------------------------------------------------- -->
-		{#if currentSlide === 4}
-			<div class="slide-card" in:fade>
-				<h3>Paso 5: Tu Espectro Gamer</h3>
-				<p class="slide-intro">¿Qué tan gamer te consideras? Arrastra el slider para calibrar tu indicador.</p>
-
-				{#if !hasSubmittedActiveSlide}
-					<div class="gamer-slider-container mt-6">
-						<input 
-							type="range" 
-							min="0" 
-							max="100" 
-							bind:value={gamerLevel} 
-							class="solar-range-slider gamer-spectrum-slider"
-						/>
-						
-						<div class="flex justify-between font-bold text-xs mt-2 px-2">
-							<span>No me gustan los juegos 🥱</span>
-							<span>Casual 🎮</span>
-							<span>Gamer Pro ⚡</span>
-						</div>
-
-						<div class="gamer-badge-selected mt-6 text-center">
-							Tu Nivel: <strong class="text-lg text-solar-sky">{gamerLevel}%</strong>
-						</div>
-					</div>
-
-					<button type="button" class="btn-solar-primary mt-6 w-full justify-center" onclick={submitSlideData}>
-						✓ Guardar y Enviar Nivel Gamer
-					</button>
-				{:else}
-					<!-- SPECTATOR STATE -->
+				{:else if hasSubmittedActiveSlide}
+					<!-- WAITING VIEW -->
 					<div class="spectator-card glass-card text-center" in:fade>
-						<h4>Nivel Gamer Promedio del Grupo</h4>
-						<p>En promedio, el nivel de interés en los videojuegos de los trainees activos es:</p>
-
-						<div class="gamer-average-gauge mt-6">
-							<div class="gauge-center animate-solar-pulse">
-								<span class="text-3xl font-bold">{gamerLevelAverage}%</span>
-								<span class="text-xs font-bold block">INTERÉS PROMEDIO</span>
-							</div>
-						</div>
+						<span class="animate-float block text-3xl">⚡</span>
+						<h4>Sala de Espera de Preferencia</h4>
+						<p>Preferencia enviada con éxito. Esperando a que comience la fase de retroalimentación final.</p>
 					</div>
+				{:else}
+					<!-- INTERACTION VIEW -->
+					<div class="preferences-choices-list mt-6">
+						{#each preferences as p}
+							<button 
+								type="button" 
+								class="preference-option-card"
+								class:selected={selectedPreference === p.id}
+								onclick={() => selectedPreference = p.id}
+							>
+								<div class="pref-radio"></div>
+								<div class="pref-label">{p.label}</div>
+							</button>
+						{/each}
+					</div>
+
+					<button 
+						type="button" 
+						class="btn-solar-primary mt-6 w-full justify-center" 
+						disabled={!selectedPreference}
+						onclick={submitSlideChoice}
+					>
+						✓ Registrar mi Preferencia de Juego
+					</button>
 				{/if}
 			</div>
 		{/if}
 
 		<!-- ---------------------------------------------------- -->
-		<!-- SLIDE 6: COMPLETED CHARACTER SHEET & ROSTER BROWSER  -->
+		<!-- SLIDE 6: SPIDER RADAR CHART (FINAL WORLD SLIDE)      -->
 		<!-- ---------------------------------------------------- -->
 		{#if currentSlide === 5}
 			<div class="slide-card" in:fade>
-				<h3>Paso 6: Tu Ficha de Agente y Roster Completo</h3>
-				<p class="slide-intro">¡Felicidades! Has completado tu iniciación. A continuación se presenta tu BEM Card RPG definitiva. Puedes explorar también las fichas de tus compañeros.</p>
+				<h3>Slide 6: Tu Ficha de Agente y Radar Motivacional BEM</h3>
+				<p class="slide-intro">¡Felicidades, Agente! Has completado con éxito la iniciación y tu caracterización RPG de OMIE.</p>
 
 				{#if !hasSubmittedActiveSlide}
-					<!-- Single save required to write profile and reward coins -->
-					<button type="button" class="btn-solar-accent w-full justify-center py-4 mb-6" onclick={submitSlideData}>
+					<button type="button" class="btn-solar-accent w-full justify-center py-4 mb-6" onclick={submitSlideChoice}>
 						🔓 Sincronizar Ficha y Reclamar +25 BEM Coins
 					</button>
 				{/if}
 
 				<div class="rpg-roster-split-layout">
-					<!-- MY CARD -->
-					<div class="my-rpg-card glass-card">
-						<span class="badge-role">TU FICHA OMIE</span>
-						<div class="avatar-view-big">
-							<span class="big-icon">
-								{selectedAvatar === 'eco-engineer' ? '🛠️' : selectedAvatar === 'cyber-botanist' ? '🌱' : '☀️'}
-							</span>
-							<h3>{player.name}</h3>
-							<span class="text-solar-green-medium font-bold">"{player.alias}"</span>
-						</div>
+					<!-- RADAR GRAPHS COMPARISON -->
+					<div class="glass-card">
+						<h4 class="font-bold text-solar-green-dark text-sm mb-4">🔮 TU RADAR PERSONAL</h4>
+						<div class="radar-container-box">
+							<svg width="300" height="300" class="radar-svg">
+								<!-- Outer bounds circles -->
+								<circle cx="150" cy="150" r="100" fill="none" stroke="#E5E7EB" stroke-width="1" />
+								<circle cx="150" cy="150" r="75" fill="none" stroke="#E5E7EB" stroke-width="1" />
+								<circle cx="150" cy="150" r="50" fill="none" stroke="#E5E7EB" stroke-width="1" />
+								<circle cx="150" cy="150" r="25" fill="none" stroke="#E5E7EB" stroke-width="1" />
 
-						<hr class="n-separator" />
+								<!-- Radial Lines -->
+								{#each Array(7) as _, i}
+									{@const angle = (i * 2 * Math.PI) / 7 - Math.PI / 2}
+									<line x1="150" y1="150" x2={150 + 100 * Math.cos(angle)} y2={150 + 100 * Math.sin(angle)} stroke="#E5E7EB" stroke-width="1" />
+								{/each}
 
-						<div class="my-rpg-details text-left">
-							<div>🎒 Gear: <strong>{selectedGear === 'holo-notebook' ? '📓 Holo-Bitácora' : selectedGear === 'bio-sensor' ? '📡 Bio-Sensor' : '🧭 Brújula'}</strong></div>
-							<div>🎮 Interés Gamer: <strong>{gamerLevel}%</strong></div>
-							<div>💚 Virtudes: <span class="font-semibold text-solar-green-medium">{gameVirtues || 'Ninguna'}</span></div>
-							<div>💔 Defectos: <span class="font-semibold text-solar-terracotta">{gameFlaws || 'Ninguno'}</span></div>
-						</div>
+								<!-- Labels -->
+								{#each labelKeys as label, i}
+									{@const angle = (i * 2 * Math.PI) / 7 - Math.PI / 2}
+									{@const x = 150 + 115 * Math.cos(angle)}
+									{@const y = 150 + 115 * Math.sin(angle)}
+									<text x={x} y={y} font-size="8" font-weight="bold" fill="var(--color-solar-text)" text-anchor="middle" dominant-baseline="middle">{label.substring(0,6)}..</text>
+								{/each}
 
-						<hr class="n-separator" />
-
-						<h4 class="text-left font-bold text-xs">PUNTOS DE DRIVERS:</h4>
-						<div class="drivers-stats-mini text-left">
-							{#each Object.entries(skillPoints) as [d, p]}
-								<div class="mini-row">
-									<span>{d}:</span>
-									<strong>{p} pts</strong>
-								</div>
-							{/each}
+								<!-- Solid personal polygon -->
+								<polygon points={getRadarPoints(myDrivers)} fill="rgba(61, 143, 104, 0.4)" stroke="var(--color-solar-green-medium)" stroke-width="2" />
+							</svg>
 						</div>
 					</div>
 
-					<!-- CLASS ROSTER BROWSER -->
-					<div class="class-roster-browser">
-						<h4 class="font-bold text-sm mb-4">👥 Roster de la Clase ({Object.keys(classSubmissions).length} perfiles)</h4>
-						
-						<div class="roster-grid-layout max-h-96 overflow-y-auto">
-							{#each Object.values(classSubmissions) as s}
-								{#if s.playerId !== player.id}
-									<div class="roster-classmate-card">
-										<div class="mate-card-header justify-between">
-											<strong>{s.name} ("{s.alias}")</strong>
-											<span class="text-xs">🎮 {s.gamerLevel}%</span>
-										</div>
-										<div class="text-xs text-left mt-2">
-											<div>🎒 Gear: {s.gear}</div>
-											<div class="grid grid-cols-2 gap-1 bg-gray-50 p-sm-pad rounded mt-1 text-xxs-font border">
-												{#each Object.entries(s.drivers) as [d, p]}
-													<div>{d.substring(0,5)}: {p}</div>
-												{/each}
-											</div>
-										</div>
-									</div>
-								{/if}
-							{/each}
+					<div class="glass-card">
+						<h4 class="font-bold text-solar-sky text-sm mb-4">👥 RADAR DE LA CLASE (PROMEDIO)</h4>
+						<div class="radar-container-box">
+							<svg width="300" height="300" class="radar-svg">
+								<circle cx="150" cy="150" r="100" fill="none" stroke="#E5E7EB" stroke-width="1" />
+								<circle cx="150" cy="150" r="75" fill="none" stroke="#E5E7EB" stroke-width="1" />
+								<circle cx="150" cy="150" r="50" fill="none" stroke="#E5E7EB" stroke-width="1" />
+								<circle cx="150" cy="150" r="25" fill="none" stroke="#E5E7EB" stroke-width="1" />
+
+								{#each Array(7) as _, i}
+									{@const angle = (i * 2 * Math.PI) / 7 - Math.PI / 2}
+									<line x1="150" y1="150" x2={150 + 100 * Math.cos(angle)} y2={150 + 100 * Math.sin(angle)} stroke="#E5E7EB" stroke-width="1" />
+								{/each}
+
+								{#each labelKeys as label, i}
+									{@const angle = (i * 2 * Math.PI) / 7 - Math.PI / 2}
+									{@const x = 150 + 115 * Math.cos(angle)}
+									{@const y = 150 + 115 * Math.sin(angle)}
+									<text x={x} y={y} font-size="8" font-weight="bold" fill="var(--color-solar-text)" text-anchor="middle" dominant-baseline="middle">{label.substring(0,6)}..</text>
+								{/each}
+
+								<!-- Solid class average polygon -->
+								<polygon points={getRadarPoints(classAverageDrivers)} fill="rgba(24, 141, 181, 0.4)" stroke="var(--color-solar-sky)" stroke-width="2" />
+							</svg>
 						</div>
 					</div>
+				</div>
+
+				<div class="feedback-conclusion-banner glass-card mt-6 text-left">
+					<h5 class="font-bold mb-2">Conclusión del Mentor:</h5>
+					<p class="text-xs line-height-relaxed text-solar-text">
+						Nadie es un solo driver puro. La experimentación rigurosa en el aula es el único camino que permite descubrir qué activa a un estudiante de manera intrínseca.
+						Usa los datos motivacionales de tu cofradía y arquetipo para modelar misiones ricas, diversas y con fuerte empoderamiento pedagógico.
+					</p>
 				</div>
 			</div>
 		{/if}
@@ -706,14 +1027,21 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 1.25rem 2rem;
-		flex-wrap: wrap;
-		gap: 1.5rem;
+		padding: 0.6rem 1.25rem;
+		border-radius: 16px;
+		gap: 1rem;
 		text-align: left;
+		margin-bottom: 0.5rem;
+	}
+
+	.host-title {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
 	}
 
 	.host-title span {
-		font-size: 0.65rem;
+		font-size: 0.55rem;
 		font-weight: 800;
 		color: var(--color-solar-yellow);
 		letter-spacing: 0.05em;
@@ -721,7 +1049,7 @@
 
 	.host-title h4 {
 		font-family: var(--font-solar-header);
-		font-size: 1.1rem;
+		font-size: 0.95rem;
 		margin: 0;
 		font-weight: 800;
 	}
@@ -729,17 +1057,24 @@
 	.host-actions-row {
 		display: flex;
 		align-items: center;
-		gap: 2rem;
+		gap: 1rem;
 	}
 
 	.presence-tag {
 		font-size: 0.85rem;
-		font-weight: 600;
+		font-weight: 700;
+		background: rgba(0, 0, 0, 0.45);
+		padding: 0.4rem 1rem;
+		border-radius: 8px;
+		color: #ffffff;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		display: inline-flex;
+		align-items: center;
 	}
 
 	/* SLIDE CARDS */
 	.slide-card {
-		max-width: 800px;
+		max-width: 820px;
 		margin: 0 auto;
 		text-align: center;
 	}
@@ -760,43 +1095,134 @@
 		line-height: 1.5;
 	}
 
-	.avatar-select-grid {
+	.guilds-select-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-		gap: 1.5rem;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 1rem;
 	}
 
-	.avatar-card-btn {
-		background: var(--color-solar-bg);
-		border: 2px solid var(--color-solar-card-border);
-		padding: 1.5rem 1.25rem;
+	@media (max-width: 1024px) {
+		.guilds-select-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.guilds-select-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.guild-card {
+		background: white;
+		border: 1px solid var(--color-solar-card-border);
 		border-radius: 20px;
+		overflow: hidden;
 		cursor: pointer;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		gap: 0.5rem;
+		text-align: left;
 		transition: all 0.25s ease;
 	}
 
-	.avatar-card-btn:hover {
+	.guild-card:hover {
 		transform: translateY(-4px);
+		box-shadow: var(--shadow-solar-md);
+		border-color: var(--color-solar-green-medium);
+	}
+
+	.guild-card.selected {
+		border-color: var(--color-solar-green-medium);
+		box-shadow: 0 0 0 3px rgba(61, 143, 104, 0.25);
+	}
+
+	.guild-banner-container {
+		width: 100%;
+		height: 320px;
+		overflow: hidden;
+	}
+
+	.guild-banner-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.guild-info {
+		padding: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.motive-badge {
+		align-self: flex-start;
+		font-size: 0.6rem;
+		font-weight: 800;
+		text-transform: uppercase;
+		background: var(--color-solar-yellow-light);
+		color: #b45309;
+		padding: 0.15rem 0.5rem;
+		border-radius: 4px;
+	}
+
+	.guild-info h4 {
+		font-family: var(--font-solar-header);
+		font-size: 1.1rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark);
+		margin: 0;
+	}
+
+	.guild-info p {
+		font-size: 0.8rem;
+		color: var(--color-solar-text-muted);
+		margin: 0;
+		line-height: 1.4;
+	}
+
+	/* SLIDE 2 CHARACTERS PROFILES */
+	.profiles-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		gap: 1.25rem;
+	}
+
+	.profile-card {
 		background: white;
+		border: 1px solid var(--color-solar-card-border);
+		border-radius: 16px;
+		padding: 1.25rem;
+		display: flex;
+		gap: 1rem;
+		cursor: pointer;
+		text-align: left;
+		transition: all 0.2s ease;
+	}
+
+	.profile-card:hover {
+		transform: translateY(-2px);
 		border-color: var(--color-solar-green-medium);
 		box-shadow: var(--shadow-solar-sm);
 	}
 
-	.avatar-card-btn.selected {
-		border-color: var(--color-solar-green-medium);
+	.profile-card.selected {
 		background: var(--color-solar-green-light);
+		border-color: var(--color-solar-green-medium);
 	}
 
-	.av-icon {
-		font-size: 2.5rem;
-		margin-bottom: 0.25rem;
+	.p-icon {
+		font-size: 2.2rem;
+		flex-shrink: 0;
 	}
 
-	.avatar-card-btn h4 {
+	.p-main {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.p-main h4 {
 		font-family: var(--font-solar-header);
 		font-size: 1.05rem;
 		font-weight: 800;
@@ -804,56 +1230,23 @@
 		margin: 0;
 	}
 
-	.avatar-card-btn p {
-		font-size: 0.75rem;
+	.p-driver {
+		font-size: 0.7rem;
+		font-weight: 700;
 		color: var(--color-solar-text-muted);
-		margin: 0;
+		text-transform: uppercase;
+	}
+
+	.p-main p {
+		font-size: 0.8rem;
+		color: var(--color-solar-text);
+		margin: 0.25rem 0 0 0;
 		line-height: 1.4;
 	}
 
-	/* SPECTATOR CARD */
-	.spectator-card {
-		background: var(--color-solar-yellow-light);
-		border: 1px solid rgba(255, 209, 102, 0.4);
-		padding: 2.5rem;
-		border-radius: 24px;
-	}
-
-	.spectator-card h4 {
-		font-family: var(--font-solar-header);
-		font-size: 1.2rem;
-		font-weight: 800;
-		color: var(--color-solar-green-dark);
-		margin: 0.5rem 0 0.25rem 0;
-	}
-
-	.spectator-card p {
-		font-size: 0.85rem;
-		color: var(--color-solar-text-muted);
-		margin: 0;
-		font-weight: 550;
-	}
-
-	.online-players-grid {
-		display: flex;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-		justify-content: center;
-	}
-
-	.player-roster-pill {
-		background: white;
-		border: 1px solid #E5E7EB;
-		padding: 0.5rem 1rem;
-		border-radius: 9999px;
-		font-size: 0.85rem;
-		font-weight: 600;
-		box-shadow: var(--shadow-solar-sm);
-	}
-
-	/* SKILL POINTS allocation */
+	/* SLIDE 3 SKILL POINT SLIDERS */
 	.skills-point-editor {
-		background: var(--color-solar-bg);
+		background: white;
 		border: 1px solid var(--color-solar-card-border);
 		border-radius: 24px;
 		padding: 2rem;
@@ -867,7 +1260,6 @@
 		align-items: center;
 		justify-content: center;
 		gap: 1rem;
-		flex-wrap: wrap;
 	}
 
 	.perfect-badge {
@@ -901,13 +1293,6 @@
 		align-items: center;
 	}
 
-	@media (max-width: 580px) {
-		.skill-slider-row {
-			grid-template-columns: 100px 1fr 50px;
-			gap: 0.5rem;
-		}
-	}
-
 	.skill-name-col {
 		text-align: left;
 		font-size: 0.9rem;
@@ -937,18 +1322,130 @@
 		transition: all 0.15s ease;
 	}
 
-	.solar-range-slider::-webkit-slider-thumb:hover {
-		transform: scale(1.15);
-		background: var(--color-solar-green-dark);
-	}
-
 	.slider-value-col {
 		text-align: right;
 		font-size: 0.95rem;
 		color: var(--color-solar-green-dark);
 	}
 
-	/* ANALYTICS GRAPH */
+	/* SLIDE 4 INPUT FORM */
+	.subject-input {
+		width: 100%;
+		padding: 0.85rem 1.25rem;
+		font-size: 0.95rem;
+		border-radius: 12px;
+		border: 1.5px solid var(--color-solar-card-border);
+		background: var(--color-solar-bg);
+		outline: none;
+		transition: all 0.2s ease;
+	}
+
+	.subject-input:focus {
+		border-color: var(--color-solar-green-medium);
+		background: white;
+		box-shadow: 0 0 0 3px rgba(61, 143, 104, 0.15);
+	}
+
+	/* SLIDE 5 OPTION CARDS */
+	.preferences-choices-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		max-width: 600px;
+		margin: 0 auto;
+	}
+
+	.preference-option-card {
+		background: white;
+		border: 1.5px solid var(--color-solar-card-border);
+		padding: 1.25rem 1.5rem;
+		border-radius: 16px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: 1.25rem;
+		text-align: left;
+		transition: all 0.2s ease;
+	}
+
+	.preference-option-card:hover {
+		border-color: var(--color-solar-green-medium);
+		background: var(--color-solar-bg);
+	}
+
+	.preference-option-card.selected {
+		border-color: var(--color-solar-green-medium);
+		background: var(--color-solar-green-light);
+	}
+
+	.pref-radio {
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		border: 2px solid var(--color-solar-card-border);
+		background: white;
+		position: relative;
+		flex-shrink: 0;
+	}
+
+	.preference-option-card.selected .pref-radio {
+		border-color: var(--color-solar-green-medium);
+	}
+
+	.preference-option-card.selected .pref-radio::after {
+		content: '';
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: var(--color-solar-green-medium);
+		position: absolute;
+		top: 3px;
+		left: 3px;
+	}
+
+	.pref-label {
+		font-size: 0.95rem;
+		font-weight: 600;
+		color: var(--color-solar-text);
+	}
+
+	/* SLIDE 6 RADAR SVG */
+	.radar-container-box {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		padding: 1rem;
+		background: white;
+		border-radius: 20px;
+		border: 1px solid var(--color-solar-card-border);
+	}
+
+	.radar-svg {
+		max-width: 100%;
+		height: auto;
+	}
+
+	/* FEEDBACK PANELS */
+	.feedback-layout {
+		text-align: left;
+		padding: 2.5rem;
+		background: linear-gradient(135deg, #ffffff 0%, var(--color-solar-bg) 100%);
+	}
+
+	.f-header {
+		font-family: var(--font-solar-header);
+		font-size: 1.35rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark);
+		margin: 0;
+	}
+
+	.f-desc {
+		font-size: 0.9rem;
+		line-height: 1.6;
+		color: var(--color-solar-text);
+	}
+
 	.stats-bars-graph {
 		background: white;
 		border: 1px solid #E5E7EB;
@@ -987,43 +1484,50 @@
 	.graph-bar-fill.sky { background: var(--color-solar-sky); }
 	.graph-bar-fill.green { background: var(--color-solar-green-medium); }
 
-	/* GAMER AVERAGE GAUGE */
-	.gamer-average-gauge {
-		width: 180px;
-		height: 180px;
-		border-radius: 50%;
-		background: conic-gradient(
-			var(--color-solar-sky) 0%,
-			var(--color-solar-sky) var(--gamer-level-average, 50%),
-			#E5E7EB var(--gamer-level-average, 50%),
-			#E5E7EB 100%
-		);
-		margin: 2rem auto;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		position: relative;
-		box-shadow: var(--shadow-solar-md);
+	/* WAITING SPECTATOR CARDS */
+	.spectator-card {
+		background: var(--color-solar-yellow-light);
+		border: 1px solid rgba(255, 209, 102, 0.4);
+		padding: 2.5rem;
+		border-radius: 24px;
 	}
 
-	.gauge-center {
-		width: 140px;
-		height: 140px;
-		border-radius: 50%;
+	.spectator-card h4 {
+		font-family: var(--font-solar-header);
+		font-size: 1.25rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark);
+		margin: 0.5rem 0 0.25rem 0;
+	}
+
+	.spectator-card p {
+		font-size: 0.85rem;
+		color: var(--color-solar-text-muted);
+		margin: 0;
+		font-weight: 550;
+	}
+
+	.online-players-grid {
+		display: flex;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+		justify-content: center;
+	}
+
+	.player-roster-pill {
 		background: white;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+		border: 1px solid #E5E7EB;
+		padding: 0.5rem 1rem;
+		border-radius: 9999px;
+		font-size: 0.85rem;
+		font-weight: 600;
+		box-shadow: var(--shadow-solar-sm);
 	}
 
-	/* FINAL SPLIT ROSTER */
 	.rpg-roster-split-layout {
 		display: grid;
-		grid-template-columns: 280px 1fr;
+		grid-template-columns: 1fr 1fr;
 		gap: 2rem;
-		align-items: start;
 	}
 
 	@media (max-width: 768px) {
@@ -1032,68 +1536,12 @@
 		}
 	}
 
-	.my-rpg-card {
-		background: white;
-		border: 2px solid var(--color-solar-yellow);
-		border-radius: var(--radius-solar-md);
-		padding: 2rem 1.5rem;
-		box-shadow: var(--shadow-solar-lg), var(--shadow-solar-glow);
-	}
-
-	.avatar-view-big {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		margin-bottom: 1rem;
-	}
-
-	.big-icon {
-		font-size: 3.5rem;
-		margin-bottom: 0.5rem;
-	}
-
-	.avatar-view-big h3 {
-		font-family: var(--font-solar-header);
-		font-size: 1.25rem;
-		font-weight: 800;
-		color: var(--color-solar-green-dark);
-		margin: 0;
-	}
-
-	.my-rpg-details {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		font-size: 0.85rem;
-	}
-
-	.drivers-stats-mini {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.5rem;
-		font-size: 0.75rem;
-	}
-
-	.mini-row {
-		display: flex;
-		justify-content: space-between;
-		background: var(--color-solar-bg);
-		padding: 0.25rem 0.5rem;
-		border-radius: 6px;
-	}
-
-	.roster-classmate-card {
-		background: var(--color-solar-bg);
+	.glass-card {
+		background: rgba(255, 255, 255, 0.8);
+		border-radius: 20px;
 		border: 1px solid var(--color-solar-card-border);
-		border-radius: 16px;
-		padding: 1rem;
-	}
-
-	.mate-card-header {
-		display: flex;
-		align-items: center;
-		border-bottom: 1px solid rgba(0,0,0,0.05);
-		padding-bottom: 0.35rem;
+		box-shadow: var(--shadow-solar-sm);
+		padding: 1.5rem;
 	}
 
 	.text-left { text-align: left; }
@@ -1103,8 +1551,4 @@
 	.mt-4 { margin-top: 1rem; }
 	.mb-4 { margin-bottom: 1rem; }
 	.mb-6 { margin-bottom: 1.5rem; }
-	.p-sm-pad { padding: 0.375rem; }
-	.text-xxs-font { font-size: 10px; }
-	.rounded { border-radius: 0.25rem; }
-	.border { border: 1px solid #E5E7EB; }
 </style>

@@ -3,6 +3,7 @@
 	import { tick } from 'svelte';
 	import { fade, slide, fly } from 'svelte/transition';
 	import { trainingQuestionsPool, type TrainingQuestion } from '$lib/content/trivia';
+	import { supabase } from '$lib/supabase';
 
 	let { 
 		world, 
@@ -15,6 +16,54 @@
 		onComplete: () => void; 
 		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
 	} = $props();
+
+	// State to track liked ideas locally
+	let likedIdeas = $state<string[]>(player.game_state?.liked_ideas || []);
+
+	function isIdeaLiked(id: string) {
+		return likedIdeas.includes(id);
+	}
+
+	async function toggleIdea(question: any) {
+		let currentLiked = [...likedIdeas];
+		
+		// Create safe deep copy of game_state
+		const state = { ...player.game_state };
+		if (!state.ideas) {
+			state.ideas = [];
+		}
+
+		if (currentLiked.includes(question.id)) {
+			// Remove it
+			currentLiked = currentLiked.filter(id => id !== question.id);
+			state.ideas = state.ideas.filter((i: any) => i.id !== question.id);
+		} else {
+			// Add it
+			currentLiked.push(question.id);
+			state.ideas.push({
+				id: question.id,
+				driver: question.driver,
+				scenario: question.scenario,
+				explanation: question.explanation,
+				likedAt: new Date().toISOString()
+			});
+		}
+		
+		likedIdeas = currentLiked;
+		state.liked_ideas = likedIdeas;
+		player.game_state = state;
+
+		// Trigger onUpdateCoins to notify parent component and update local player state
+		onUpdateCoins(player.coins, state);
+
+		// Save to Supabase in the background
+		if (supabase && player.id) {
+			await supabase
+				.from('course_players')
+				.update({ game_state: state })
+				.eq('id', player.id);
+		}
+	}
 
 	// Local gameplay states
 	let gameStateStep = $state('intro'); // 'intro', 'quiz', 'summary'
@@ -111,8 +160,19 @@
 				const j = Math.floor(Math.random() * (i + 1));
 				[list[i], list[j]] = [list[j], list[i]];
 			}
-			// Add 3 to final selected
-			selected.push(...list.slice(0, 3));
+			// Add 3 to final selected, cloning the question and its options array
+			list.slice(0, 3).forEach(q => {
+				const clonedQ = {
+					...q,
+					options: [...q.options]
+				};
+				// Fisher-Yates shuffle on options
+				for (let k = clonedQ.options.length - 1; k > 0; k--) {
+					const l = Math.floor(Math.random() * (k + 1));
+					[clonedQ.options[k], clonedQ.options[l]] = [clonedQ.options[l], clonedQ.options[k]];
+				}
+				selected.push(clonedQ);
+			});
 		});
 
 		// Shuffle the final 21 questions so they appear in a fully random order
@@ -250,6 +310,21 @@
 					<blockquote class="scenario-text mt-2">
 						"{activeQuestions[currentQuestionIndex].scenario}"
 					</blockquote>
+					
+					<div class="idea-btn-container">
+						<button 
+							type="button" 
+							class="btn-like-idea"
+							class:liked={isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
+							onclick={() => toggleIdea(activeQuestions[currentQuestionIndex])}
+						>
+							{#if isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
+								💡 ¡Es una Idea en mi Bitácora!
+							{:else}
+								💡 Me gusta. Volver una Idea
+							{/if}
+						</button>
+					</div>
 				</div>
 
 				<!-- Choices Grid -->
@@ -276,11 +351,30 @@
 						{/if}
 					</div>
 
-					<div class="scenario-context-pill mt-3 p-3 rounded-lg bg-black/5 text-xs text-solar-text-muted italic">
-						<strong>Escenario:</strong> "{activeQuestions[currentQuestionIndex].scenario}"
+					<!-- Scenario Feedback Card -->
+					<div class="scenario-feedback-card">
+						<div class="scenario-header-row">
+							<div class="scenario-text-desc">
+								<strong>Escenario:</strong> "{activeQuestions[currentQuestionIndex].scenario}"
+							</div>
+							<div class="flex-shrink-0">
+								<button 
+									type="button" 
+									class="btn-like-idea"
+									class:liked={isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
+									onclick={() => toggleIdea(activeQuestions[currentQuestionIndex])}
+								>
+									{#if isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
+										💡 ¡Es una Idea!
+									{:else}
+										💡 Volver una Idea
+									{/if}
+								</button>
+							</div>
+						</div>
 					</div>
 
-					<div class="explanation-box mt-3 text-sm">
+					<div class="explanation-box">
 						<h6 class="font-bold text-xs uppercase tracking-wider text-solar-green-dark mb-1">Análisis BEM:</h6>
 						<p class="explanation-text">
 							{activeQuestions[currentQuestionIndex].explanation}
@@ -637,27 +731,39 @@
 
 	/* FEEDBACK EXPLANATION BOX */
 	.feedback-response-box {
-		padding: 1.5rem;
-		border-radius: 20px;
-		border-left: 5px solid;
+		padding: 2.25rem 2rem;
+		border-radius: 28px;
+		border: 1px solid rgba(255, 255, 255, 0.5);
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		position: relative;
+		overflow: hidden;
+		box-shadow: 
+			0 10px 30px rgba(30, 69, 51, 0.05),
+			var(--shadow-solar-md);
 	}
 
 	.feedback-response-box.correct {
-		background: #F0FDF4;
-		border-color: var(--color-solar-green-medium);
-		color: #166534;
+		background: rgba(240, 253, 244, 0.85);
+		border-top: 4px solid var(--color-solar-green-medium);
+		box-shadow: 
+			inset 0 0 20px rgba(61, 143, 104, 0.05),
+			0 10px 30px rgba(61, 143, 104, 0.08);
 	}
 
 	.feedback-response-box:not(.correct) {
-		background: #FFFBEB;
-		border-color: var(--color-solar-yellow);
-		color: #92400E;
+		background: rgba(255, 251, 235, 0.85);
+		border-top: 4px solid var(--color-solar-terracotta);
+		box-shadow: 
+			inset 0 0 20px rgba(224, 122, 95, 0.05),
+			0 10px 30px rgba(224, 122, 95, 0.08);
 	}
 
 	.feedback-title {
 		font-family: var(--font-solar-header);
 		font-weight: 800;
-		font-size: 1.05rem;
+		font-size: 1.2rem;
+		letter-spacing: -0.01em;
 	}
 
 	.explanation-text {
@@ -668,20 +774,66 @@
 
 	/* STARS DISPLAY */
 	.stars-display {
-		font-size: 3rem;
-		line-height: 1;
+		display: flex;
+		justify-content: center;
+		gap: 0.75rem;
+		margin: 2rem 0;
+		position: relative;
+	}
+
+	.stars-display::before {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 150px;
+		height: 150px;
+		background: radial-gradient(circle, rgba(255, 209, 102, 0.25) 0%, transparent 70%);
+		z-index: 1;
+		pointer-events: none;
+		animation: solar-glow-pulse 4s ease-in-out infinite;
 	}
 
 	.star-shape {
+		font-size: 3.5rem;
 		color: #E5E7EB;
-		text-shadow: 0 1px 2px rgba(0,0,0,0.05);
-		transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		position: relative;
+		z-index: 2;
+		text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+		transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 	}
 
 	.star-shape.active {
 		color: var(--color-solar-yellow);
-		text-shadow: 0 0 12px var(--color-solar-yellow);
-		transform: scale(1.1) rotate(5deg);
+		text-shadow: 
+			0 0 15px rgba(255, 209, 102, 0.6),
+			0 0 30px rgba(255, 209, 102, 0.3);
+		transform: scale(1.15) rotate(8deg);
+		animation: star-entrance 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+	}
+
+	/* Dynamic sequential delays for stars count */
+	.star-shape.active:nth-child(1) { animation-delay: 0.1s; }
+	.star-shape.active:nth-child(2) { animation-delay: 0.2s; }
+	.star-shape.active:nth-child(3) { animation-delay: 0.3s; }
+	.star-shape.active:nth-child(4) { animation-delay: 0.4s; }
+	.star-shape.active:nth-child(5) { animation-delay: 0.5s; }
+
+	@keyframes star-entrance {
+		from {
+			transform: scale(0) rotate(-45deg);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1.15) rotate(8deg);
+			opacity: 1;
+		}
+	}
+
+	@keyframes solar-glow-pulse {
+		0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+		50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
 	}
 
 	/* SUMMARY SCREEN */
@@ -706,25 +858,48 @@
 	}
 
 	.score-card-stats {
-		max-width: 360px;
-		margin: 0 auto;
-		padding: 1.25rem 1.5rem;
-		border-radius: 20px;
-		background: rgba(255, 255, 255, 0.7);
-		border: 1px solid var(--color-solar-card-border);
+		max-width: 100%;
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1rem;
+		margin: 2rem 0;
+		padding: 0;
+		background: transparent;
+		border: none;
+		box-shadow: none;
 	}
 
 	.score-row {
 		display: flex;
-		justify-content: space-between;
+		flex-direction: column;
+		justify-content: center;
 		align-items: center;
-		font-size: 0.95rem;
-		font-weight: 700;
-		color: var(--color-solar-text-muted);
+		padding: 1.25rem 1rem;
+		border-radius: 20px;
+		background: rgba(255, 255, 255, 0.7);
+		border: 1px solid var(--color-solar-card-border);
+		box-shadow: var(--shadow-solar-sm);
+		transition: all 0.3s ease;
+	}
+
+	.score-row:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-solar-md);
+		background: white;
+	}
+
+	.score-row span:first-child {
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		font-weight: 800;
+		margin-bottom: 0.35rem;
 	}
 
 	.score-val {
-		font-size: 1.1rem;
+		font-family: var(--font-solar-header);
+		font-size: 1.5rem;
+		font-weight: 800;
 		color: var(--color-solar-text);
 	}
 
@@ -977,4 +1152,91 @@
 	.mt-6 { margin-top: 1.5rem; }
 	.border-t { border-top: 1px solid var(--color-solar-card-border); }
 	.pt-2 { padding-top: 0.5rem; }
+
+	/* LIKE IDEA BUTTON STYLES */
+	.idea-btn-container {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 1.25rem;
+		width: 100%;
+	}
+
+	.btn-like-idea {
+		background: #ffffff;
+		border: 2px solid var(--color-solar-card-border);
+		color: var(--color-solar-green-dark);
+		cursor: pointer;
+		padding: 0.5rem 1rem;
+		border-radius: 12px;
+		font-weight: 750;
+		font-size: 0.8rem;
+		font-family: var(--font-solar-body), sans-serif;
+		box-shadow: var(--shadow-solar-sm);
+		transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		outline: none;
+	}
+
+	.btn-like-idea:hover {
+		transform: translateY(-2px);
+		border-color: var(--color-solar-yellow);
+		background: #FFFDF4;
+		box-shadow: var(--shadow-solar-md);
+	}
+
+	.btn-like-idea.liked {
+		background: var(--color-solar-yellow);
+		color: var(--color-solar-green-dark);
+		border-color: var(--color-solar-yellow);
+		box-shadow: 0 4px 12px rgba(255, 209, 102, 0.4);
+		animation: idea-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	}
+
+	@keyframes idea-pop {
+		0% { transform: scale(1); }
+		50% { transform: scale(1.1); }
+		100% { transform: scale(1); }
+	}
+
+	/* PREMIUM FEEDBACK CARD STYLES */
+	.flex { display: flex; }
+	.flex-shrink-0 { flex-shrink: 0; }
+
+	.scenario-feedback-card {
+		margin-top: 1rem;
+		padding: 1.25rem 1.5rem;
+		border-radius: 20px;
+		background: rgba(0, 0, 0, 0.03);
+		border: 1px solid rgba(0, 0, 0, 0.05);
+	}
+
+	.scenario-header-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1.5rem;
+	}
+
+	@media (max-width: 640px) {
+		.scenario-header-row {
+			flex-direction: column;
+			align-items: flex-end;
+		}
+	}
+
+	.scenario-text-desc {
+		font-size: 0.85rem;
+		line-height: 1.5;
+		color: var(--color-solar-text-muted);
+		font-style: italic;
+		font-weight: 550;
+	}
+
+	.explanation-box {
+		margin-top: 1.5rem;
+		padding-left: 1.25rem;
+		border-left: 3px solid var(--color-solar-green-medium);
+	}
 </style>

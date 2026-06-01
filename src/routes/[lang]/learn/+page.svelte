@@ -88,7 +88,35 @@
 	function triggerNarrative(world: any, type: 'intro' | 'outro') {
 		selectedWorld = world;
 		narrativeTriggerType = type;
-		activeNarrativeDialogue = type === 'intro' ? world.narrative_intro : world.narrative_outro;
+		
+		const rawDialogue = type === 'intro' ? world.narrative_intro : world.narrative_outro;
+		
+		const processedDialogue = (rawDialogue || []).map((step: any) => {
+			const charName = step.character || '';
+			if (
+				charName.includes('Sara') ||
+				charName.includes('Wilkins') ||
+				charName.includes('John') ||
+				charName.includes('Kira')
+			) {
+				return { ...step, imageType: 'animated' };
+			}
+			return step;
+		});
+
+		if (world.id === 1 && type === 'intro') {
+			activeNarrativeDialogue = [
+				{
+					character: 'GIOCHI',
+					locationKey: 'omie',
+					text: 'Academia OMIE, 2027. Han sido reclutados como agentes de la Organización Mundial de la Innovación Educativa. Hoy es su primer día de inducción.'
+				},
+				...processedDialogue
+			];
+		} else {
+			activeNarrativeDialogue = processedDialogue;
+		}
+		
 		showNarrativeOverlay = true;
 	}
 
@@ -144,6 +172,10 @@
 
 	function handleSelectMode(mode: string) {
 		showModeSelector = false;
+		if (mode === 'workshop') {
+			window.location.href = `/${lang}/learn/workshop/${data.instance.code}/${selectedWorld.id}`;
+			return;
+		}
 		activeGameMode = mode;
 	}
 

@@ -1,10 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
+	import { resolveCharacterByName, locationRegistry, characterRegistry } from '$lib/content/characters';
 
 	interface DialogueStep {
-		character: string; // 'GIOCHI', 'Sara Arbelaez', 'John Wilkins', 'Kira Yamada'
-		text: string;      // HTML supports typewriter
+		character?: string;
+		characterKey?: string;
+		imageType?: string;
+		locationKey?: string;
+		location?: string;
+		text: string;
 	}
 
 	let { 
@@ -19,6 +24,36 @@
 	let displayedText = $state('');
 	let isTypewriterFinished = $state(false);
 	let intervalId: any = null;
+
+	const activeStepData = $derived(dialogue[currentStep] || null);
+
+	const resolvedLocation = $derived.by(() => {
+		if (!activeStepData) return null;
+		const key = activeStepData.locationKey || activeStepData.location;
+		if (key && locationRegistry[key]) {
+			return locationRegistry[key];
+		}
+		return null;
+	});
+
+	const resolvedCharacter = $derived.by(() => {
+		if (!activeStepData) return null;
+		// If there is a location image, we don't display the character!
+		if (resolvedLocation) return null;
+		
+		if (activeStepData.characterKey && characterRegistry[activeStepData.characterKey]) {
+			return characterRegistry[activeStepData.characterKey];
+		}
+		return resolveCharacterByName(activeStepData.character || '');
+	});
+
+	let persistedLocation = $state<any>(null);
+
+	$effect(() => {
+		if (resolvedLocation) {
+			persistedLocation = resolvedLocation;
+		}
+	});
 
 	// Start typewriter effect
 	function runTypewriter(text: string) {
@@ -83,62 +118,86 @@
 </script>
 
 {#if dialogue.length > 0}
-	<div class="narrative-overlay" transition:fade>
+	<div 
+		class="narrative-overlay" 
+		transition:fade 
+		style={persistedLocation ? `background-image: linear-gradient(rgba(30, 69, 51, 0.45), rgba(30, 69, 51, 0.75)), url('${persistedLocation.images.base}'); background-size: cover; background-position: center;` : ''}
+	>
 		<div class="narrative-container glass-card" in:fly={{ y: 50, duration: 500 }}>
-			<!-- CHARACTER VIEWPORTS -->
+			<!-- CHARACTER/LOCATION VIEWPORTS -->
 			<div class="character-viewport">
-				<div class="avatar-holder">
-					{#if dialogue[currentStep].character === 'GIOCHI'}
-						<!-- VECTOR GIOCHI (Blinking bot) -->
-						<div class="giochi-bot-portrait" in:fade>
-							<div class="bot-head animate-float">
-								<div class="bot-antenna"></div>
-								<div class="bot-eyes">
-									<div class="eye blinking"></div>
-									<div class="eye blinking"></div>
-								</div>
-								<div class="bot-mouth"></div>
-							</div>
-							<div class="bot-neck"></div>
-							<div class="bot-wheels"></div>
-						</div>
-					{:else if dialogue[currentStep].character === 'Sara Arbelaez'}
-						<!-- VECTOR SARA (Kind Psychologist) -->
-						<div class="mentor-portrait sara" in:fade>
-							<div class="mentor-head">
-								<div class="glasses green"></div>
-								<div class="wreath">✿</div>
-								<div class="smile"></div>
-							</div>
-							<div class="mentor-shoulders"></div>
-						</div>
-					{:else if dialogue[currentStep].character === 'John Wilkins'}
-						<!-- VECTOR JOHN (Strict Mechanist) -->
-						<div class="mentor-portrait john" in:fade>
-							<div class="mentor-head">
-								<div class="glasses monocle"></div>
-								<div class="hair gray"></div>
-								<div class="strict-mouth"></div>
-							</div>
-							<div class="mentor-shoulders"></div>
-						</div>
-					{:else if dialogue[currentStep].character === 'Kira Yamada'}
-						<!-- VECTOR KIRA (Purpose Architect) -->
-						<div class="mentor-portrait kira" in:fade>
-							<div class="mentor-head">
-								<div class="hair black"></div>
-								<div class="crown yellow">👑</div>
-								<div class="focused-eyes"></div>
-							</div>
-							<div class="mentor-shoulders"></div>
-						</div>
-					{/if}
-				</div>
+				{#if resolvedLocation}
+					<div class="location-holder" in:fade>
+						<img src={resolvedLocation.images.base} alt={resolvedLocation.name} class="location-img" />
+					</div>
 
-				<div class="identity-badge">
-					<span class="character-title">MENTOR OMIE</span>
-					<h3 class="character-name">{dialogue[currentStep].character}</h3>
-				</div>
+					<div class="identity-badge mt-2">
+						<span class="character-title">📍 LOCACIÓN</span>
+						<h3 class="character-name">{resolvedLocation.name}</h3>
+					</div>
+				{:else if resolvedCharacter}
+					<div class="avatar-holder premium-avatar" in:fade>
+						<img src={resolvedCharacter.images[activeStepData.imageType || 'base']} alt={resolvedCharacter.name} class="character-img" />
+					</div>
+
+					<div class="identity-badge">
+						<span class="character-title">MENTOR OMIE</span>
+						<h3 class="character-name">{resolvedCharacter.name}</h3>
+					</div>
+				{:else}
+					<div class="avatar-holder">
+						{#if dialogue[currentStep].character === 'GIOCHI'}
+							<!-- VECTOR GIOCHI (Blinking bot) -->
+							<div class="giochi-bot-portrait" in:fade>
+								<div class="bot-head animate-float">
+									<div class="bot-antenna"></div>
+									<div class="bot-eyes">
+										<div class="eye blinking"></div>
+										<div class="eye blinking"></div>
+									</div>
+									<div class="bot-mouth"></div>
+								</div>
+								<div class="bot-neck"></div>
+								<div class="bot-wheels"></div>
+							</div>
+						{:else if dialogue[currentStep].character === 'Sara Arbelaez'}
+							<!-- VECTOR SARA (Kind Psychologist) -->
+							<div class="mentor-portrait sara" in:fade>
+								<div class="mentor-head">
+									<div class="glasses green"></div>
+									<div class="wreath">✿</div>
+									<div class="smile"></div>
+								</div>
+								<div class="mentor-shoulders"></div>
+							</div>
+						{:else if dialogue[currentStep].character === 'John Wilkins'}
+							<!-- VECTOR JOHN (Strict Mechanist) -->
+							<div class="mentor-portrait john" in:fade>
+								<div class="mentor-head">
+									<div class="glasses monocle"></div>
+									<div class="hair gray"></div>
+									<div class="strict-mouth"></div>
+								</div>
+								<div class="mentor-shoulders"></div>
+							</div>
+						{:else if dialogue[currentStep].character === 'Kira Yamada'}
+							<!-- VECTOR KIRA (Purpose Architect) -->
+							<div class="mentor-portrait kira" in:fade>
+								<div class="mentor-head">
+									<div class="hair black"></div>
+									<div class="crown yellow">👑</div>
+									<div class="focused-eyes"></div>
+								</div>
+								<div class="mentor-shoulders"></div>
+							</div>
+						{/if}
+					</div>
+
+					<div class="identity-badge">
+						<span class="character-title">MENTOR OMIE</span>
+						<h3 class="character-name">{dialogue[currentStep].character || 'GIOCHI'}</h3>
+					</div>
+				{/if}
 			</div>
 
 			<!-- DIALOGUE CONTENT -->
@@ -548,5 +607,46 @@
 
 	.btn-skip:hover {
 		color: var(--color-solar-text);
+	}
+
+	/* PREMIUM IMAGES & LOCATIONS */
+	.premium-avatar {
+		border-color: var(--color-solar-green-medium);
+		background: linear-gradient(135deg, #ffffff, var(--color-solar-bg));
+		box-shadow: 0 0 20px rgba(61, 143, 104, 0.25);
+		transition: all 0.3s ease;
+	}
+
+	.character-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: center;
+	}
+
+	.location-holder {
+		width: 100%;
+		height: 160px;
+		border-radius: var(--radius-solar-md, 20px);
+		border: 3px solid var(--color-solar-green-medium);
+		overflow: hidden;
+		box-shadow: var(--shadow-solar-md);
+		margin-bottom: 1.25rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #000;
+	}
+
+	.location-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: center;
+		transition: transform 0.5s ease;
+	}
+
+	.location-holder:hover .location-img {
+		transform: scale(1.05);
 	}
 </style>

@@ -15,6 +15,14 @@
 
 	let activeJournalTab = $state('canvas'); // 'canvas', 'wiki', 'achievements', 'roster'
 
+	let tabsContainer = $state<HTMLElement | null>(null);
+
+	function scrollCarousel(offset: number) {
+		if (tabsContainer) {
+			tabsContainer.scrollBy({ left: offset, behavior: 'smooth' });
+		}
+	}
+
 	const gameState = $derived(player.game_state || {});
 
 	// Calculate earned achievements based on player state!
@@ -103,172 +111,231 @@
 			</div>
 		</div>
 
-		<!-- Notebook Tabs -->
-		<div class="notebook-tabs-menu">
-			<button 
-				class="n-tab" 
-				class:active={activeJournalTab === 'canvas'} 
-				onclick={() => activeJournalTab = 'canvas'}
-			>
-				📝 Bitácora de Diseños
-			</button>
-			<button 
-				class="n-tab" 
-				class:active={activeJournalTab === 'wiki'} 
-				onclick={() => activeJournalTab = 'wiki'}
-			>
-				📚 Biblioteca Desbloqueada
-			</button>
-			<button 
-				class="n-tab" 
-				class:active={activeJournalTab === 'achievements'} 
-				onclick={() => activeJournalTab = 'achievements'}
-			>
-				🏆 Logros Obtenidos
-			</button>
-			<button 
-				class="n-tab" 
-				class:active={activeJournalTab === 'roster'} 
-				onclick={() => activeJournalTab = 'roster'}
-			>
-				👥 Roster OMIE
-			</button>
-		</div>
+		<!-- Notebook Two-Column / Carousel Layout Wrapper -->
+		<div class="notebook-layout-container">
+			<!-- Left column menu on desktop, horizontal carousel on mobile -->
+			<div class="notebook-menu-column">
+				<!-- Carousel wrapper for mobile with navigation arrows -->
+				<div class="carousel-nav-wrapper">
+					<button type="button" class="carousel-arrow prev" onclick={() => scrollCarousel(-100)} aria-label="Anterior">‹</button>
+					
+					<div class="notebook-tabs-menu" bind:this={tabsContainer}>
+						<button 
+							class="n-tab" 
+							class:active={activeJournalTab === 'canvas'} 
+							onclick={() => activeJournalTab = 'canvas'}
+						>
+							📝 Bitácora de Diseños
+						</button>
+						<button 
+							class="n-tab" 
+							class:active={activeJournalTab === 'ideas'} 
+							onclick={() => activeJournalTab = 'ideas'}
+						>
+							💡 Ideas Guardadas
+						</button>
+						<button 
+							class="n-tab" 
+							class:active={activeJournalTab === 'wiki'} 
+							onclick={() => activeJournalTab = 'wiki'}
+						>
+							📚 Biblioteca Desbloqueada
+						</button>
+						<button 
+							class="n-tab" 
+							class:active={activeJournalTab === 'achievements'} 
+							onclick={() => activeJournalTab = 'achievements'}
+						>
+							🏆 Logros Obtenidos
+						</button>
+						<button 
+							class="n-tab" 
+							class:active={activeJournalTab === 'roster'} 
+							onclick={() => activeJournalTab = 'roster'}
+						>
+							👥 Roster OMIE
+						</button>
+					</div>
 
-		<hr class="n-separator" />
+					<button type="button" class="carousel-arrow next" onclick={() => scrollCarousel(100)} aria-label="Siguiente">›</button>
+				</div>
+			</div>
 
-		<div class="notebook-body max-h-96 overflow-y-auto">
-			<!-- TAB: CANVAS DESIGNS -->
-			{#if activeJournalTab === 'canvas'}
-				<div class="tab-content" in:fade>
-					<h3>✏️ Actividades de Aprendizaje Guardadas</h3>
-					<p class="section-desc">Aquí se compilan todos los Canvas de diseño de clase que has enviado en tus misiones.</p>
+			<!-- Vertical Divider for Desktop -->
+			<div class="notebook-vertical-divider"></div>
 
-					{#if typeof worlds === 'object'}
-						{@const canvasWorlds = worlds.filter(w => gameState[w.id]?.design_canvas)}
-						{#if canvasWorlds.length > 0}
-							<div class="accordion-canvases">
-								{#each canvasWorlds as w}
-									{@const canvas = gameState[w.id].design_canvas}
-									<div class="canvas-saved-block">
-										<h4 class="world-title-saved">Mundo {w.order_index}: {w.title}</h4>
-										<div class="canvas-grid-display">
-											{#each Object.entries(canvas) as [driver, answer]}
-												<div class="driver-item-saved">
-													<span class="d-label">{driver.toUpperCase()}:</span>
-													<p class="d-answer">"{answer}"</p>
+			<!-- Right Column Content Body -->
+			<div class="notebook-body-column">
+				<div class="notebook-body max-h-[500px] overflow-y-auto">
+					<!-- TAB: CANVAS DESIGNS -->
+					{#if activeJournalTab === 'canvas'}
+						<div class="tab-content" in:fade>
+							<h3>✏️ Actividades de Aprendizaje Guardadas</h3>
+							<p class="section-desc">Aquí se compilan todos los Canvas de diseño de clase que has enviado en tus misiones.</p>
+
+							{#if typeof worlds === 'object'}
+								{@const canvasWorlds = worlds.filter(w => gameState[w.id]?.design_canvas)}
+								{#if canvasWorlds.length > 0}
+									<div class="accordion-canvases">
+										{#each canvasWorlds as w}
+											{@const canvas = gameState[w.id].design_canvas}
+											<div class="canvas-saved-block">
+												<h4 class="world-title-saved">Mundo {w.order_index}: {w.title}</h4>
+												<div class="canvas-grid-display">
+													{#each Object.entries(canvas) as [driver, answer]}
+														<div class="driver-item-saved">
+															<span class="d-label">{driver.toUpperCase()}:</span>
+															<p class="d-answer">"{answer}"</p>
+														</div>
+													{/each}
 												</div>
-											{/each}
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<div class="empty-notebook-state">
+										<span class="empty-icon">🤖</span>
+										<div class="empty-text">
+											<strong>Bitácora en Blanco</strong>
+											<p>GIOCHI reporta: ¡Bip-bup! No detecto diseños de canvas en tus registros. Dirígete a la ruta del curso, haz clic en el Mundo 1, selecciona "Modo Diseño" y redacta tus propuestas motivacionales.</p>
+										</div>
+									</div>
+								{/if}
+							{/if}
+						</div>
+					{/if}
+
+					<!-- TAB: IDEAS -->
+					{#if activeJournalTab === 'ideas'}
+						{@const likedIdeas = gameState.ideas || []}
+						<div class="tab-content" in:fade>
+							<h3>💡 Ideas de Diseño Motivacional BEM</h3>
+							<p class="section-desc">Casos de estudio y escenarios de la trivia que marcaste con "Me gusta" para guardarlos como inspiración para tus clases.</p>
+
+							{#if likedIdeas.length > 0}
+								<div class="ideas-list-layout">
+									{#each likedIdeas as idea}
+										<div class="resource-unlocked-card idea-card" in:slide>
+											<div class="res-badge-row">
+												<span class="driver-tag driver-{idea.driver.toLowerCase()}">{idea.driver.toUpperCase()}</span>
+												<span class="res-world">{idea.likedAt ? new Date(idea.likedAt).toLocaleDateString() : ''}</span>
+											</div>
+											<blockquote class="scenario-text-journal mt-2">
+												"{idea.scenario}"
+											</blockquote>
+											
+											<div class="article-content-box mt-3">
+												<h6 class="font-bold text-[10px] uppercase tracking-wider text-solar-green-medium mb-1">Análisis de Diseño BEM:</h6>
+												<p class="explanation-text text-xs leading-relaxed">{idea.explanation}</p>
+											</div>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<div class="empty-notebook-state">
+									<span class="empty-icon">💡</span>
+									<div class="empty-text">
+										<strong>Tu baúl de Ideas está vacío</strong>
+										<p>Mientras resuelves el Simulador de Trivia en solitario, haz clic en el botón <strong>"💡 Me gusta. Volver una Idea"</strong> que aparece en cada caso para guardarlo aquí como recurso permanente de consulta.</p>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/if}
+
+					<!-- TAB: WIKI / RESOURCES -->
+					{#if activeJournalTab === 'wiki'}
+						{@const unlockedResources = worlds.reduce((acc, w) => {
+							const res = gameState[w.id]?.unlocked_resources || [];
+							const worldWiki = w.wiki_modules || [];
+							const matched = worldWiki.filter((r: any) => res.includes(r.id));
+							return [...acc, ...matched.map((r: any) => ({ ...r, worldTitle: w.title }))];
+						}, [] as any[])}
+						<div class="tab-content" in:fade>
+							<h3>📚 Biblioteca de Recursos Desbloqueados</h3>
+							<p class="section-desc">Materiales teóricos opcionales que has adquirido canjeando BEM Coins en la Wiki.</p>
+
+							{#if unlockedResources.length > 0}
+								<div class="resources-unlocked-grid">
+									{#each unlockedResources as r}
+										<div class="resource-unlocked-card">
+											<div class="res-badge-row">
+												<span class="res-type-badge {r.type}">{r.type.toUpperCase()}</span>
+												<span class="res-world">{r.worldTitle}</span>
+											</div>
+											<h4>{r.title}</h4>
+											<p class="res-desc">{r.desc}</p>
+											
+											{#if r.type === 'article'}
+												<div class="article-content-box">
+													<p>{r.content}</p>
+												</div>
+											{:else}
+												<a href={r.url} target="_blank" rel="noopener noreferrer" class="btn-solar-primary btn-sm mt-3">
+													📥 Descargar / Ver {r.type.toUpperCase()}
+												</a>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<div class="empty-notebook-state">
+									<span class="empty-icon">📚</span>
+									<div class="empty-text">
+										<strong>Biblioteca Vacía</strong>
+										<p>No has desbloqueado ningún recurso de mentor opcional. Gana BEM Coins resolviendo trivias de entrenamiento en solitario y gástalas en la pestaña Wiki de cada mundo.</p>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/if}
+
+					<!-- TAB: ACHIEVEMENTS -->
+					{#if activeJournalTab === 'achievements'}
+						<div class="tab-content" in:fade>
+							<h3>🏆 Logros e Insignias de Agente</h3>
+							<p class="section-desc">Hitos alcanzados a lo largo de tu viaje en la academia de gamificación OMIE.</p>
+
+							<div class="achievements-list-layout">
+								{#each achievementsList as ach}
+									<div class="achievement-row-card" class:locked={!ach.unlocked}>
+										<div class="ach-icon">{ach.icon}</div>
+										<div class="ach-info">
+											<h4>{ach.title}</h4>
+											<p>{ach.desc}</p>
+										</div>
+										<div class="ach-date">
+											{#if ach.unlocked}
+												<span class="date-unlocked">Otorgado</span>
+												<span class="date-val">{ach.date ? new Date(ach.date).toLocaleDateString() : ''}</span>
+											{:else}
+												<span class="date-locked">Bloqueado</span>
+											{/if}
 										</div>
 									</div>
 								{/each}
 							</div>
-						{:else}
-							<div class="empty-notebook-state">
-								<span class="empty-icon">🤖</span>
-								<div class="empty-text">
-									<strong>Bitácora en Blanco</strong>
-									<p>GIOCHI reporta: ¡Bip-bup! No detecto diseños de canvas en tus registros. Dirígete a la ruta del curso, haz clic en el Mundo 1, selecciona "Modo Diseño" y redacta tus propuestas motivacionales.</p>
-								</div>
-							</div>
-						{/if}
+						</div>
 					{/if}
-				</div>
-			{/if}
 
-			<!-- TAB: WIKI / RESOURCES -->
-			{#if activeJournalTab === 'wiki'}
-				{@const unlockedResources = worlds.reduce((acc, w) => {
-					const res = gameState[w.id]?.unlocked_resources || [];
-					const worldWiki = w.wiki_modules || [];
-					const matched = worldWiki.filter((r: any) => res.includes(r.id));
-					return [...acc, ...matched.map((r: any) => ({ ...r, worldTitle: w.title }))];
-				}, [] as any[])}
-				<div class="tab-content" in:fade>
-					<h3>📚 Biblioteca de Recursos Desbloqueados</h3>
-					<p class="section-desc">Materiales teóricos opcionales que has adquirido canjeando BEM Coins en la Wiki.</p>
+					<!-- TAB: ROSTER CLASSMATES -->
+					{#if activeJournalTab === 'roster'}
+						<div class="tab-content" in:fade>
+							<h3>👥 Roster de Agentes de la Clase</h3>
+							<p class="section-desc">Navega y compara tus estadísticas de personaje RPG con tus compañeros de clase activos.</p>
 
-					{#if unlockedResources.length > 0}
-						<div class="resources-unlocked-grid">
-							{#each unlockedResources as r}
-								<div class="resource-unlocked-card">
-									<div class="res-badge-row">
-										<span class="res-type-badge {r.type}">{r.type.toUpperCase()}</span>
-										<span class="res-world">{r.worldTitle}</span>
-									</div>
-									<h4>{r.title}</h4>
-									<p class="res-desc">{r.desc}</p>
-									
-									{#if r.type === 'article'}
-										<div class="article-content-box">
-											<p>{r.content}</p>
+							<div class="roster-grid-layout">
+								{#each classmates as mate}
+									{@const mateState = mate.game_state || {}}
+									{@const world1Stats = mateState['1']?.rpg_character?.drivers ?? null}
+
+									<div class="roster-classmate-card">
+										<div class="mate-card-header">
+											<div class="m-badge group">{mate.avatar ? mate.avatar.replace('-', ' ') : 'Agente'}</div>
+											<div class="mate-card-meta">🪙 {mate.coins} Coins</div>
 										</div>
-									{:else}
-										<a href={r.url} target="_blank" rel="noopener noreferrer" class="btn-solar-primary btn-sm mt-3">
-											📥 Descargar / Ver {r.type.toUpperCase()}
-										</a>
-									{/if}
-								</div>
-							{/each}
-						</div>
-					{:else}
-						<div class="empty-notebook-state">
-							<span class="empty-icon">📚</span>
-							<div class="empty-text">
-								<strong>Biblioteca Vacía</strong>
-								<p>No has desbloqueado ningún recurso de mentor opcional. Gana BEM Coins resolviendo trivias de entrenamiento en solitario y gástalas en la pestaña Wiki de cada mundo.</p>
-							</div>
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<!-- TAB: ACHIEVEMENTS -->
-			{#if activeJournalTab === 'achievements'}
-				<div class="tab-content" in:fade>
-					<h3>🏆 Logros e Insignias de Agente</h3>
-					<p class="section-desc">Hitos alcanzados a lo largo de tu viaje en la academia de gamificación OMIE.</p>
-
-					<div class="achievements-list-layout">
-						{#each achievementsList as ach}
-							<div class="achievement-row-card" class:locked={!ach.unlocked}>
-								<div class="ach-icon">{ach.icon}</div>
-								<div class="ach-info">
-									<h4>{ach.title}</h4>
-									<p>{ach.desc}</p>
-								</div>
-								<div class="ach-date">
-									{#if ach.unlocked}
-										<span class="date-unlocked">Otorgado</span>
-										<span class="date-val">{ach.date ? new Date(ach.date).toLocaleDateString() : ''}</span>
-									{:else}
-										<span class="date-locked">Bloqueado</span>
-									{/if}
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
-			{/if}
-
-			<!-- TAB: ROSTER CLASSMATES -->
-			{#if activeJournalTab === 'roster'}
-				<div class="tab-content" in:fade>
-					<h3>👥 Roster de Agentes de la Clase</h3>
-					<p class="section-desc">Navega y compara tus estadísticas de personaje RPG con tus compañeros de clase activos.</p>
-
-					<div class="roster-grid-layout">
-						{#each classmates as mate}
-							{@const mateState = mate.game_state || {}}
-							{@const world1Stats = mateState['1']?.rpg_character?.drivers ?? null}
-
-							<div class="roster-classmate-card">
-								<div class="mate-card-header">
-									<div class="m-badge group">{mate.avatar ? mate.avatar.replace('-', ' ') : 'Agente'}</div>
-									<div class="mate-card-meta">🪙 {mate.coins} Coins</div>
-								</div>
-								
-								<div class="mate-card-body flex gap-3 mt-2">
+										
+										<div class="mate-card-body flex gap-3 mt-2">
 									<div class="mate-avatar-circle">{mate.name.substring(0,2).toUpperCase()}</div>
 									<div class="mate-details">
 										<strong>{mate.name}</strong>
@@ -293,6 +360,8 @@
 					</div>
 				</div>
 			{/if}
+				</div>
+			</div>
 		</div>
 	</div>
 </div>
@@ -404,49 +473,155 @@
 		box-shadow: var(--shadow-solar-sm);
 	}
 
-	/* TABS MENU */
+	/* NEW TWO-COLUMN & CAROUSEL LAYOUT */
+	.notebook-layout-container {
+		display: flex;
+		gap: 2rem;
+		align-items: stretch;
+		min-height: 480px;
+	}
+
+	.notebook-menu-column {
+		width: 230px;
+		flex-shrink: 0;
+	}
+
+	.notebook-vertical-divider {
+		width: 1px;
+		background: var(--color-solar-card-border);
+		align-self: stretch;
+	}
+
+	.notebook-body-column {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.carousel-nav-wrapper {
+		display: flex;
+		align-items: center;
+		width: 100%;
+	}
+
+	/* Disable Carousel Arrows on Desktop */
+	.carousel-arrow {
+		display: none;
+	}
+
+	/* Vertically list tabs on Desktop */
 	.notebook-tabs-menu {
 		display: flex;
+		flex-direction: column;
 		gap: 0.5rem;
-		flex-wrap: wrap;
-		border-bottom: 1px solid var(--color-solar-card-border);
-		padding-bottom: 0.1rem;
+		border-bottom: none;
+		padding-bottom: 0;
+		width: 100%;
 	}
 
 	.n-tab {
-		background: transparent;
-		border: none;
+		background: rgba(0, 0, 0, 0.02);
+		border: 1px solid rgba(0, 0, 0, 0.03);
+		border-radius: 12px;
 		color: var(--color-solar-text-muted);
 		font-weight: 700;
-		font-size: 0.9rem;
-		padding: 0.75rem 1.25rem;
+		font-size: 0.85rem;
+		padding: 0.75rem 1rem;
 		cursor: pointer;
-		position: relative;
+		text-align: left;
+		width: 100%;
 		transition: all 0.2s ease;
+		box-sizing: border-box;
 	}
 
 	.n-tab:hover {
 		color: var(--color-solar-green-dark);
+		background: rgba(61, 143, 104, 0.06);
+		border-color: rgba(61, 143, 104, 0.15);
 	}
 
 	.n-tab.active {
-		color: var(--color-solar-green-dark);
+		color: white !important;
+		background: var(--color-solar-green-medium) !important;
+		border-color: var(--color-solar-green-medium) !important;
+		box-shadow: var(--shadow-solar-sm);
 	}
 
 	.n-tab.active::after {
-		content: '';
-		position: absolute;
-		bottom: -2px;
-		left: 0;
-		width: 100%;
-		height: 3px;
-		background: var(--color-solar-green-medium);
-		border-radius: 3px 3px 0 0;
+		display: none; /* Hide standard bottom bar */
+	}
+
+	/* RESPONSIVE JOURNAL POPUP (MOBILE) */
+	@media (max-width: 768px) {
+		.notebook-layout-container {
+			flex-direction: column;
+			gap: 1rem;
+			min-height: auto;
+		}
+
+		.notebook-menu-column {
+			width: 100%;
+		}
+
+		.notebook-vertical-divider {
+			display: none;
+		}
+
+		.carousel-nav-wrapper {
+			display: flex;
+			position: relative;
+			gap: 0.5rem;
+		}
+
+		.carousel-arrow {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 32px;
+			height: 32px;
+			border-radius: 50%;
+			background: var(--color-solar-bg);
+			border: 1.5px solid var(--color-solar-card-border);
+			cursor: pointer;
+			font-size: 1.1rem;
+			font-weight: bold;
+			color: var(--color-solar-green-dark);
+			user-select: none;
+			transition: all 0.2s ease;
+			z-index: 10;
+		}
+
+		.carousel-arrow:hover {
+			background: white;
+			border-color: var(--color-solar-green-medium);
+		}
+
+		.notebook-tabs-menu {
+			flex-direction: row !important;
+			overflow-x: auto;
+			scroll-behavior: smooth;
+			-webkit-overflow-scrolling: touch;
+			gap: 0.5rem;
+			flex: 1;
+			width: 100%;
+			padding-bottom: 0.5rem;
+			scrollbar-width: none; /* Hide scrollbar Firefox */
+		}
+
+		.notebook-tabs-menu::-webkit-scrollbar {
+			display: none; /* Hide scrollbar Chrome/Safari */
+		}
+
+		.n-tab {
+			width: auto !important;
+			white-space: nowrap;
+			display: inline-block;
+			padding: 0.5rem 1rem;
+			border-radius: 20px;
+		}
 	}
 
 	.n-separator {
-		border: none;
-		margin: 0 0 2rem 0;
+		display: none; /* Separator not needed in new two-column layout */
 	}
 
 	.notebook-body {
@@ -761,4 +936,49 @@
 	.p-sm-pad { padding: 0.375rem; }
 	.rounded { border-radius: 0.25rem; }
 	.border { border: 1px solid #E5E7EB; }
+
+	.ideas-list-layout {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		width: 100%;
+	}
+
+	/* IDEAS STYLES */
+	.scenario-text-journal {
+		font-family: var(--font-solar-header), sans-serif;
+		font-size: 0.95rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark);
+		line-height: 1.4;
+		margin: 0.5rem 0 0;
+	}
+
+	.idea-card {
+		transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+	}
+
+	.idea-card:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-solar-md);
+		border-color: var(--color-solar-green-medium);
+	}
+
+	/* Color categories for Drivers matching Solarpunk visual system */
+	.driver-tag {
+		font-size: 0.65rem;
+		font-weight: 800;
+		padding: 0.2rem 0.5rem;
+		border-radius: 6px;
+		letter-spacing: 0.05em;
+		display: inline-block;
+	}
+
+	.driver-tag.driver-hedonismo { background: #ffe4e6; color: #e11d48; }
+	.driver-tag.driver-eficiencia { background: #fee2e2; color: #b91c1c; }
+	.driver-tag.driver-relacionamiento { background: #ffedd5; color: #d97706; }
+	.driver-tag.driver-maestría { background: #e0f2fe; color: #0369a1; }
+	.driver-tag.driver-descubrimiento { background: #d2f5e3; color: #1e4533; }
+	.driver-tag.driver-empoderamiento { background: #f3e8ff; color: #6b21a8; }
+	.driver-tag.driver-propósito { background: #fef3c7; color: #b45309; }
 </style>

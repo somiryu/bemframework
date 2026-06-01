@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade, fly } from 'svelte/transition';
+	import { resolveCharacterByName } from '$lib/content/characters';
 
 	interface World {
 		id: number;
@@ -43,7 +44,7 @@
 				avatar: '⚙️',
 				colorClass: 'john',
 				role: 'Diseñador de Sistemas & Mecánicas OMIE',
-				bio: 'John diseña las reglas del juego. Se enfoca en crear sistemas eficientes, bucles de retroalimentación coherentes y retos de Maestría.'
+				bio: 'John diseña las rules del juego. Se enfoca en crear sistemas eficientes, bucles de retroalimentación coherentes y retos de Maestría.'
 			};
 		} else {
 			return {
@@ -54,6 +55,8 @@
 			};
 		}
 	});
+
+	const character = $derived(resolveCharacterByName(world.narrative_mentor));
 </script>
 
 <div class="mode-overlay" transition:fade>
@@ -91,7 +94,13 @@
 
 				<!-- Mentor Profile -->
 				<div class="mentor-brief-card {mentorDetails.colorClass}">
-					<div class="m-avatar">{mentorDetails.avatar}</div>
+					<div class="m-avatar">
+						{#if character}
+							<img src={character.images.base} alt={character.name} class="m-avatar-img" />
+						{:else}
+							{mentorDetails.avatar}
+						{/if}
+					</div>
 					<div class="m-info">
 						<span class="m-role">{mentorDetails.role}</span>
 						<h4 class="m-name">{world.narrative_mentor}</h4>
@@ -337,6 +346,30 @@
 		justify-content: center;
 		font-size: 1.5rem;
 		box-shadow: var(--shadow-solar-sm);
+		overflow: hidden;
+		flex-shrink: 0;
+		border: 2.5px solid var(--color-solar-green-medium);
+		transition: all 0.3s ease;
+	}
+
+	.mentor-brief-card.sara .m-avatar {
+		border-color: #ec4899;
+		box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+	}
+	.mentor-brief-card.john .m-avatar {
+		border-color: #0d9488;
+		box-shadow: 0 0 10px rgba(13, 148, 136, 0.4);
+	}
+	.mentor-brief-card.kira .m-avatar {
+		border-color: #d97706;
+		box-shadow: 0 0 10px rgba(217, 119, 6, 0.4);
+	}
+
+	.m-avatar-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: center;
 	}
 
 	.m-info {
