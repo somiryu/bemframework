@@ -59,6 +59,33 @@
 	let classSubmissions = $state<Record<string, any>>({});
 
 	onMount(() => {
+		// Persistent state recovery: Load existing choices from player.game_state[1] if present
+		const existingState = player.game_state?.[1] || {};
+		if (existingState.guild) {
+			selectedGuild = existingState.guild;
+			studentCompletedSlides[0] = true;
+		}
+		if (existingState.character) {
+			selectedCharacter = existingState.character;
+			studentCompletedSlides[1] = true;
+		}
+		if (existingState.skills) {
+			skillPoints = { ...existingState.skills };
+			studentCompletedSlides[2] = true;
+		}
+		if (existingState.virtues || existingState.flaws) {
+			gameVirtues = existingState.virtues || '';
+			gameFlaws = existingState.flaws || '';
+			studentCompletedSlides[3] = true;
+		}
+		if (existingState.preference) {
+			selectedPreference = existingState.preference;
+			studentCompletedSlides[4] = true;
+		}
+		if (existingState.workshop_completed) {
+			studentCompletedSlides[5] = true;
+		}
+
 		if (supabase) {
 			const channelId = `workshop_session_omie_${instance.code}`;
 			channel = supabase.channel(channelId, {
@@ -174,40 +201,37 @@
 			[player.id]: payloadData
 		};
 
-		// Slide-specific DB persistence
-		if (currentSlide === 0 && selectedGuild) {
-			const state = player.game_state || {};
-			state[1] = { ...(state[1] || {}), guild: selectedGuild };
-			await supabase
-				.from('course_players')
-				.update({ game_state: state })
-				.eq('id', player.id);
-		}
+		// persistent DB save for every single slide submission to guarantee no data loss on page reload
+		const state = player.game_state || {};
+		state[1] = {
+			...(state[1] || {}),
+			guild: selectedGuild,
+			character: selectedCharacter,
+			skills: { ...skillPoints },
+			virtues: gameVirtues,
+			flaws: gameFlaws,
+			preference: selectedPreference
+		};
 
 		if (currentSlide === 5) {
-			// Save complete RPG Character Creator Sheet and award coins
-			const state = player.game_state || {};
-			state[1] = {
-				...(state[1] || {}),
-				workshop_completed: true,
-				rpg_character: {
-					guild: selectedGuild,
-					character: selectedCharacter,
-					skills: { ...skillPoints },
-					virtues: gameVirtues,
-					flaws: gameFlaws,
-					preference: selectedPreference
-				}
+			state[1].workshop_completed = true;
+			state[1].rpg_character = {
+				guild: selectedGuild,
+				character: selectedCharacter,
+				skills: { ...skillPoints },
+				virtues: gameVirtues,
+				flaws: gameFlaws,
+				preference: selectedPreference
 			};
-
-			await supabase
-				.from('course_players')
-				.update({
-					game_state: state,
-					coins: player.coins + 25 // Award 25 coins for completing workshop creator
-				})
-				.eq('id', player.id);
 		}
+
+		await supabase
+			.from('course_players')
+			.update({
+				game_state: state,
+				...(currentSlide === 5 ? { coins: player.coins + 25 } : {})
+			})
+			.eq('id', player.id);
 	}
 
 	// Slide 1 Content
