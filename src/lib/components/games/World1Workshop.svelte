@@ -432,14 +432,13 @@
 	<!-- HOST CONTROL PANEL OVERLAY (For Javier)              -->
 	<!-- ---------------------------------------------------- -->
 	{#if isHost}
-		<div class="host-controls-banner glass-card" in:slide>
+		<div class="host-controls-banner" in:slide>
 			<div class="host-title">
 				<span>👑 MENTOR ORQUESTADOR (JAVIER)</span>
-				<h4>Panel de Sincronización del Taller</h4>
 			</div>
 			
 			<div class="host-actions-row">
-				<div class="flex gap-2">
+				<div class="host-buttons-group">
 					<button 
 						type="button" 
 						class="btn-solar-secondary btn-sm"
@@ -1021,53 +1020,67 @@
 
 	/* HOST BANNER */
 	.host-controls-banner {
-		background: linear-gradient(135deg, hsl(150, 43%, 12%) 0%, hsl(152, 40%, 20%) 100%);
-		border: 1.5px solid var(--color-solar-yellow);
-		color: white;
+		background: linear-gradient(135deg, hsl(150, 45%, 6%) 0%, hsl(152, 40%, 10%) 100%) !important;
+		border: 1.5px solid var(--color-solar-yellow) !important;
+		color: white !important;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 0.6rem 1.25rem;
-		border-radius: 16px;
-		gap: 1rem;
+		padding: 0.25rem 1rem !important;
+		border-radius: 10px !important;
+		gap: 1.5rem !important;
 		text-align: left;
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.75rem;
+		box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+		width: 100%;
+		box-sizing: border-box;
 	}
 
 	.host-title {
 		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.host-title span {
-		font-size: 0.55rem;
-		font-weight: 800;
+		font-size: 0.65rem;
+		font-weight: 900;
 		color: var(--color-solar-yellow);
-		letter-spacing: 0.05em;
-	}
-
-	.host-title h4 {
-		font-family: var(--font-solar-header);
-		font-size: 0.95rem;
-		margin: 0;
-		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	.host-actions-row {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 1.5rem !important;
+	}
+
+	.host-buttons-group {
+		display: flex;
+		gap: 0.75rem !important;
+		align-items: center;
+	}
+
+	.host-controls-banner button {
+		padding: 0.25rem 0.65rem !important;
+		font-size: 0.75rem !important;
+		border-radius: 6px !important;
+		font-weight: 800 !important;
+		height: auto !important;
+		min-height: unset !important;
+		margin: 0 0.25rem !important; /* Explicit horizontal margin to guarantee gap spacing in all layouts */
+		border: 1px solid rgba(255, 255, 255, 0.15) !important;
 	}
 
 	.presence-tag {
-		font-size: 0.85rem;
+		font-size: 0.75rem;
 		font-weight: 700;
-		background: rgba(0, 0, 0, 0.45);
-		padding: 0.4rem 1rem;
-		border-radius: 8px;
+		background: rgba(0, 0, 0, 0.5);
+		padding: 0.25rem 0.75rem;
+		border-radius: 6px;
 		color: #ffffff;
-		border: 1px solid rgba(255, 255, 255, 0.2);
+		border: 1px solid rgba(255, 255, 255, 0.15);
 		display: inline-flex;
 		align-items: center;
 	}
