@@ -540,13 +540,34 @@
 					<!-- WAITING VIEW -->
 					<div class="spectator-card glass-card text-center" in:fade>
 						<span class="animate-float block text-3xl">⏳</span>
-						<h4>Sala de Espera de Cofradía</h4>
-						<p>Has escogido tu gremio. Espera a que el Mentor active la retroalimentación o pase de slide. Observa quiénes se unen:</p>
+						<h4>Sala de Espera de Cofradías</h4>
+						<p class="mb-4">Has escogido tu gremio. Espera a que el Mentor active la retroalimentación o pase de slide. ¡Mira cómo se distribuye la clase en tiempo real!</p>
 
-						<div class="online-players-grid mt-4">
-							{#each Object.values(classSubmissions).filter(s => s.slide === 0) as op}
-								<div class="player-roster-pill">
-									👤 <strong>{op.alias}</strong> ➔ Gremio: <span class="text-solar-green-medium font-bold">{guilds.find(g=>g.id===op.guild)?.name}</span>
+						<div class="guilds-waiting-grid mt-6">
+							{#each guilds as g}
+								{@const members = Object.values(classSubmissions).filter(s => s.slide === 0 && s.guild === g.id)}
+								<div class="guild-waiting-card" class:my-choice={selectedGuild === g.id}>
+									<div class="guild-banner-container compact">
+										<img src={g.banner} alt={g.name} class="guild-banner-img" />
+									</div>
+									<div class="guild-waiting-info">
+										<div class="guild-header-row">
+											<h4>{g.name}</h4>
+											<span class="guild-waiting-count">{members.length}</span>
+										</div>
+										{#if selectedGuild === g.id}
+											<div class="my-choice-badge">Tu Gremio</div>
+										{/if}
+										<div class="guild-members-list">
+											{#if members.length > 0}
+												{#each members as m}
+													<span class="member-pill">👤 {m.alias}</span>
+												{/each}
+											{:else}
+												<span class="no-members-label">Esperando aventureros...</span>
+											{/if}
+										</div>
+									</div>
 								</div>
 							{/each}
 						</div>
@@ -620,13 +641,33 @@
 					<!-- WAITING VIEW -->
 					<div class="spectator-card glass-card text-center" in:fade>
 						<span class="animate-float block text-3xl">🎭</span>
-						<h4>Sala de Espera de Personajes</h4>
-						<p>Tu personaje de campo ha sido asignado. Esperando instrucciones de Javier. Mira qué eligen los demás:</p>
+						<h4>Sala de Espera de Arquetipos</h4>
+						<p class="mb-4">Tu personaje de campo ha sido asignado. ¡Observa qué arquetipos está eligiendo la clase para conformar el equipo de aprendizaje!</p>
 
-						<div class="online-players-grid mt-4">
-							{#each Object.values(classSubmissions).filter(s => s.slide === 1) as op}
-								<div class="player-roster-pill">
-									👤 <strong>{op.alias}</strong> ➔ {charProfiles.find(c=>c.id===op.character)?.title}
+						<div class="profiles-waiting-grid mt-6">
+							{#each charProfiles as cp}
+								{@const members = Object.values(classSubmissions).filter(s => s.slide === 1 && s.character === cp.id)}
+								<div class="profile-waiting-card" class:my-choice={selectedCharacter === cp.id}>
+									<div class="profile-waiting-header">
+										<span class="p-waiting-icon">{cp.icon}</span>
+										<div class="p-waiting-title-area text-left">
+											<h4>{cp.title}</h4>
+											<span class="p-waiting-driver">{cp.driver}</span>
+										</div>
+										<span class="profile-waiting-count">{members.length}</span>
+									</div>
+									{#if selectedCharacter === cp.id}
+										<div class="my-choice-badge">Tu Arquetipo</div>
+									{/if}
+									<div class="profile-members-list">
+										{#if members.length > 0}
+											{#each members as m}
+												<span class="member-pill">👤 {m.alias}</span>
+											{/each}
+										{:else}
+											<span class="no-members-label">Aún sin asignar</span>
+										{/if}
+									</div>
 								</div>
 							{/each}
 						</div>
@@ -699,7 +740,34 @@
 					<div class="spectator-card glass-card text-center" in:fade>
 						<span class="animate-float block text-3xl">📊</span>
 						<h4>Sala de Espera de Habilidades</h4>
-						<p>Habilidades guardadas con éxito. Esperando a que el Mentor Javier Velasquez inicie el modo de feedback.</p>
+						<p class="mb-4">Habilidades guardadas con éxito. Observa los promedios preliminares de la clase mientras se calibran los demás estudiantes:</p>
+
+						<div class="my-skills-box mb-6">
+							<span class="text-xs font-bold uppercase tracking-wider text-solar-green-medium">Tu Calibración de Habilidades</span>
+							<div class="skills-distribution-row mt-2">
+								{#each Object.entries(skillPoints) as [skill, val]}
+									<div class="skill-mini-pill">
+										<span class="sk-name">{skill.substring(0, 3).toUpperCase()}</span>
+										<span class="sk-val">{val}</span>
+									</div>
+								{/each}
+							</div>
+						</div>
+
+						<div class="stats-bars-graph mt-6 text-left">
+							<h5 class="font-bold text-sm mb-4">Promedio Preliminar de la Clase ({Object.values(classSubmissions).filter(s => s.slide === 2).length} entregados):</h5>
+							{#each Object.keys(skillPoints) as k}
+								{@const subs = Object.values(classSubmissions).filter(s => s.slide === 2 && s.skills)}
+								{@const sum = subs.reduce((acc, curr) => acc + (curr.skills?.[k] || 0), 0)}
+								{@const avg = subs.length > 0 ? (sum / subs.length).toFixed(1) : '0.0'}
+								<div class="graph-row mb-4">
+									<div class="graph-label">{k.charAt(0).toUpperCase() + k.slice(1)} ({avg} pts prom.)</div>
+									<div class="graph-bar-track">
+										<div class="graph-bar-fill sky" style="width: {(parseFloat(avg) / 10) * 100}%"></div>
+									</div>
+								</div>
+							{/each}
+						</div>
 					</div>
 				{:else}
 					<!-- INTERACTION VIEW -->
@@ -791,7 +859,35 @@
 					<div class="spectator-card glass-card text-center" in:fade>
 						<span class="animate-float block text-3xl">🎮</span>
 						<h4>Sala de Espera de Gustos</h4>
-						<p>Preferencias de juegos subidas. Espera en esta pantalla a que el Mentor pase al Feedback de la Clase.</p>
+						<p class="mb-4">Preferencias de juegos subidas. Mira en tiempo real lo que apasiona y frustra a tus compañeros de clase:</p>
+
+						<div class="rpg-roster-split-layout mt-6">
+							<div class="glass-card text-left">
+								<h5 class="font-bold text-solar-green-medium mb-3">💚 Lo que nos apasiona (En Vivo):</h5>
+								<div class="live-scroll-list">
+									{#each Object.values(classSubmissions).filter(s => s.slide === 3 && s.virtues) as op}
+										<div class="live-input-pill mb-2">
+											<strong>{op.alias}:</strong> <span class="italic text-xs">"{op.virtues}"</span>
+										</div>
+									{:else}
+										<span class="no-members-label">Esperando gustos apasionantes...</span>
+									{/each}
+								</div>
+							</div>
+
+							<div class="glass-card text-left">
+								<h5 class="font-bold text-solar-terracotta mb-3">💔 Lo que nos frustra (En Vivo):</h5>
+								<div class="live-scroll-list">
+									{#each Object.values(classSubmissions).filter(s => s.slide === 3 && s.flaws) as op}
+										<div class="live-input-pill mb-2">
+											<strong>{op.alias}:</strong> <span class="italic text-xs">"{op.flaws}"</span>
+										</div>
+									{:else}
+										<span class="no-members-label">Esperando quejas de juegos...</span>
+									{/each}
+								</div>
+							</div>
+						</div>
 					</div>
 				{:else}
 					<!-- INTERACTION VIEW -->
@@ -863,8 +959,32 @@
 					<!-- WAITING VIEW -->
 					<div class="spectator-card glass-card text-center" in:fade>
 						<span class="animate-float block text-3xl">⚡</span>
-						<h4>Sala de Espera de Preferencia</h4>
-						<p>Preferencia enviada con éxito. Esperando a que comience la fase de retroalimentación final.</p>
+						<h4>Sala de Espera de Preferencias</h4>
+						<p class="mb-4">Preferencia enviada con éxito. ¡Mira cómo prefiere jugar la clase en tiempo real!</p>
+
+						<div class="preferences-waiting-list mt-6 text-left">
+							{#each preferences as p}
+								{@const members = Object.values(classSubmissions).filter(s => s.slide === 4 && s.preference === p.id)}
+								<div class="preference-waiting-row" class:my-choice={selectedPreference === p.id}>
+									<div class="pref-waiting-header-row">
+										<div class="pref-left">
+											<div class="pref-indicator-dot" class:my-choice={selectedPreference === p.id}></div>
+											<span class="pref-waiting-label font-bold">{p.label}</span>
+										</div>
+										<span class="pref-waiting-count">{members.length} votos</span>
+									</div>
+									<div class="pref-members-pills mt-2">
+										{#if members.length > 0}
+											{#each members as m}
+												<span class="member-pill">👤 {m.alias}</span>
+											{/each}
+										{:else}
+											<span class="no-members-label">Sin votos aún</span>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						</div>
 					</div>
 				{:else}
 					<!-- INTERACTION VIEW -->
@@ -1147,6 +1267,348 @@
 	.guild-card.selected {
 		border-color: var(--color-solar-green-medium);
 		box-shadow: 0 0 0 3px rgba(61, 143, 104, 0.25);
+	}
+
+	/* GUILDS WAITING REAL-TIME GRID */
+	.guilds-waiting-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 1.25rem;
+		margin-top: 1.5rem;
+	}
+
+	@media (max-width: 1024px) {
+		.guilds-waiting-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.guilds-waiting-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.guild-waiting-card {
+		background: rgba(255, 255, 255, 0.65);
+		border: 1.5px solid var(--color-solar-card-border);
+		border-radius: 16px;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		text-align: left;
+		transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+		box-shadow: var(--shadow-solar-sm);
+	}
+
+	.guild-waiting-card.my-choice {
+		border: 2px solid var(--color-solar-green-medium) !important;
+		background: white !important;
+		box-shadow: 0 8px 30px rgba(61, 143, 104, 0.15) !important;
+		transform: scale(1.02);
+	}
+
+	.guild-banner-container.compact {
+		width: 100%;
+		height: 140px;
+		overflow: hidden;
+		position: relative;
+	}
+
+	.guild-waiting-info {
+		padding: 1rem;
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.guild-header-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		width: 100%;
+	}
+
+	.guild-header-row h4 {
+		font-family: var(--font-solar-header);
+		font-size: 1.05rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark);
+		margin: 0;
+	}
+
+	.guild-waiting-count {
+		background: var(--color-solar-green-light);
+		color: var(--color-solar-green-dark);
+		font-size: 0.8rem;
+		font-weight: 800;
+		padding: 0.15rem 0.5rem;
+		border-radius: 9999px;
+		min-width: 1.4rem;
+		text-align: center;
+	}
+
+	.my-choice-badge {
+		font-size: 0.6rem;
+		font-weight: 900;
+		background: var(--color-solar-yellow);
+		color: var(--color-solar-green-dark);
+		padding: 0.15rem 0.4rem;
+		border-radius: 4px;
+		align-self: flex-start;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+	}
+
+	.guild-members-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		margin-top: 0.5rem;
+		border-top: 1px dashed rgba(61, 143, 104, 0.15);
+		padding-top: 0.75rem;
+		flex: 1;
+	}
+
+	.member-pill {
+		background: #ffffff;
+		border: 1px solid rgba(61, 143, 104, 0.12);
+		padding: 0.3rem 0.6rem;
+		border-radius: 6px;
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--color-solar-green-dark);
+		display: inline-flex;
+		align-items: center;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+	}
+
+	.no-members-label {
+		font-size: 0.75rem;
+		color: var(--color-solar-text-muted);
+		font-style: italic;
+		margin-top: 0.25rem;
+	}
+
+	/* SLIDE 2 WAITING STYLES */
+	.profiles-waiting-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1rem;
+		margin-top: 1.5rem;
+	}
+
+	@media (max-width: 900px) {
+		.profiles-waiting-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 600px) {
+		.profiles-waiting-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.profile-waiting-card {
+		background: rgba(255, 255, 255, 0.65);
+		border: 1.5px solid var(--color-solar-card-border);
+		border-radius: 14px;
+		padding: 1rem;
+		display: flex;
+		flex-direction: column;
+		text-align: left;
+		transition: all 0.3s ease;
+		box-shadow: var(--shadow-solar-sm);
+	}
+
+	.profile-waiting-card.my-choice {
+		border: 2px solid var(--color-solar-green-medium) !important;
+		background: white !important;
+		box-shadow: 0 6px 20px rgba(61, 143, 104, 0.12) !important;
+	}
+
+	.profile-waiting-header {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		margin-bottom: 0.5rem;
+	}
+
+	.p-waiting-icon {
+		font-size: 1.75rem;
+	}
+
+	.p-waiting-title-area {
+		flex: 1;
+	}
+
+	.p-waiting-title-area h4 {
+		font-size: 0.95rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark);
+		margin: 0;
+	}
+
+	.p-waiting-driver {
+		font-size: 0.7rem;
+		color: var(--color-solar-green-medium);
+		font-weight: 700;
+	}
+
+	.profile-waiting-count {
+		background: var(--color-solar-green-light);
+		color: var(--color-solar-green-dark);
+		font-size: 0.75rem;
+		font-weight: 800;
+		padding: 0.1rem 0.4rem;
+		border-radius: 9999px;
+	}
+
+	.profile-members-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		margin-top: 0.5rem;
+		border-top: 1px dashed rgba(61, 143, 104, 0.12);
+		padding-top: 0.5rem;
+	}
+
+	/* SLIDE 3 WAITING STYLES */
+	.my-skills-box {
+		background: rgba(255, 255, 255, 0.8);
+		border: 1px dashed var(--color-solar-green-medium);
+		padding: 1rem;
+		border-radius: 12px;
+		max-width: 600px;
+		margin: 0 auto;
+	}
+
+	.skills-distribution-row {
+		display: flex;
+		justify-content: center;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.skill-mini-pill {
+		background: white;
+		border: 1px solid rgba(61, 143, 104, 0.15);
+		padding: 0.25rem 0.5rem;
+		border-radius: 6px;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.75rem;
+	}
+
+	.sk-name {
+		font-weight: 800;
+		color: var(--color-solar-green-medium);
+	}
+
+	.sk-val {
+		font-weight: 900;
+		color: var(--color-solar-green-dark);
+		background: var(--color-solar-green-light);
+		padding: 0.05rem 0.25rem;
+		border-radius: 4px;
+	}
+
+	/* SLIDE 4 WAITING STYLES */
+	.live-scroll-list {
+		max-height: 250px;
+		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding-right: 0.25rem;
+	}
+
+	.live-input-pill {
+		background: white;
+		border: 1px solid rgba(0, 0, 0, 0.06);
+		padding: 0.5rem 0.75rem;
+		border-radius: 8px;
+		font-size: 0.8rem;
+		color: var(--color-solar-text);
+		line-height: 1.3;
+	}
+
+	/* SLIDE 5 WAITING STYLES */
+	.preferences-waiting-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		max-width: 700px;
+		margin: 1.5rem auto 0 auto;
+	}
+
+	.preference-waiting-row {
+		background: rgba(255, 255, 255, 0.6);
+		border: 1.5px solid var(--color-solar-card-border);
+		border-radius: 12px;
+		padding: 0.75rem 1rem;
+		display: flex;
+		flex-direction: column;
+		transition: all 0.3s ease;
+	}
+
+	.preference-waiting-row.my-choice {
+		border: 2px solid var(--color-solar-green-medium) !important;
+		background: white !important;
+		box-shadow: 0 4px 12px rgba(61, 143, 104, 0.08) !important;
+	}
+
+	.pref-waiting-header-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		width: 100%;
+	}
+
+	.pref-left {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex: 1;
+	}
+
+	.pref-indicator-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: #D1D5DB;
+	}
+
+	.pref-indicator-dot.my-choice {
+		background: var(--color-solar-green-medium);
+		box-shadow: 0 0 6px var(--color-solar-green-medium);
+	}
+
+	.pref-waiting-label {
+		font-size: 0.85rem;
+		color: var(--color-solar-green-dark);
+	}
+
+	.pref-waiting-count {
+		font-size: 0.8rem;
+		font-weight: 800;
+		color: var(--color-solar-green-medium);
+		background: var(--color-solar-green-light);
+		padding: 0.15rem 0.5rem;
+		border-radius: 9999px;
+	}
+
+	.pref-members-pills {
+		display: flex;
+		gap: 0.35rem;
+		flex-wrap: wrap;
+		border-top: 1px dashed rgba(61, 143, 104, 0.12);
+		padding-top: 0.5rem;
 	}
 
 	.guild-banner-container {
