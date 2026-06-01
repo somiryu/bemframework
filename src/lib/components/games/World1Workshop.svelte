@@ -450,6 +450,12 @@
 
 		return points.join(' ');
 	}
+
+	async function handleResetWorkshop() {
+		if (confirm('¿Estás seguro de que deseas reiniciar el taller al Slide 1? Todos los alumnos volverán a la primera pantalla.')) {
+			await changeSlide(0, 'actividad');
+		}
+	}
 </script>
 
 <div class="workshop-container">
@@ -464,6 +470,14 @@
 			
 			<div class="host-actions-row">
 				<div class="host-buttons-group">
+					<button 
+						type="button" 
+						class="btn-solar-danger btn-sm font-bold"
+						onclick={handleResetWorkshop}
+					>
+						🔄 Reiniciar
+					</button>
+
 					<button 
 						type="button" 
 						class="btn-solar-secondary btn-sm"
@@ -2051,4 +2065,15 @@
 	.mt-4 { margin-top: 1rem; }
 	.mb-4 { margin-bottom: 1rem; }
 	.mb-6 { margin-bottom: 1.5rem; }
+
+	.btn-solar-danger {
+		background: #ef4444 !important;
+		color: white !important;
+		border: 1px solid #dc2626 !important;
+	}
+
+	.btn-solar-danger:hover {
+		background: #dc2626 !important;
+		transform: translateY(-1px);
+	}
 </style>
