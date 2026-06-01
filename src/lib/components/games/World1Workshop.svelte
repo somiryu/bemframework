@@ -229,6 +229,7 @@
 			.from('course_players')
 			.update({
 				game_state: state,
+				...(selectedCharacter ? { avatar: selectedCharacter } : {}),
 				...(currentSlide === 5 ? { coins: player.coins + 25 } : {})
 			})
 			.eq('id', player.id);
