@@ -107,6 +107,28 @@
 				};
 			});
 
+			channel.on('broadcast', { event: 'workshop-reset' }, () => {
+				studentCompletedSlides = {};
+				selectedGuild = '';
+				selectedCharacter = '';
+				skillPoints = {
+					heroismo: 2,
+					poder: 2,
+					explotacion: 2,
+					habilidad: 3,
+					colaboracion: 2,
+					administracion: 2,
+					arte: 2
+				};
+				gameVirtues = '';
+				gameFlaws = '';
+				selectedPreference = '';
+				classSubmissions = {};
+				
+				currentSlide = 0;
+				activeSlideMode = 'actividad';
+			});
+
 			// Presence sync
 			channel.on('presence', { event: 'sync' }, () => {
 				const state = channel.presenceState();
@@ -452,7 +474,52 @@
 	}
 
 	async function handleResetWorkshop() {
-		if (confirm('¿Estás seguro de que deseas reiniciar el taller al Slide 1? Todos los alumnos volverán a la primera pantalla.')) {
+		if (confirm('¿Estás seguro de que deseas reiniciar el taller al Slide 1? Se borrarán todas las respuestas de los estudiantes para permitirles volver a jugar.')) {
+			// 1. Fetch all players in this session/instance
+			const { data: players } = await supabase
+				.from('course_players')
+				.select('id, game_state')
+				.eq('instance_code', instance.code);
+
+			if (players) {
+				for (const p of players) {
+					const newState = p.game_state || {};
+					delete newState[1]; // Clear World 1 progress
+					await supabase
+						.from('course_players')
+						.update({ game_state: newState, avatar: null })
+						.eq('id', p.id);
+				}
+			}
+
+			// 2. Broadcast reset event to all connected clients
+			if (channel) {
+				await channel.send({
+					type: 'broadcast',
+					event: 'workshop-reset',
+					payload: {}
+				});
+			}
+
+			// 3. Clear local states for Javier too
+			studentCompletedSlides = {};
+			selectedGuild = '';
+			selectedCharacter = '';
+			skillPoints = {
+				heroismo: 2,
+				poder: 2,
+				explotacion: 2,
+				habilidad: 3,
+				colaboracion: 2,
+				administracion: 2,
+				arte: 2
+			};
+			gameVirtues = '';
+			gameFlaws = '';
+			selectedPreference = '';
+			classSubmissions = {};
+
+			// 4. Force slide to 0 and mode to actividad
 			await changeSlide(0, 'actividad');
 		}
 	}
