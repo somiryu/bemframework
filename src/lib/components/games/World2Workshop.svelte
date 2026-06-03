@@ -460,9 +460,41 @@
 				})
 				.subscribe();
 
+			// Fallback: Sync and listen to course_instances changes (host round updates) in case WebSocket broadcast fails in production
+			const instancesChannel = supabase
+				.channel(`course_instances_sync_w2_${instance.code}`)
+				.on('postgres_changes', {
+					event: 'UPDATE',
+					schema: 'public',
+					table: 'course_instances',
+					filter: `code=eq.${instance.code}`
+				}, (payload: any) => {
+					const instState = payload.new?.current_workshop_state;
+					if (instState && instState.world_id === 2) {
+						currentRound = instState.round_index ?? 0;
+						activeMode = instState.mode ?? 'actividad';
+						if (instState.card_order) {
+							cardOrder = instState.card_order;
+						}
+						
+						const savedState = player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
+						if (savedState) {
+							selectedCol = savedState.col;
+							selectedRow = savedState.row;
+							hasVotedThisRound = true;
+						} else {
+							selectedCol = null;
+							selectedRow = null;
+							hasVotedThisRound = false;
+						}
+					}
+				})
+				.subscribe();
+
 			return () => {
 				supabase.removeChannel(channel);
 				supabase.removeChannel(playersChannel);
+				supabase.removeChannel(instancesChannel);
 			};
 		}
 	});
