@@ -107,7 +107,34 @@
 				};
 			});
 
-			channel.on('broadcast', { event: 'workshop-complete' }, () => {
+			channel.on('broadcast', { event: 'workshop-complete' }, async () => {
+				if (!isHost) {
+					const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
+					if (!state[1]) state[1] = {};
+					if (!state[1].workshop_completed) {
+						state[1].workshop_completed = true;
+						state[1].rpg_character = {
+							guild: selectedGuild,
+							character: selectedCharacter,
+							skills: { ...skillPoints },
+							virtues: gameVirtues,
+							flaws: gameFlaws,
+							preference: selectedPreference
+						};
+						player.game_state = state;
+
+						if (supabase && player.id) {
+							await supabase
+								.from('course_players')
+								.update({ 
+									game_state: state,
+									avatar: selectedCharacter || player.avatar,
+									coins: player.coins + 25
+								})
+								.eq('id', player.id);
+						}
+					}
+				}
 				onComplete();
 			});
 

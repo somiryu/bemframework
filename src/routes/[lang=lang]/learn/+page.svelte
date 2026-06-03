@@ -34,6 +34,7 @@
 	let localPlayer = $state(data.player);
 	let localGameState = $derived(localPlayer?.game_state || {});
 	let localCoins = $derived(localPlayer?.coins || 0);
+	const isHost = $derived(localPlayer?.email === 'javier@f2p.co');
 
 	// Safe lists
 	const worldsList = $derived(data.worlds || []);
@@ -58,9 +59,23 @@
 
 	// Load narrative automatically on first load if not seen
 	onMount(() => {
-		const world1 = worldsList.find((w: any) => w.id === 1);
-		if (world1 && !localGameState[1]?.narrative_intro_viewed) {
-			triggerNarrative(world1, 'intro');
+		// Check for unviewed narrative outros first (e.g. returning from workshop)
+		let triggeredOutro = false;
+		for (const world of worldsList) {
+			const wState = localGameState[world.id];
+			if (wState?.workshop_completed && !wState?.narrative_outro_viewed) {
+				selectedWorld = world;
+				triggerNarrative(world, 'outro');
+				triggeredOutro = true;
+				break;
+			}
+		}
+
+		if (!triggeredOutro) {
+			const world1 = worldsList.find((w: any) => w.id === 1);
+			if (world1 && !localGameState[1]?.narrative_intro_viewed) {
+				triggerNarrative(world1, 'intro');
+			}
 		}
 
 		if (supabase && data.instance) {
@@ -164,7 +179,7 @@
 				body: formData
 			});
 
-			if (worldState.workshop_completed && !worldState.workshop_feedback_submitted) {
+			if (!isHost && worldState.workshop_completed && !worldState.workshop_feedback_submitted) {
 				showFeedbackOverlay = true;
 			} else {
 				selectedWorld = null;

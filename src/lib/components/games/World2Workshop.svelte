@@ -29,7 +29,7 @@
 
 	// Real-time synchronization
 	let currentRound = $state(0); // 0 to 11
-	let activeMode = $state<'actividad' | 'feedback'>('actividad'); // 'actividad' = voting, 'feedback' = explanation
+	let activeMode = $state<'actividad' | 'feedback' | 'final_feedback'>('actividad'); // 'actividad' = voting, 'feedback' = explanation, 'final_feedback' = final summary
 	let channel: any = null;
 	let onlinePlayers = $state<any[]>([]);
 	let allClassPlayers = $state<any[]>([]);
@@ -39,6 +39,51 @@
 	let selectedRow = $state<'regulatorio' | 'integrado' | 'intrinseco' | null>(null);
 	let hasVotedThisRound = $state(false);
 	let lastSelectTime = 0;
+
+	// State to track liked ideas locally
+	let likedIdeas = $state<string[]>(player.game_state?.liked_ideas || []);
+
+	function isIdeaLiked(id: string) {
+		return likedIdeas.includes(id);
+	}
+
+	async function toggleIdea(card: GFRCard) {
+		let currentLiked = [...likedIdeas];
+		
+		// Create safe deep copy of game_state to avoid Svelte 5 proxy serialization errors
+		const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
+		if (!state.ideas) {
+			state.ideas = [];
+		}
+
+		if (currentLiked.includes(card.id)) {
+			// Remove it
+			currentLiked = currentLiked.filter(id => id !== card.id);
+			state.ideas = state.ideas.filter((i: any) => i.id !== card.id);
+		} else {
+			// Add it
+			currentLiked.push(card.id);
+			state.ideas.push({
+				id: card.id,
+				driver: `${card.rii.toUpperCase()} - ${card.gfr.toUpperCase()}`,
+				scenario: card.text,
+				explanation: card.explanation,
+				likedAt: new Date().toISOString()
+			});
+		}
+		
+		likedIdeas = currentLiked;
+		state.liked_ideas = likedIdeas;
+		player.game_state = state;
+
+		// Save to Supabase in the background
+		if (supabase && player.id) {
+			await supabase
+				.from('course_players')
+				.update({ game_state: state })
+				.eq('id', player.id);
+		}
+	}
 
 	// Class submissions and votes for current round
 	let classVotes = $state<Record<string, { col: string; row: string; alias: string }>>({});
@@ -79,6 +124,47 @@
 			}
 		}
 		return list;
+	});
+
+	// Derived error analytics from student performance
+	const errorStatistics = $derived.by(() => {
+		const colErrors: Record<string, number> = { meta: 0, retroalimentacion: 0, recompensa: 0 };
+		const rowErrors: Record<string, number> = { regulatorio: 0, integrado: 0, intrinseco: 0 };
+		let totalVotesCount = 0;
+
+		allClassPlayers.forEach(p => {
+			if (p.email === 'javier@f2p.co') return;
+			const rounds = p.game_state?.[2]?.workshop_completed_rounds;
+			if (rounds) {
+				Object.keys(rounds).forEach((roundIdxStr) => {
+					const roundIndex = parseInt(roundIdxStr, 10);
+					const vote = rounds[roundIndex];
+					const card = workshopCards[cardOrder[roundIndex]];
+					if (vote && card) {
+						totalVotesCount++;
+						if (vote.col !== card.gfr) {
+							colErrors[card.gfr] = (colErrors[card.gfr] || 0) + 1;
+						}
+						if (vote.row !== card.rii) {
+							rowErrors[card.rii] = (rowErrors[card.rii] || 0) + 1;
+						}
+					}
+				});
+			}
+		});
+
+		// Sort columns by mistakes
+		const sortedCols = Object.entries(colErrors).sort((a, b) => b[1] - a[1]);
+		// Sort rows by mistakes
+		const sortedRows = Object.entries(rowErrors).sort((a, b) => b[1] - a[1]);
+
+		return {
+			colErrors,
+			rowErrors,
+			sortedCols,
+			sortedRows,
+			totalVotesCount
+		};
 	});
 
 	// Active card for current round
@@ -229,10 +315,36 @@
 					...classVotes,
 					[vote.playerId]: { col: vote.col, row: vote.row, alias: vote.alias }
 				};
-				await loadAllClassPlayers();
+				if (vote.gameState) {
+					allClassPlayers = allClassPlayers.map(p => {
+						if (p.id === vote.playerId) {
+							return { ...p, game_state: vote.gameState };
+						}
+						return p;
+					});
+				} else {
+					await loadAllClassPlayers();
+				}
 			});
 
-			channel.on('broadcast', { event: 'workshop-complete' }, () => {
+			channel.on('broadcast', { event: 'workshop-complete' }, async () => {
+				if (!isHost) {
+					const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
+					if (!state[2]) state[2] = {};
+					state[2].workshop_completed = true;
+					state[2].workshop_performance_points = personalScore;
+					player.game_state = state;
+
+					if (supabase && player.id) {
+						await supabase
+							.from('course_players')
+							.update({ 
+								game_state: state,
+								coins: player.coins + 5
+							})
+							.eq('id', player.id);
+					}
+				}
 				onComplete();
 			});
 
@@ -325,6 +437,7 @@
 						player.game_state = payload.new.game_state;
 						player.coins = payload.new.coins;
 						player.avatar = payload.new.avatar;
+						likedIdeas = player.game_state?.liked_ideas || [];
 
 						const pState = player.game_state?.[2] || {};
 						personalScore = pState.workshop_performance_points || 0;
@@ -398,27 +511,6 @@
 
 		hasVotedThisRound = true;
 
-		const payloadData = {
-			playerId: player.id,
-			alias: player.alias,
-			col: selectedCol,
-			row: selectedRow,
-			round: currentRound
-		};
-
-		if (channel) {
-			await channel.send({
-				type: 'broadcast',
-				event: 'student-vote',
-				payload: payloadData
-			});
-		}
-
-		classVotes = {
-			...classVotes,
-			[player.id]: { col: selectedCol, row: selectedRow, alias: player.alias }
-		};
-
 		// Calculate scores
 		const isColCorrect = selectedCol === activeCard.gfr;
 		const isRowCorrect = selectedRow === activeCard.rii;
@@ -448,6 +540,28 @@
 		};
 		state[2].workshop_performance_points = personalScore;
 		player.game_state = state;
+
+		const payloadData = {
+			playerId: player.id,
+			alias: player.alias,
+			col: selectedCol,
+			row: selectedRow,
+			round: currentRound,
+			gameState: state
+		};
+
+		if (channel) {
+			await channel.send({
+				type: 'broadcast',
+				event: 'student-vote',
+				payload: payloadData
+			});
+		}
+
+		classVotes = {
+			...classVotes,
+			[player.id]: { col: selectedCol, row: selectedRow, alias: player.alias }
+		};
 
 		await supabase
 			.from('course_players')
@@ -678,7 +792,22 @@
 						>
 							Siguiente Ronda ▶
 						</button>
-					{:else}
+					{:else if activeMode === 'feedback'}
+						<button 
+							type="button" 
+							class="btn-solar-accent btn-sm font-bold animate-solar-pulse"
+							onclick={() => changeRound(currentRound, 'final_feedback')}
+						>
+							Ver Retroalimentación Final 📊
+						</button>
+					{:else if activeMode === 'final_feedback'}
+						<button 
+							type="button" 
+							class="btn-solar-secondary btn-sm"
+							onclick={() => changeRound(currentRound, 'feedback')}
+						>
+							◀ Reabrir Feedback de Ronda
+						</button>
 						<button 
 							type="button" 
 							class="btn-solar-primary btn-sm font-bold"
@@ -709,19 +838,44 @@
 				{:else}
 					🏆 Desempeño: <strong>{personalScore} pts</strong>
 				{/if}
-			</div>
 			<div class="score-pill team">
 				👥 Salón: <strong>{teamScore} pts</strong>
 			</div>
 		</div>
 	</header>
 
-	<!-- Two-column workspace layout -->
-	<div class="gfr-workspace-layout">
-		
-		<!-- Left Column: Matrix Grid Board -->
-		<div class="board-grid-container glass-card">
-			<div class="board-grid-wrapper">
+	{#if activeMode === 'final_feedback'}
+		<div class="final-feedback-container glass-card" in:fade>
+			<!-- Header / Qualification Title -->
+			<div class="final-feedback-header">
+				<div class="medal-icon">🏆</div>
+				<h3>Taller Completado: Calibración Final del Salón</h3>
+				<p class="subtitle">Evaluación agregada de las 12 tarjetas de diseño GFR</p>
+			</div>
+
+			<!-- Progress bar of class score -->
+			<div class="class-score-section">
+				<div class="score-meta">
+					<span>Puntaje Colectivo del Salón</span>
+					<span class="score-value"><strong>{teamScore}</strong> / 24 PTS</span>
+				</div>
+				<div class="score-bar-bg">
+					<div class="score-bar-fill" style="width: {(teamScore / 24) * 100}%"></div>
+				</div>
+				<div class="qualification-badge-wrapper">
+					{#if teamScore >= 17}
+						<span class="badge gold">🌟 Maestros del Gamification GFR</span>
+					{:else if teamScore >= 9}
+						<span class="badge silver">📡 Agentes Calibrados GFR</span>
+					{:else}
+						<span class="badge bronze">🛠️ Diseñadores Principiantes GFR</span>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Final Matrix Board Display -->
+			<div class="final-board-wrapper" style="margin-top: 2rem; margin-bottom: 2rem;">
+				<h5 style="text-align: left; font-family: var(--font-solar-header); font-weight: 800; color: var(--color-solar-green-dark); margin-bottom: 1rem;">🗺️ Tablero Final de Clasificación del Salón</h5>
 				<table class="gfr-matrix-table">
 					<thead>
 						<tr>
@@ -737,14 +891,7 @@
 								<td class="row-header">{rowLabels[r]}</td>
 								{#each ['meta', 'retroalimentacion', 'recompensa'] as c}
 									{@const cellKey = `${r}-${c}`}
-									{@const isSelected = selectedRow === r && selectedCol === c}
-									{@const isCorrectCell = activeCard && activeCard.rii === r && activeCard.gfr === c}
-									<td 
-										class="matrix-cell" 
-										class:selected={isSelected} 
-										class:reveal-correct={activeMode === 'feedback' && isCorrectCell}
-										class:reveal-wrong={activeMode === 'feedback' && isSelected && !isCorrectCell}
-									>
+									<td class="matrix-cell">
 										<div class="cell-content">
 											<div class="placed-cards-list">
 												{#each placedCards[cellKey] as card}
@@ -762,40 +909,6 @@
 													</div>
 												{/each}
 											</div>
-
-											<!-- Interactive Vote Count inside cell -->
-											{#if activeMode === 'actividad'}
-												{@const votesForThisCell = Object.values(classVotes).filter(v => v.row === r && v.col === c)}
-												{#if votesForThisCell.length > 0}
-													<div class="cell-votes-bubble" in:fade>
-														🗳️ {votesForThisCell.length}
-													</div>
-												{/if}
-											{/if}
-
-											<!-- Selection overlay button -->
-											{#if !isHost && !hasVotedThisRound && activeMode === 'actividad'}
-												<button 
-													type="button" 
-													class="select-cell-btn" 
-													class:confirm-btn={isSelected}
-													class:animate-solar-pulse={isSelected}
-													onclick={() => {
-														const now = Date.now();
-														if (isSelected) {
-															if (now - lastSelectTime > 300) {
-																submitVote();
-															}
-														} else {
-															selectedRow = r;
-															selectedCol = c;
-															lastSelectTime = now;
-														}
-													}}
-												>
-													{isSelected ? 'Confirmar 🗳️' : 'Elegir'}
-												</button>
-											{/if}
 										</div>
 									</td>
 								{/each}
@@ -804,87 +917,271 @@
 					</tbody>
 				</table>
 			</div>
-		</div>
 
-		<!-- Right Column: Card prompt & mentor -->
-		<aside class="panel-container">
-			<!-- Mentor card -->
-			<div class="mentor-card glass-card">
-				<img src="/learn_resoruces/characters/char_kira.png" alt="Kira" class="mentor-avatar" />
-				<div class="mentor-info">
-					<h5 class="mentor-name">Mentora Kira</h5>
-					<p class="mentor-bubble-text">
-						{#if activeMode === 'actividad'}
-							"Agente, analiza la tarjeta del prompt activo y colócala en la celda correcta de la matriz GFR."
-						{:else}
-							"¡Excelente análisis de la clase! Revisa la retroalimentación a continuación."
-						{/if}
-					</p>
-				</div>
-			</div>
-
-			<!-- Card active prompt -->
-			{#if activeCard}
-				<div class="card-prompt-panel glass-card" in:fly={{ x: 20 }}>
-					<span class="m-badge-card">Tarjeta Activa de la Ronda</span>
-					<div class="card-text-box">
-						<p class="card-quote">"{activeCard.text}"</p>
+			<div class="feedback-grid">
+				<!-- Left Card: Concept Review -->
+				<div class="feedback-card concepts-review">
+					<h5>📘 Conceptos Clave GFR & Teoría de la Autodeterminación (SDT)</h5>
+					
+					<div class="concept-group-title" style="font-weight: 800; color: var(--color-solar-green-dark); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Eje GFR: Componentes del Juego</div>
+					<div class="concept-item">
+						<strong>Meta (Goal):</strong> Define los objetivos del jugador dentro del sistema y guía su alineación.
+					</div>
+					<div class="concept-item">
+						<strong>Retroalimentación (Feedback):</strong> Mide e informa el progreso del jugador en tiempo real para facilitar la calibración.
+					</div>
+					<div class="concept-item">
+						<strong>Recompensa (Reward):</strong> Ofrece incentivos instrumentales, estatus o reconocimiento para reforzar la acción.
 					</div>
 
-					{#if activeMode === 'actividad'}
-						{#if !isHost}
-							{#if hasVotedThisRound}
-								<div class="waiting-box" in:fade>
-									<span class="waiting-icon">⏳</span>
-									<h5 class="waiting-title">Voto Registrado</h5>
-									<p class="waiting-subtitle">Ubicado en <strong>{rowLabels[selectedRow!] || ''} - {colLabels[selectedCol!] || ''}</strong>. Espera la revelación del mentor.</p>
-								</div>
-							{:else}
-								<div class="voting-actions">
-									{#if selectedCol && selectedRow}
-										<p class="selected-text">
-											Ubicación elegida:<br/>
-											<strong class="selected-highlight">{rowLabels[selectedRow]} • {colLabels[selectedCol]}</strong>
-										</p>
-										<p class="helper-text-select-confirm">Toca "Confirmar 🗳️" en la celda seleccionada para enviar tu voto.</p>
-									{:else}
-										<p class="helper-text-select">Selecciona una celda en la matriz para colocar la tarjeta.</p>
-									{/if}
-								</div>
-							{/if}
-						{/if}
-					{:else}
-						<!-- Feedback Explanation Mode -->
-						<div class="explanation-box" class:correct={!isHost && selectedCol === activeCard.gfr && selectedRow === activeCard.rii} class:wrong={!isHost && (selectedCol !== activeCard.gfr || selectedRow !== activeCard.rii)}>
-							<h5 class="explanation-header">Retroalimentación del Mentor:</h5>
-							<p class="explanation-text">{activeCard.explanation}</p>
+					<hr style="border: 0; border-top: 1px solid rgba(0, 0, 0, 0.08); margin: 1rem 0;" />
 
-							<div class="team-result-box">
-								<div>🎯 Ubicación Correcta: <strong>{rowLabels[activeCard.rii]} - {colLabels[activeCard.gfr]}</strong></div>
-								<div>👥 Mayoría del Salón: <strong>{majorityCell ? rowLabels[majorityCell.split('-')[0]] + ' - ' + colLabels[majorityCell.split('-')[1]] : 'Ninguno'}</strong> (+{teamPointsEarnedThisRound} pts)</div>
+					<div class="concept-group-title" style="font-weight: 800; color: var(--color-solar-green-dark); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Eje SDT (RII): Tipos de Regulación de la Motivación</div>
+					<div class="concept-item">
+						<strong>Regulatorio (Extrínseco):</strong> Motivación basada puramente en recompensas externas, castigos o presiones directas de terceros.
+					</div>
+					<div class="concept-item">
+						<strong>Integrado:</strong> La persona asimila el objetivo y lo asocia a su sistema de valores personales y metas de identidad.
+					</div>
+					<div class="concept-item">
+						<strong>Intrínseco (Autónomo):</strong> La actividad se realiza por el puro disfrute, el reto inherente o el deseo natural de aprender.
+					</div>
+				</div>
+
+				<!-- Right Card: Error breakdown -->
+				<div class="feedback-card analytics-errors">
+					<h5>📊 Diagnóstico de Clasificación del Salón</h5>
+					<p class="analytics-sub">Análisis de los conceptos con mayor porcentaje de error durante el taller:</p>
+					
+					{#if errorStatistics.totalVotesCount > 0}
+						<div class="errors-list">
+							<div class="error-group">
+								<span class="error-group-title">Eje GFR (Columnas)</span>
+								{#each errorStatistics.sortedCols as [col, val]}
+									<div class="error-stat-bar-row">
+										<span class="stat-lbl">{colLabels[col as 'meta' | 'retroalimentacion' | 'recompensa']}</span>
+										<div class="stat-bar-container">
+											<div class="stat-bar-fill error-fill" style="width: {Math.min(100, (val / errorStatistics.totalVotesCount) * 100)}%"></div>
+										</div>
+										<span class="stat-val-count">{val} fallos</span>
+									</div>
+								{/each}
+							</div>
+
+							<div class="error-group">
+								<span class="error-group-title">Eje RII / Autodeterminación (Filas)</span>
+								{#each errorStatistics.sortedRows as [row, val]}
+									<div class="error-stat-bar-row">
+										<span class="stat-lbl">{rowLabels[row as 'regulatorio' | 'intrinseco' | 'integrado']}</span>
+										<div class="stat-bar-container">
+											<div class="stat-bar-fill error-fill" style="width: {Math.min(100, (val / errorStatistics.totalVotesCount) * 100)}%"></div>
+										</div>
+										<span class="stat-val-count">{val} fallos</span>
+									</div>
+								{/each}
 							</div>
 						</div>
+					{:else}
+						<p class="no-data-text">No hay suficientes votos registrados para generar el diagnóstico.</p>
 					{/if}
 				</div>
-			{/if}
+			</div>
 
-			<!-- Live activity logs -->
-			<div class="live-activity-feed glass-card">
-				<h5 class="activity-feed-header">Actividad de Votación</h5>
-				<div class="activity-logs">
-					{#each Object.values(classVotes) as vote}
-						<div class="vote-log-item" in:slide>
-							<span>👤 {vote.alias}</span>
-							<strong>{rowLabels[vote.row]} - {colLabels[vote.col]}</strong>
-						</div>
-					{:else}
-						<p class="no-votes-text">Esperando votos de los estudiantes...</p>
-					{/each}
+			{#if isHost}
+				<div class="final-actions-row" style="margin-top: 2rem; display: flex; justify-content: center;">
+					<button type="submit" class="btn-solar-primary font-bold shadow-solar-md" onclick={finalizeWorkshop}>
+						✓ Finalizar Taller y Guardar Resultados (+5 BEM Coins)
+					</button>
+				</div>
+			{/if}
+		</div>
+	{:else}
+		<!-- Two-column workspace layout -->
+		<div class="gfr-workspace-layout">
+			
+			<!-- Left Column: Matrix Grid Board -->
+			<div class="board-grid-container glass-card">
+				<div class="board-grid-wrapper">
+					<table class="gfr-matrix-table">
+						<thead>
+							<tr>
+								<th class="corner-cell"></th>
+								<th class="col-header">Meta (Goal)</th>
+								<th class="col-header">Retroalimentación (Feedback)</th>
+								<th class="col-header">Recompensa (Reward)</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each ['regulatorio', 'integrado', 'intrinseco'] as r}
+								<tr>
+									<td class="row-header">{rowLabels[r]}</td>
+									{#each ['meta', 'retroalimentacion', 'recompensa'] as c}
+										{@const cellKey = `${r}-${c}`}
+										{@const isSelected = selectedRow === r && selectedCol === c}
+										{@const isCorrectCell = activeCard && activeCard.rii === r && activeCard.gfr === c}
+										<td 
+											class="matrix-cell" 
+											class:selected={isSelected} 
+											class:reveal-correct={activeMode === 'feedback' && isCorrectCell}
+											class:reveal-wrong={activeMode === 'feedback' && isSelected && !isCorrectCell}
+										>
+											<div class="cell-content">
+												<div class="placed-cards-list">
+													{#each placedCards[cellKey] as card}
+														{@const roundIdx = cardRoundMap.get(card.id)}
+														{@const courseScore = roundIdx !== undefined ? getCourseScoreForRound(roundIdx, allClassPlayers) : 0}
+														<div class="placed-card-pill-wrapper">
+															<div class="placed-card-pill score-{courseScore}">
+																📄 {card.text.substring(0, 24)}...
+															</div>
+															<div class="card-tooltip glass-card">
+																<p class="tooltip-text"><strong>Tarjeta:</strong> "{card.text}"</p>
+																<hr class="tooltip-sep" />
+																<p class="tooltip-feedback"><strong>Retroalimentación:</strong> {card.explanation}</p>
+															</div>
+														</div>
+													{/each}
+												</div>
+
+												<!-- Interactive Vote Count inside cell -->
+												{#if activeMode === 'actividad'}
+													{@const votesForThisCell = Object.values(classVotes).filter(v => v.row === r && v.col === c)}
+													{#if votesForThisCell.length > 0}
+														<div class="cell-votes-count-badge" in:scale>
+															🗳️ {votesForThisCell.length}
+														</div>
+													{/if}
+													
+													{#if !isHost && !hasVotedThisRound}
+														<button 
+															type="button" 
+															class="select-cell-btn" 
+															class:confirm-btn={isSelected}
+															class:animate-solar-pulse={isSelected}
+															onclick={() => {
+																const now = Date.now();
+																if (isSelected) {
+																	if (now - lastSelectTime > 300) {
+																		submitVote();
+																	}
+																} else {
+																	selectedRow = r;
+																	selectedCol = c;
+																	lastSelectTime = now;
+																}
+															}}
+														>
+															{isSelected ? 'Confirmar 🗳️' : 'Elegir'}
+														</button>
+													{/if}
+												{/if}
+											</div>
+										</td>
+									{/each}
+								</tr>
+							{/each}
+						</tbody>
+					</table>
 				</div>
 			</div>
-		</aside>
 
-	</div>
+			<!-- Right Column: Card prompt & mentor -->
+			<aside class="panel-container">
+				<!-- Mentor card -->
+				<div class="mentor-card glass-card">
+					<img src="/learn_resoruces/characters/char_kira.png" alt="Kira" class="mentor-avatar" />
+					<div class="mentor-info">
+						<h5 class="mentor-name">Mentora Kira</h5>
+						<p class="mentor-bubble-text">
+							{#if activeMode === 'actividad'}
+								"Agente, analiza la tarjeta del prompt activo y colócala en la celda correcta de la matriz GFR."
+							{:else}
+								"¡Excelente análisis de la clase! Revisa la retroalimentación a continuación."
+							{/if}
+						</p>
+					</div>
+				</div>
+
+				<!-- Card active prompt -->
+				{#if activeCard}
+					<div class="card-prompt-panel glass-card" in:fly={{ x: 20 }}>
+						<span class="m-badge-card">Tarjeta Activa de la Ronda</span>
+						<div class="card-text-box">
+							<p class="card-quote">"{activeCard.text}"</p>
+						</div>
+
+						{#if !isHost}
+							<div class="idea-btn-container" style="margin-bottom: 1rem;">
+								<button
+									type="button"
+									class="btn-like-idea"
+									class:liked={isIdeaLiked(activeCard.id)}
+									onclick={() => toggleIdea(activeCard)}
+								>
+									{#if isIdeaLiked(activeCard.id)}
+										💡 ¡Es una Idea en mi Bitácora!
+									{:else}
+										💡 Me gusta. Volver una Idea
+									{/if}
+								</button>
+							</div>
+						{/if}
+
+						{#if activeMode === 'actividad'}
+							{#if !isHost}
+								{#if hasVotedThisRound}
+									<div class="waiting-box" in:fade>
+										<span class="waiting-icon">⏳</span>
+										<h5 class="waiting-title">Voto Registrado</h5>
+										<p class="waiting-subtitle">Ubicado en <strong>{rowLabels[selectedRow!] || ''} - {colLabels[selectedCol!] || ''}</strong>. Espera la revelación del mentor.</p>
+									</div>
+								{:else}
+									<div class="voting-actions">
+										{#if selectedCol && selectedRow}
+											<p class="selected-text">
+												Ubicación elegida:<br/>
+												<strong class="selected-highlight">{rowLabels[selectedRow]} • {colLabels[selectedCol]}</strong>
+											</p>
+											<p class="helper-text-select-confirm">Toca "Confirmar 🗳️" en la celda seleccionada para enviar tu voto.</p>
+										{:else}
+											<p class="helper-text-select">Selecciona una celda en la matriz para colocar la tarjeta.</p>
+										{/if}
+									</div>
+								{/if}
+							{/if}
+						{:else}
+							<!-- Feedback Explanation Mode -->
+							<div class="explanation-box" class:correct={!isHost && selectedCol === activeCard.gfr && selectedRow === activeCard.rii} class:wrong={!isHost && (selectedCol !== activeCard.gfr || selectedRow !== activeCard.rii)}>
+								<h5 class="explanation-header">Retroalimentación del Mentor:</h5>
+								<p class="explanation-text">{activeCard.explanation}</p>
+
+								<div class="team-result-box">
+									<div>🎯 Ubicación Correcta: <strong>{rowLabels[activeCard.rii]} - {colLabels[activeCard.gfr]}</strong></div>
+									<div>👥 Mayoría del Salón: <strong>{majorityCell ? rowLabels[majorityCell.split('-')[0]] + ' - ' + colLabels[majorityCell.split('-')[1]] : 'Ninguno'}</strong> (+{teamPointsEarnedThisRound} pts)</div>
+								</div>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Live activity logs -->
+				<div class="live-activity-feed glass-card">
+					<h5 class="activity-feed-header">Actividad de Votación</h5>
+					<div class="activity-logs">
+						{#each Object.values(classVotes) as vote}
+							<div class="vote-log-item" in:slide>
+								<span>👤 {vote.alias}</span>
+								<strong>{rowLabels[vote.row]} - {colLabels[vote.col]}</strong>
+							</div>
+						{:else}
+							<p class="no-votes-text">Esperando votos de los estudiantes...</p>
+						{/each}
+					</div>
+				</div>
+			</aside>
+
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -1493,5 +1790,251 @@
 	@keyframes float {
 		0%, 100% { transform: translateY(0); }
 		50% { transform: translateY(-5px); }
+	}
+
+	/* LIKE IDEA BUTTON STYLES */
+	.idea-btn-container {
+		display: flex;
+		justify-content: center;
+		margin-top: 0.5rem;
+		width: 100%;
+	}
+
+	.btn-like-idea {
+		background: #ffffff;
+		border: 2px solid var(--color-solar-green-medium, #3d8f68);
+		color: var(--color-solar-green-dark, #1e4533);
+		cursor: pointer;
+		padding: 0.4rem 0.8rem;
+		border-radius: 12px;
+		font-weight: 700;
+		font-size: 0.75rem;
+		font-family: var(--font-solar-body, sans-serif);
+		box-shadow: var(--shadow-solar-sm);
+		transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		outline: none;
+	}
+
+	.btn-like-idea:hover {
+		transform: translateY(-2px);
+		border-color: var(--color-solar-yellow, #ffd166);
+		background: #FFFDF4;
+		box-shadow: var(--shadow-solar-md);
+	}
+
+	.btn-like-idea.liked {
+		background: var(--color-solar-yellow, #ffd166);
+		color: var(--color-solar-green-dark, #1e4533);
+		border-color: var(--color-solar-yellow, #ffd166);
+		box-shadow: 0 4px 12px rgba(255, 209, 102, 0.4);
+		animation: idea-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	}
+
+	@keyframes idea-pop {
+		0% { transform: scale(1); }
+		50% { transform: scale(1.15); }
+		100% { transform: scale(1); }
+	}
+
+	/* Final Feedback Screen Styles */
+	.final-feedback-container {
+		max-width: 900px;
+		margin: 1.5rem auto;
+		padding: 2.5rem;
+		background: #ffffff;
+		border-radius: 24px;
+		box-shadow: var(--shadow-solar-lg, 0 20px 40px rgba(0,0,0,0.06));
+		text-align: center;
+	}
+
+	.final-feedback-header {
+		margin-bottom: 2rem;
+	}
+
+	.final-feedback-header h3 {
+		font-family: var(--font-solar-header), sans-serif;
+		font-size: 1.8rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark, #1e4533);
+		margin: 0.5rem 0;
+	}
+
+	.final-feedback-header .subtitle {
+		font-size: 0.9rem;
+		color: var(--color-solar-text-muted, #6b7280);
+	}
+
+	.medal-icon {
+		font-size: 3rem;
+	}
+
+	.class-score-section {
+		background: var(--color-solar-yellow-light, #FFFDF4);
+		padding: 1.5rem;
+		border-radius: 16px;
+		border: 1px solid rgba(255, 209, 102, 0.3);
+		margin-bottom: 2.5rem;
+	}
+
+	.score-meta {
+		display: flex;
+		justify-content: space-between;
+		font-weight: 700;
+		font-size: 1rem;
+		color: var(--color-solar-green-dark, #1e4533);
+		margin-bottom: 0.75rem;
+	}
+
+	.score-value {
+		color: var(--color-solar-green-medium, #3d8f68);
+	}
+
+	.score-bar-bg {
+		height: 14px;
+		background: #e5e7eb;
+		border-radius: 99px;
+		overflow: hidden;
+		margin-bottom: 1rem;
+	}
+
+	.score-bar-fill {
+		height: 100%;
+		background: linear-gradient(90deg, var(--color-solar-green-medium, #3d8f68) 0%, var(--color-solar-green-dark, #1e4533) 100%);
+		border-radius: 99px;
+		transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.qualification-badge-wrapper {
+		display: flex;
+		justify-content: center;
+	}
+
+	.qualification-badge-wrapper .badge {
+		padding: 0.5rem 1.25rem;
+		border-radius: 99px;
+		font-weight: 800;
+		font-size: 0.85rem;
+	}
+
+	.qualification-badge-wrapper .badge.gold {
+		background: #FEF3C7;
+		color: #92400E;
+		border: 1.5px solid #F59E0B;
+	}
+
+	.qualification-badge-wrapper .badge.silver {
+		background: #F3F4F6;
+		color: #374151;
+		border: 1.5px solid #9CA3AF;
+	}
+
+	.qualification-badge-wrapper .badge.bronze {
+		background: #EFF6FF;
+		color: #1E40AF;
+		border: 1.5px solid #3B82F6;
+	}
+
+	.feedback-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2rem;
+		text-align: left;
+	}
+
+	@media (max-width: 768px) {
+		.feedback-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.feedback-card {
+		background: rgba(250, 249, 246, 0.6);
+		border: 1px solid var(--color-solar-card-border, #e5e7eb);
+		padding: 1.5rem;
+		border-radius: 18px;
+	}
+
+	.feedback-card h5 {
+		font-family: var(--font-solar-header), sans-serif;
+		font-size: 1rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark, #1e4533);
+		margin: 0 0 1rem 0;
+	}
+
+	.concept-item {
+		font-size: 0.82rem;
+		line-height: 1.5;
+		margin-bottom: 1rem;
+		color: var(--color-solar-text, #374151);
+	}
+
+	.concept-item:last-child {
+		margin-bottom: 0;
+	}
+
+	.analytics-sub {
+		font-size: 0.82rem;
+		color: var(--color-solar-text-muted, #6b7280);
+		margin-bottom: 1rem;
+	}
+
+	.errors-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.error-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.error-group-title {
+		font-size: 0.72rem;
+		font-weight: 800;
+		text-transform: uppercase;
+		color: var(--color-solar-green-dark, #1e4533);
+		letter-spacing: 0.05em;
+	}
+
+	.error-stat-bar-row {
+		display: grid;
+		grid-template-columns: 100px 1fr 60px;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.error-stat-bar-row .stat-lbl {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-solar-text, #374151);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.error-stat-bar-row .stat-bar-container {
+		height: 8px;
+		background: #f3f4f6;
+		border-radius: 99px;
+		overflow: hidden;
+	}
+
+	.error-stat-bar-row .error-fill {
+		height: 100%;
+		background: var(--color-solar-terracotta, #e11d48);
+		border-radius: 99px;
+	}
+
+	.error-stat-bar-row .stat-val-count {
+		font-size: 0.7rem;
+		font-weight: 700;
+		color: var(--color-solar-terracotta, #e11d48);
+		text-align: right;
 	}
 </style>
