@@ -361,8 +361,10 @@
 					cardOrder = payload.payload.cardOrder;
 				}
 				if (player.game_state) {
-					delete player.game_state['2'];
-					delete player.game_state[2];
+					const newState = { ...player.game_state };
+					delete newState['2'];
+					delete newState[2];
+					player.game_state = newState;
 				}
 			});
 
