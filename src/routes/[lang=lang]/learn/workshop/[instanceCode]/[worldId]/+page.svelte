@@ -2,6 +2,7 @@
 	import { fade } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import World1Workshop from '$lib/components/games/World1Workshop.svelte';
+	import World2Workshop from '$lib/components/games/World2Workshop.svelte';
 	import MapIcon from '$lib/components/icons/MapIcon.svelte';
 	import { page } from '$app/state';
 	import { learnTranslations } from '$lib/content/learn';
@@ -33,6 +34,12 @@
 	<main class="workshop-body">
 		{#if data.world.id === 1}
 			<World1Workshop 
+				player={data.player} 
+				instance={data.instance}
+				onComplete={handleBackToMap}
+			/>
+		{:else if data.world.id === 2}
+			<World2Workshop 
 				player={data.player} 
 				instance={data.instance}
 				onComplete={handleBackToMap}

@@ -86,6 +86,40 @@
 			});
 		}
 
+		// World 2 specific achievements
+		if (gameState['2']?.training_completed) {
+			achievements.push({
+				id: 'gfr_calibrator',
+				title: 'Calibrador GFR',
+				desc: 'Superar el módulo de calibración del simulador GFR en el Mundo 2.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🎯'
+			});
+		}
+
+		if (gameState['2']?.design_completed) {
+			achievements.push({
+				id: 'motivational_engineer',
+				title: 'Ingeniero Motivacional BEM',
+				desc: 'Completar la matriz de diseño instruccional del Mundo 2 en la bitácora.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '⚙️'
+			});
+		}
+
+		if (gameState['2']?.unlocked_resources?.includes('gfr_theory_guide')) {
+			achievements.push({
+				id: 'gfr_theory_scholar',
+				title: 'Erudito Motivacional',
+				desc: 'Adquirir la Guía Teórica del Modelo GFR y Regulación RII en la Wiki.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '👑'
+			});
+		}
+
 		return achievements;
 	});
 </script>
@@ -182,12 +216,34 @@
 											<div class="canvas-saved-block">
 												<h4 class="world-title-saved">Mundo {w.order_index}: {w.title}</h4>
 												<div class="canvas-grid-display">
-													{#each Object.entries(canvas) as [driver, answer]}
-														<div class="driver-item-saved">
-															<span class="d-label">{driver.toUpperCase()}:</span>
-															<p class="d-answer">"{answer}"</p>
-														</div>
-													{/each}
+													{#if Array.isArray(canvas)}
+														{#each canvas as row, index}
+															<div class="canvas-row-saved-container">
+																<h5 class="canvas-row-title">Fila de Diseño #{index + 1}</h5>
+																<div class="canvas-row-items">
+																	<div class="driver-item-saved">
+																		<span class="d-label">META (GOAL)</span>
+																		<p class="d-answer">"{row.meta}"</p>
+																	</div>
+																	<div class="driver-item-saved">
+																		<span class="d-label">RETROALIMENTACIÓN (FEEDBACK)</span>
+																		<p class="d-answer">"{row.retroalimentacion}"</p>
+																	</div>
+																	<div class="driver-item-saved">
+																		<span class="d-label">RECOMPENSA (REWARD)</span>
+																		<p class="d-answer">"{row.recompensa}"</p>
+																	</div>
+																</div>
+															</div>
+														{/each}
+													{:else}
+														{#each Object.entries(canvas) as [driver, answer]}
+															<div class="driver-item-saved">
+																<span class="d-label">{driver.toUpperCase()}:</span>
+																<p class="d-answer">"{answer}"</p>
+															</div>
+														{/each}
+													{/if}
 												</div>
 											</div>
 										{/each}
@@ -661,6 +717,29 @@
 		gap: 1rem;
 	}
 
+	.canvas-row-saved-container {
+		background: rgba(255, 255, 255, 0.45);
+		border: 1px dashed rgba(61, 143, 104, 0.25);
+		border-radius: 16px;
+		padding: 1.25rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.canvas-row-title {
+		font-family: var(--font-solar-header);
+		font-size: 0.85rem;
+		font-weight: 800;
+		color: var(--color-solar-green-medium);
+		margin: 0 0 0.75rem 0;
+		letter-spacing: 0.02em;
+	}
+
+	.canvas-row-items {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
 	.driver-item-saved {
 		background: white;
 		border: 1px solid rgba(0,0,0,0.05);
@@ -717,14 +796,8 @@
 	/* WIKI RESOURCES UNLOCKED */
 	.resources-unlocked-grid {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 1fr;
 		gap: 1.5rem;
-	}
-
-	@media (max-width: 640px) {
-		.resources-unlocked-grid {
-			grid-template-columns: 1fr;
-		}
 	}
 
 	.resource-unlocked-card {
@@ -972,6 +1045,8 @@
 		border-radius: 6px;
 		letter-spacing: 0.05em;
 		display: inline-block;
+		background: var(--color-solar-green-light);
+		color: var(--color-solar-green-dark);
 	}
 
 	.driver-tag.driver-hedonismo { background: #ffe4e6; color: #e11d48; }

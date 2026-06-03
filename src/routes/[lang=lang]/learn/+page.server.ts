@@ -285,5 +285,51 @@ export const actions: Actions = {
 		}
 
 		return { success: true, message: '¡Retroalimentación enviada! Gracias por ayudar a mejorar la academia OMIE.' };
+	},
+
+	setNarrativeViewed: async ({ request, cookies }) => {
+		const playerId = cookies.get('player_id');
+		if (!playerId || !supabase) {
+			return fail(401, { success: false, message: 'No autorizado.' });
+		}
+
+		const formData = await request.formData();
+		const worldId = parseInt(formData.get('world_id') as string, 10);
+		const type = formData.get('type') as string;
+
+		if (isNaN(worldId) || !type) {
+			return fail(400, { success: false, message: 'Parámetros inválidos.' });
+		}
+
+		// Fetch player current data
+		const { data: player } = await supabase
+			.from('course_players')
+			.select('game_state')
+			.eq('id', playerId)
+			.single();
+
+		if (!player) return fail(404, { success: false, message: 'Jugador no encontrado.' });
+
+		const state = player.game_state || {};
+		const worldState = state[worldId] || {};
+
+		if (type === 'intro') {
+			worldState.narrative_intro_viewed = true;
+		} else {
+			worldState.narrative_outro_viewed = true;
+		}
+
+		state[worldId] = worldState;
+
+		const { error } = await supabase
+			.from('course_players')
+			.update({ game_state: state })
+			.eq('id', playerId);
+
+		if (error) {
+			return fail(400, { success: false, message: `Error al guardar narrativa: ${error.message}` });
+		}
+
+		return { success: true, game_state: state };
 	}
 };

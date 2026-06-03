@@ -14,6 +14,30 @@
 	let name = $state('');
 	let alias = $state('');
 	let isLoading = $state(false);
+
+	let emailChecked = $state(false);
+
+	$effect(() => {
+		if (form && form.success && form.exists === false) {
+			emailChecked = true;
+			if (form.email) {
+				email = form.email;
+			}
+		} else {
+			emailChecked = false;
+		}
+	});
+
+	function handleResetEmail() {
+		emailChecked = false;
+		email = '';
+		if (form) {
+			form.success = false;
+			form.exists = undefined;
+			form.email = undefined;
+			form.message = undefined;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -80,7 +104,7 @@
 
 			<form 
 				method="POST" 
-				action="?/loginPlayer" 
+				action={emailChecked ? "?/registerPlayer" : "?/checkEmail"} 
 				use:enhance={() => {
 					isLoading = true;
 					return async ({ update }) => {
@@ -90,62 +114,101 @@
 				}}
 				class="onboarding-form"
 			>
-				<div class="form-group">
-					<label for="email">{t.emailLabel}</label>
-					<input
-						type="email"
-						id="email"
-						name="email"
-						required
-						bind:value={email}
-						placeholder={t.emailPlaceholder}
-						class="subject-input"
-						disabled={isLoading}
-					/>
-					<span class="input-tip">{t.emailTip}</span>
-				</div>
+				{#if !emailChecked}
+					<div class="form-group">
+						<label for="email">{t.emailLabel}</label>
+						<input
+							type="email"
+							id="email"
+							name="email"
+							required
+							bind:value={email}
+							placeholder={t.emailPlaceholder}
+							class="subject-input"
+							disabled={isLoading}
+						/>
+						<span class="input-tip">{t.emailTip}</span>
+					</div>
 
-				<div class="form-group">
-					<label for="name">{t.nameLabel}</label>
-					<input
-						type="text"
-						id="name"
-						name="name"
-						required
-						bind:value={name}
-						placeholder={t.namePlaceholder}
-						class="subject-input"
+					<button 
+						type="submit" 
+						class="btn-solar-primary w-full justify-center mt-6"
 						disabled={isLoading}
-					/>
-				</div>
+					>
+						{#if isLoading}
+							<span class="solar-spinner mr-2"></span>
+							{t.submitting}
+						{:else}
+							{t.checkEmailBtn}
+						{/if}
+					</button>
+				{:else}
+					<div class="form-group">
+						<label for="email_display">{t.emailLabel}</label>
+						<div style="display: flex; gap: 0.75rem; align-items: center;">
+							<input
+								type="email"
+								id="email_display"
+								value={email}
+								disabled
+								class="subject-input"
+								style="flex: 1; background: rgba(0,0,0,0.05); color: var(--color-solar-text-muted);"
+							/>
+							<button 
+								type="button" 
+								class="btn-solar-secondary" 
+								style="padding: 0.85rem 1rem;"
+								onclick={handleResetEmail}
+								disabled={isLoading}
+							>
+								✏️ {t.changeEmailBtn}
+							</button>
+						</div>
+						<input type="hidden" name="email" value={email} />
+					</div>
 
-				<div class="form-group">
-					<label for="alias">{t.aliasLabel}</label>
-					<input
-						type="text"
-						id="alias"
-						name="alias"
-						required
-						bind:value={alias}
-						placeholder={t.aliasPlaceholder}
-						class="subject-input"
+					<div class="form-group">
+						<label for="name">{t.nameLabel}</label>
+						<input
+							type="text"
+							id="name"
+							name="name"
+							required
+							bind:value={name}
+							placeholder={t.namePlaceholder}
+							class="subject-input"
+							disabled={isLoading}
+						/>
+					</div>
+
+					<div class="form-group">
+						<label for="alias">{t.aliasLabel}</label>
+						<input
+							type="text"
+							id="alias"
+							name="alias"
+							required
+							bind:value={alias}
+							placeholder={t.aliasPlaceholder}
+							class="subject-input"
+							disabled={isLoading}
+						/>
+						<span class="input-tip">{t.aliasTip}</span>
+					</div>
+
+					<button 
+						type="submit" 
+						class="btn-solar-primary w-full justify-center mt-6"
 						disabled={isLoading}
-					/>
-					<span class="input-tip">{t.aliasTip}</span>
-				</div>
-
-				<button 
-					type="submit" 
-					class="btn-solar-primary w-full justify-center mt-6"
-					disabled={isLoading}
-				>
-					{#if isLoading}
-						<span class="solar-spinner mr-2"></span>
-						{t.submitting}
-					{:else}
-						{t.submit}
-					{/if}
-				</button>
+					>
+						{#if isLoading}
+							<span class="solar-spinner mr-2"></span>
+							{t.submitting}
+						{:else}
+							{t.submit}
+						{/if}
+					</button>
+				{/if}
 			</form>
 		</div>
 	{/if}

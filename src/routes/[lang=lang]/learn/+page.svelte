@@ -17,6 +17,10 @@
 	import World1Training from '$lib/components/games/World1Training.svelte';
 	import World1Design from '$lib/components/games/World1Design.svelte';
 	import World1Wiki from '$lib/components/games/World1Wiki.svelte';
+	import World2Workshop from '$lib/components/games/World2Workshop.svelte';
+	import World2Training from '$lib/components/games/World2Training.svelte';
+	import World2Design from '$lib/components/games/World2Design.svelte';
+	import World2Wiki from '$lib/components/games/World2Wiki.svelte';
 
 	import { page } from '$app/state';
 	import { learnTranslations } from '$lib/content/learn';
@@ -123,7 +127,7 @@
 	async function handleNarrativeComplete() {
 		showNarrativeOverlay = false;
 		
-		if (!supabase || !localPlayer) return;
+		if (!localPlayer) return;
 
 		// Save narrative viewed in player gameState
 		const worldId = selectedWorld.id;
@@ -133,14 +137,16 @@
 		if (narrativeTriggerType === 'intro') {
 			worldState.narrative_intro_viewed = true;
 			state[worldId] = worldState;
-
 			localPlayer.game_state = state;
 			
-			// Save in background to Supabase
-			await supabase
-				.from('course_players')
-				.update({ game_state: state })
-				.eq('id', localPlayer.id);
+			// Save via server action to bypass client RLS restrictions
+			const formData = new FormData();
+			formData.append('world_id', worldId.toString());
+			formData.append('type', 'intro');
+			await fetch('?/setNarrativeViewed', {
+				method: 'POST',
+				body: formData
+			});
 
 			// Open mode selector after intro completes!
 			showModeSelector = true;
@@ -150,12 +156,19 @@
 			state[worldId] = worldState;
 			localPlayer.game_state = state;
 
-			await supabase
-				.from('course_players')
-				.update({ game_state: state })
-				.eq('id', localPlayer.id);
+			const formData = new FormData();
+			formData.append('world_id', worldId.toString());
+			formData.append('type', 'outro');
+			await fetch('?/setNarrativeViewed', {
+				method: 'POST',
+				body: formData
+			});
 
-			selectedWorld = null;
+			if (worldState.workshop_completed && !worldState.workshop_feedback_submitted) {
+				showFeedbackOverlay = true;
+			} else {
+				selectedWorld = null;
+			}
 		}
 	}
 
@@ -194,8 +207,8 @@
 		state[selectedWorld.id] = worldState;
 		localPlayer.game_state = state;
 
-		// Show Feedback evaluation modal immediately!
-		showFeedbackOverlay = true;
+		// Trigger narrative outro first!
+		triggerNarrative(selectedWorld, 'outro');
 	}
 
 	function handleFeedbackSubmitted() {
@@ -347,6 +360,12 @@
 									instance={data.instance}
 									onComplete={handleWorkshopSuccess}
 								/>
+							{:else if selectedWorld.id === 2}
+								<World2Workshop 
+									player={localPlayer} 
+									instance={data.instance}
+									onComplete={handleWorkshopSuccess}
+								/>
 							{:else}
 								<div class="empty-list">
 									{#if lang === 'es'}
@@ -359,6 +378,13 @@
 						{:else if activeGameMode === 'training'}
 							{#if selectedWorld.id === 1}
 								<World1Training 
+									world={selectedWorld}
+									player={localPlayer}
+									onComplete={handleCloseGame}
+									onUpdateCoins={handleCoinsUpdated}
+								/>
+							{:else if selectedWorld.id === 2}
+								<World2Training 
 									world={selectedWorld}
 									player={localPlayer}
 									onComplete={handleCloseGame}
@@ -381,6 +407,13 @@
 									onComplete={handleCloseGame}
 									onUpdateCoins={handleCoinsUpdated}
 								/>
+							{:else if selectedWorld.id === 2}
+								<World2Design 
+									world={selectedWorld}
+									player={localPlayer}
+									onComplete={handleCloseGame}
+									onUpdateCoins={handleCoinsUpdated}
+								/>
 							{:else}
 								<div class="empty-list">
 									{#if lang === 'es'}
@@ -393,6 +426,13 @@
 						{:else if activeGameMode === 'wiki'}
 							{#if selectedWorld.id === 1}
 								<World1Wiki 
+									world={selectedWorld}
+									player={localPlayer}
+									onComplete={handleCloseGame}
+									onUpdateCoins={handleCoinsUpdated}
+								/>
+							{:else if selectedWorld.id === 2}
+								<World2Wiki 
 									world={selectedWorld}
 									player={localPlayer}
 									onComplete={handleCloseGame}

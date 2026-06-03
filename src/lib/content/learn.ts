@@ -23,7 +23,10 @@ export const learnTranslations = {
 			aliasTip: 'This will be your alias in the leaderboard and course central roster.',
 			submitting: '🔑 Linking Device...',
 			submit: '🚀 Start Course Initiation',
-			requiredFields: 'All fields are required.'
+			requiredFields: 'All fields are required.',
+			checkEmailBtn: 'Continue',
+			changeEmailBtn: 'Change email',
+			emailExistsError: 'This email is already registered in this course.'
 		},
 		dashboard: {
 			pageTitle: 'OMIE Gamification Missions',
@@ -87,7 +90,10 @@ export const learnTranslations = {
 			aliasTip: 'Este será tu alias en la tabla de clasificación y Roster central del curso.',
 			submitting: '🔑 Vinculando Dispositivo...',
 			submit: '🚀 Iniciar Iniciación del Curso',
-			requiredFields: 'Todos los campos son obligatorios.'
+			requiredFields: 'Todos los campos son obligatorios.',
+			checkEmailBtn: 'Continuar',
+			changeEmailBtn: 'Cambiar correo',
+			emailExistsError: 'Este correo ya está registrado en este curso.'
 		},
 		dashboard: {
 			pageTitle: 'Misiones de Gamificación BEM',

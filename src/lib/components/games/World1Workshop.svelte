@@ -107,6 +107,10 @@
 				};
 			});
 
+			channel.on('broadcast', { event: 'workshop-complete' }, () => {
+				onComplete();
+			});
+
 			channel.on('broadcast', { event: 'workshop-reset' }, () => {
 				studentCompletedSlides = {};
 				selectedGuild = '';
@@ -188,6 +192,27 @@
 				})
 				.eq('code', instance.code);
 		}
+	}
+
+	async function finalizeWorkshop() {
+		if (channel) {
+			await channel.send({
+				type: 'broadcast',
+				event: 'workshop-complete',
+				payload: {}
+			});
+		}
+		// Also mark it completed for the host/everyone locally
+		const state = player.game_state || {};
+		if (!state[1]) state[1] = {};
+		state[1].workshop_completed = true;
+		player.game_state = state;
+		await supabase
+			.from('course_players')
+			.update({ game_state: state })
+			.eq('id', player.id);
+
+		onComplete();
 	}
 
 	// Submit student choices for the slide
@@ -584,7 +609,7 @@
 						<button 
 							type="button" 
 							class="btn-solar-primary btn-sm font-bold"
-							onclick={onComplete}
+							onclick={finalizeWorkshop}
 						>
 							✓ Finalizar Workshop
 						</button>

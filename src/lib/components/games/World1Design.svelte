@@ -51,10 +51,15 @@
 		</button>
 	</div>
 
-	<!-- GIOCHI AI Bot Design Advice Banner -->
+	<!-- Guideline speech bubble with Sara -->
 	<div class="giochi-speech-bubble text-left mb-6" in:fade>
-		<div class="bubble-title">🤖 GIOCHI Directriz de Diseño:</div>
-		<p>¡Atención, Agente en entrenamiento! En el modelo BEM <strong>no diseñamos juegos</strong> superficiales. En su lugar, pensamos como diseñadores de juegos para crear <strong>sistemas serios de aprendizaje</strong>. Completa una propuesta seria para cada driver para archivar tu bitácora de viaje.</p>
+		<div class="bubble-title-row">
+			<img src="/learn_resoruces/characters/char_sara.png" alt="Sara" class="char-avatar" />
+			<div>
+				<div class="bubble-title">Directriz de Diseño (Sara):</div>
+				<p class="bubble-text">¡Atención, Agente en entrenamiento! En el modelo BEM <strong>no diseñamos juegos</strong> superficiales. En su lugar, pensamos como diseñadores de juegos para crear <strong>sistemas serios de aprendizaje</strong>. Completa una propuesta seria para cada driver para archivar tu bitácora de viaje.</p>
+			</div>
+		</div>
 	</div>
 
 	<form
@@ -161,14 +166,29 @@
 		letter-spacing: 0.05em;
 	}
 
-	/* SPEECH BUBBLE */
+	/* SPEECH BUBBLE WITH SARA AVATAR */
 	.giochi-speech-bubble {
 		background: var(--color-solar-yellow-light, #fff9e6);
 		border: 1px solid rgba(255, 209, 102, 0.4);
 		padding: 1.25rem 1.5rem;
 		border-radius: 20px;
-		position: relative;
 		box-shadow: var(--shadow-solar-sm);
+	}
+
+	.bubble-title-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+
+	.char-avatar {
+		width: 48px;
+		height: 48px;
+		object-fit: contain;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.6);
+		border: 2.5px solid var(--color-solar-yellow);
+		flex-shrink: 0;
 	}
 
 	.bubble-title {
@@ -178,7 +198,7 @@
 		margin-bottom: 0.25rem;
 	}
 
-	.giochi-speech-bubble p {
+	.bubble-text {
 		margin: 0;
 		font-size: 0.85rem;
 		line-height: 1.5;

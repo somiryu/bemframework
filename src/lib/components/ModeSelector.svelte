@@ -120,7 +120,7 @@
 						<div class="mode-icon-box">🎬</div>
 						<div class="mode-main">
 							<div class="mode-title-row">
-								<h4>Modo Workshop (Sincrónico)</h4>
+								<h4>Modo Workshop</h4>
 								{#if isWorkshopDone}
 									<span class="m-badge done">✓ Terminado</span>
 								{:else}
@@ -139,7 +139,7 @@
 						<div class="mode-icon-box">🧠</div>
 						<div class="mode-main">
 							<div class="mode-title-row">
-								<h4>Modo Entrenamiento (Asíncrono)</h4>
+								<h4>Modo Entrenamiento</h4>
 								{#if isTrainingDone}
 									<span class="m-badge done">✓ Superado</span>
 								{:else}
@@ -158,7 +158,7 @@
 						<div class="mode-icon-box">📝</div>
 						<div class="mode-main">
 							<div class="mode-title-row">
-								<h4>Modo Diseño (Bitácora)</h4>
+								<h4>Modo Diseño</h4>
 								{#if isDesignDone}
 									<span class="m-badge done">✓ Guardado</span>
 								{:else}
@@ -177,7 +177,7 @@
 						<div class="mode-icon-box">📚</div>
 						<div class="mode-main">
 							<div class="mode-title-row">
-								<h4>Biblioteca OMIE (Wiki Mode)</h4>
+								<h4>Biblioteca OMIE</h4>
 								<span class="m-badge optional">Opcional</span>
 							</div>
 							<p class="mode-desc">Explora artículos, videos y esquemas de los mentores. Desbloquea contenidos opcionales usando BEM Coins.</p>

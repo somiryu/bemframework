@@ -58,15 +58,81 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 };
 
 export const actions: Actions = {
-	loginPlayer: async ({ request, params, cookies }) => {
+	checkEmail: async ({ request, params, cookies }) => {
 		const code = params.code.trim().toUpperCase();
 		const lang = (params.lang as 'es' | 'en') ?? 'es';
 		const t = learnTranslations[lang].login;
-		
+
 		if (!supabase) {
-			return fail(500, { 
-				success: false, 
-				message: lang === 'es' ? 'Supabase no está configurado.' : 'Supabase is not configured.' 
+			return fail(500, {
+				success: false,
+				message: lang === 'es' ? 'Supabase no está configurado.' : 'Supabase is not configured.'
+			});
+		}
+
+		const formData = await request.formData();
+		const email = (formData.get('email') as string) || '';
+
+		if (!email.trim()) {
+			return fail(400, { success: false, message: t.requiredFields });
+		}
+
+		const cleanEmail = email.trim().toLowerCase();
+
+		// Check if player already exists in this course instance
+		const { data: player, error } = await supabase
+			.from('course_players')
+			.select('*')
+			.eq('instance_code', code)
+			.eq('email', cleanEmail)
+			.maybeSingle();
+
+		if (error) {
+			console.error('Check email error:', error);
+			return fail(400, {
+				success: false,
+				message: lang === 'es' ? `Error de verificación: ${error.message}` : `Verification error: ${error.message}`
+			});
+		}
+
+		if (player) {
+			// Player exists! Set cookies and log in.
+			cookies.set('player_id', player.id, {
+				path: '/',
+				maxAge: 60 * 60 * 24 * 30, // 30 days
+				httpOnly: true,
+				sameSite: 'lax',
+				secure: process.env.NODE_ENV === 'production'
+			});
+
+			cookies.set('player_instance_code', code, {
+				path: '/',
+				maxAge: 60 * 60 * 24 * 30,
+				httpOnly: true,
+				sameSite: 'lax',
+				secure: process.env.NODE_ENV === 'production'
+			});
+
+			throw redirect(303, `/${params.lang}/learn`);
+		}
+
+		// Player does not exist. Proceed to registration.
+		return {
+			success: true,
+			exists: false,
+			email: cleanEmail
+		};
+	},
+
+	registerPlayer: async ({ request, params, cookies }) => {
+		const code = params.code.trim().toUpperCase();
+		const lang = (params.lang as 'es' | 'en') ?? 'es';
+		const t = learnTranslations[lang].login;
+
+		if (!supabase) {
+			return fail(500, {
+				success: false,
+				message: lang === 'es' ? 'Supabase no está configurado.' : 'Supabase is not configured.'
 			});
 		}
 
@@ -83,29 +149,41 @@ export const actions: Actions = {
 		const cleanName = name.trim();
 		const cleanAlias = alias.trim();
 
-		// Upsert student into course_players
-		// A student is uniquely identified by (instance_code, email)
+		// Double-check if the player already exists to prevent duplicate registration
+		const { data: existingPlayer } = await supabase
+			.from('course_players')
+			.select('id')
+			.eq('instance_code', code)
+			.eq('email', cleanEmail)
+			.maybeSingle();
+
+		if (existingPlayer) {
+			return fail(400, {
+				success: false,
+				message: t.emailExistsError
+			});
+		}
+
+		// Insert student into course_players (no upsert, protecting existing records)
 		const { data: player, error } = await supabase
 			.from('course_players')
-			.upsert({
+			.insert({
 				instance_code: code,
 				email: cleanEmail,
 				name: cleanName,
 				alias: cleanAlias,
-				avatar: 'eco-engineer', // Default avatar base, fully customizable in slide 1
+				avatar: 'eco-engineer', // Default avatar base
 				coins: 0,
 				game_state: {}
-			}, {
-				onConflict: 'instance_code,email'
 			})
 			.select()
 			.single();
 
 		if (error || !player) {
-			console.error('Login upsert error:', error);
-			return fail(400, { 
-				success: false, 
-				message: lang === 'es' ? `Error de registro: ${error.message}` : `Registration error: ${error.message}` 
+			console.error('Registration insert error:', error);
+			return fail(400, {
+				success: false,
+				message: lang === 'es' ? `Error de registro: ${error.message}` : `Registration error: ${error.message}`
 			});
 		}
 
