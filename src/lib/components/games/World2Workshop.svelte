@@ -322,7 +322,7 @@
 						}
 						return p;
 					});
-				} else {
+				} else if (isHost) {
 					await loadAllClassPlayers();
 				}
 			});
@@ -432,7 +432,9 @@
 					table: 'course_players',
 					filter: `instance_code=eq.${instance.code}`
 				}, (payload: any) => {
-					loadAllClassPlayers();
+					if (isHost) {
+						loadAllClassPlayers();
+					}
 					if (payload.new && payload.new.id === player.id) {
 						player.game_state = payload.new.game_state;
 						player.coins = payload.new.coins;
