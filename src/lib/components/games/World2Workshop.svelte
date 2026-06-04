@@ -14,6 +14,14 @@
 		return arr;
 	}
 
+	function isSequential(arr: number[]): boolean {
+		if (!arr || arr.length === 0) return false;
+		for (let i = 0; i < arr.length; i++) {
+			if (arr[i] !== i) return false;
+		}
+		return true;
+	}
+
 	let { 
 		player, 
 		instance, 
@@ -395,8 +403,8 @@
 
 					let currentWorkshopState = inst?.current_workshop_state;
 
-					// If state is not initialized for World 2, or card_order is missing, the host creates it!
-					if (isHost && (!currentWorkshopState || currentWorkshopState.world_id !== 2 || !currentWorkshopState.card_order)) {
+					// If state is not initialized for World 2, or card_order is missing, or it's sequential, the host creates/resets it!
+					if (isHost && (!currentWorkshopState || currentWorkshopState.world_id !== 2 || !currentWorkshopState.card_order || isSequential(currentWorkshopState.card_order))) {
 						const newOrder = generateRandomOrder(workshopCards.length);
 						cardOrder = newOrder;
 						currentRound = 0;
