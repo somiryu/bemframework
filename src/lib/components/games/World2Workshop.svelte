@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fade, fly, slide } from 'svelte/transition';
+	import { fade, fly, slide, scale } from 'svelte/transition';
 	import { supabase } from '$lib/supabase';
 	import { workshopCards, type GFRCard } from '$lib/content/gfrCards';
 	import confetti from 'canvas-confetti';
@@ -393,35 +393,41 @@
 						.eq('code', instance.code)
 						.single();
 
-					if (inst?.current_workshop_state && inst.current_workshop_state.world_id === 2) {
-						currentRound = inst.current_workshop_state.round_index ?? 0;
-						activeMode = inst.current_workshop_state.mode ?? 'actividad';
-						if (inst.current_workshop_state.card_order) {
-							cardOrder = inst.current_workshop_state.card_order;
-						} else if (isHost) {
-							const newOrder = generateRandomOrder(workshopCards.length);
-							cardOrder = newOrder;
-							await supabase
-								.from('course_instances')
-								.update({
-									current_workshop_state: {
-										...inst.current_workshop_state,
-										card_order: newOrder
-									}
-								})
-								.eq('code', instance.code);
+					let currentWorkshopState = inst?.current_workshop_state;
+
+					// If state is not initialized for World 2, or card_order is missing, the host creates it!
+					if (isHost && (!currentWorkshopState || currentWorkshopState.world_id !== 2 || !currentWorkshopState.card_order)) {
+						const newOrder = generateRandomOrder(workshopCards.length);
+						cardOrder = newOrder;
+						currentRound = 0;
+						activeMode = 'actividad';
+
+						currentWorkshopState = {
+							world_id: 2,
+							round_index: 0,
+							mode: 'actividad',
+							card_order: newOrder
+						};
+
+						await supabase
+							.from('course_instances')
+							.update({ current_workshop_state: currentWorkshopState })
+							.eq('code', instance.code);
+					} else if (currentWorkshopState && currentWorkshopState.world_id === 2) {
+						currentRound = currentWorkshopState.round_index ?? 0;
+						activeMode = currentWorkshopState.mode ?? 'actividad';
+						if (currentWorkshopState.card_order) {
+							cardOrder = currentWorkshopState.card_order;
 						}
-						
-						const savedState = player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
-						if (savedState) {
-							selectedCol = savedState.col;
-							selectedRow = savedState.row;
-							hasVotedThisRound = true;
-						}
-						await loadClassVotes(currentRound);
-					} else {
-						await loadClassVotes(0);
 					}
+
+					const savedState = player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
+					if (savedState) {
+						selectedCol = savedState.col;
+						selectedRow = savedState.row;
+						hasVotedThisRound = true;
+					}
+					await loadClassVotes(currentRound);
 				}
 			});
 
