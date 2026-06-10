@@ -2,9 +2,6 @@
 	import { onMount } from 'svelte';
 	import { fade, fly, slide } from 'svelte/transition';
 	import { supabase } from '$lib/supabase';
-	import { createWorkshopSession } from '$lib/utils/workshop.svelte';
-	import FacilitatorControlPanel from '$lib/components/workshop/FacilitatorControlPanel.svelte';
-	import GameUIWrapper from '$lib/components/workshop/GameUIWrapper.svelte';
 
 	let { 
 		player, 
@@ -16,12 +13,16 @@
 		onComplete: () => void 
 	} = $props();
 
-	// Initialize the shared workshop session
-	const session = createWorkshopSession(player, instance, 1, onComplete);
+	// Host logic (Javier Velasquez or email match)
+	const isHost = $derived(player.email === 'javier@f2p.co');
 
 	// Slide navigation and synchronization
 	let currentSlide = $state(0); // 0 to 5 (6 slides total)
 	let activeSlideMode = $state<'actividad' | 'feedback'>('actividad');
+	let channel: any = null;
+
+	// Aggregated online trainees
+	let onlinePlayers = $state<any[]>([]);
 
 	// 1. Slide 1 Choice: Guild Cofradía
 	let selectedGuild = $state(''); // 'gary', 'uwe', 'sid', 'will'
@@ -59,7 +60,7 @@
 
 	onMount(() => {
 		// Persistent state recovery: Load existing choices from player.game_state[1] if present
-		const existingState = session.player.game_state?.[1] || {};
+		const existingState = player.game_state?.[1] || {};
 		if (existingState.guild) {
 			selectedGuild = existingState.guild;
 			studentCompletedSlides[0] = true;
@@ -85,18 +86,30 @@
 			studentCompletedSlides[5] = true;
 		}
 
-		session.initConnection(async (event, payload) => {
-			if (event === 'slide-sync') {
-				currentSlide = payload.slideIndex;
-				activeSlideMode = payload.mode;
-			} else if (event === 'student-submit') {
+		if (supabase) {
+			const channelId = `workshop_session_omie_${instance.code}`;
+			channel = supabase.channel(channelId, {
+				config: { presence: { key: player.id } }
+			});
+
+			// Setup broadcast handlers
+			channel.on('broadcast', { event: 'slide-sync' }, (payload: any) => {
+				const data = payload.payload;
+				currentSlide = data.slideIndex;
+				activeSlideMode = data.mode;
+			});
+
+			channel.on('broadcast', { event: 'student-submit' }, (payload: any) => {
+				const submission = payload.payload;
 				classSubmissions = {
 					...classSubmissions,
-					[payload.playerId]: payload
+					[submission.playerId]: submission
 				};
-			} else if (event === 'workshop-complete') {
-				if (!session.isHost) {
-					const state = session.player.game_state ? JSON.parse(JSON.stringify(session.player.game_state)) : {};
+			});
+
+			channel.on('broadcast', { event: 'workshop-complete' }, async () => {
+				if (!isHost) {
+					const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
 					if (!state[1]) state[1] = {};
 					if (!state[1].workshop_completed) {
 						state[1].workshop_completed = true;
@@ -108,15 +121,24 @@
 							flaws: gameFlaws,
 							preference: selectedPreference
 						};
-						
-						await session.updatePlayerGameState(state, {
-							avatar: selectedCharacter || session.player.avatar,
-							coins: session.player.coins + 25
-						});
+						player.game_state = state;
+
+						if (supabase && player.id) {
+							await supabase
+								.from('course_players')
+								.update({ 
+									game_state: state,
+									avatar: selectedCharacter || player.avatar,
+									coins: player.coins + 25
+								})
+								.eq('id', player.id);
+						}
 					}
 				}
 				onComplete();
-			} else if (event === 'workshop-reset') {
+			});
+
+			channel.on('broadcast', { event: 'workshop-reset' }, () => {
 				studentCompletedSlides = {};
 				selectedGuild = '';
 				selectedCharacter = '';
@@ -136,27 +158,45 @@
 				
 				currentSlide = 0;
 				activeSlideMode = 'actividad';
+			});
 
-				const newState = { ...session.player.game_state };
-				delete newState['1'];
-				delete newState[1];
-				session.player.game_state = newState;
-			}
-		});
+			// Presence sync
+			channel.on('presence', { event: 'sync' }, () => {
+				const state = channel.presenceState();
+				const list: any[] = [];
+				Object.keys(state).forEach((key) => {
+					const user = state[key][0];
+					if (user) list.push(user);
+				});
+				onlinePlayers = list;
+			});
 
-		if (supabase) {
-			// Fetch latest workshop state stored in course instance to keep in sync
-			supabase
-				.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(({ data: inst }) => {
-					if (inst?.current_workshop_state && inst.current_workshop_state.world_id === 1) {
+			channel.subscribe(async (status) => {
+				if (status === 'SUBSCRIBED') {
+					await channel.track({
+						playerId: player.id,
+						name: player.name,
+						alias: player.alias,
+						email: player.email
+					});
+
+					// Fetch latest workshop state stored in course instance to keep in sync
+					const { data: inst } = await supabase
+						.from('course_instances')
+						.select('current_workshop_state')
+						.eq('code', instance.code)
+						.single();
+
+					if (inst?.current_workshop_state) {
 						currentSlide = inst.current_workshop_state.slide_index ?? 0;
 						activeSlideMode = inst.current_workshop_state.mode ?? 'actividad';
 					}
-				});
+				}
+			});
+
+			return () => {
+				supabase.removeChannel(channel);
+			};
 		}
 	});
 
@@ -164,8 +204,8 @@
 	async function changeSlide(index: number, mode: 'actividad' | 'feedback') {
 		currentSlide = index;
 		activeSlideMode = mode;
-		if (session.channel) {
-			await session.channel.send({
+		if (channel) {
+			await channel.send({
 				type: 'broadcast',
 				event: 'slide-sync',
 				payload: { slideIndex: index, mode }
@@ -182,18 +222,22 @@
 	}
 
 	async function finalizeWorkshop() {
-		if (session.channel) {
-			await session.channel.send({
+		if (channel) {
+			await channel.send({
 				type: 'broadcast',
 				event: 'workshop-complete',
 				payload: {}
 			});
 		}
 		// Also mark it completed for the host/everyone locally
-		const state = session.player.game_state || {};
+		const state = player.game_state || {};
 		if (!state[1]) state[1] = {};
 		state[1].workshop_completed = true;
-		await session.updatePlayerGameState(state);
+		player.game_state = state;
+		await supabase
+			.from('course_players')
+			.update({ game_state: state })
+			.eq('id', player.id);
 
 		onComplete();
 	}
@@ -206,9 +250,9 @@
 		};
 
 		const payloadData = {
-			playerId: session.player.id,
-			name: session.player.name,
-			alias: session.player.alias,
+			playerId: player.id,
+			name: player.name,
+			alias: player.alias,
 			slide: currentSlide,
 			guild: selectedGuild,
 			character: selectedCharacter,
@@ -218,8 +262,8 @@
 			preference: selectedPreference
 		};
 
-		if (session.channel) {
-			await session.channel.send({
+		if (channel) {
+			await channel.send({
 				type: 'broadcast',
 				event: 'student-submit',
 				payload: payloadData
@@ -228,11 +272,11 @@
 
 		classSubmissions = {
 			...classSubmissions,
-			[session.player.id]: payloadData
+			[player.id]: payloadData
 		};
 
 		// persistent DB save for every single slide submission to guarantee no data loss on page reload
-		const state = session.player.game_state || {};
+		const state = player.game_state || {};
 		state[1] = {
 			...(state[1] || {}),
 			guild: selectedGuild,
@@ -255,10 +299,14 @@
 			};
 		}
 
-		await session.updatePlayerGameState(state, {
-			...(selectedCharacter ? { avatar: selectedCharacter } : {}),
-			...(currentSlide === 5 ? { coins: session.player.coins + 25 } : {})
-		});
+		await supabase
+			.from('course_players')
+			.update({
+				game_state: state,
+				...(selectedCharacter ? { avatar: selectedCharacter } : {}),
+				...(currentSlide === 5 ? { coins: player.coins + 25 } : {})
+			})
+			.eq('id', player.id);
 	}
 
 	// Slide 1 Content
@@ -311,7 +359,8 @@
 
 	// Slide 2 Waiting analytics
 	const charCounts = $derived.by(() => {
-		const counts: Record<string, number> = { sensei: 0, explorador: 0, proposito: 0, curador: 0, estratega: 0, socio: 0, ingeniero: 0 };
+		const counts: Record<string, number> = {};
+		charProfiles.forEach(p => counts[p.id] = 0);
 		Object.values(classSubmissions).forEach((s: any) => {
 			if (s.slide === 1 && s.character) {
 				counts[s.character] = (counts[s.character] || 0) + 1;
@@ -320,38 +369,41 @@
 		return counts;
 	});
 
-	// Slide 3 Waiting analytics: average points for each skill
+	// Slide 3 Waiting analytics (Averages of skills points allocated)
 	const skillAverages = $derived.by(() => {
-		const sums: Record<string, number> = { heroismo: 0, poder: 0, explotacion: 0, habilidad: 0, colaboracion: 0, administracion: 0, arte: 0 };
-		let count = 0;
-		Object.values(classSubmissions).forEach((s: any) => {
-			if (s.slide === 2 && s.skills) {
-				count++;
-				Object.keys(sums).forEach(k => {
-					sums[k] += s.skills[k] || 0;
-				});
-			}
+		const keys = ['heroismo', 'poder', 'explotacion', 'habilidad', 'colaboracion', 'administracion', 'arte'];
+		const avgs: Record<string, number> = {};
+		keys.forEach(k => avgs[k] = 0);
+		
+		const subs = Object.values(classSubmissions).filter((s: any) => s.slide >= 2 && s.skills);
+		if (subs.length === 0) return avgs;
+
+		subs.forEach((s: any) => {
+			keys.forEach(k => {
+				avgs[k] += s.skills[k] || 0;
+			});
 		});
-		if (count === 0) return sums;
-		Object.keys(sums).forEach(k => {
-			sums[k] = parseFloat((sums[k] / count).toFixed(1));
+
+		keys.forEach(k => {
+			avgs[k] = parseFloat((avgs[k] / subs.length).toFixed(1));
 		});
-		return sums;
+
+		return avgs;
 	});
 
-	// Slide 4 Waiting analytics: collect game favorites and game dislikes
-	const virtuesList = $derived.by(() => {
-		return Object.values(classSubmissions)
-			.filter((s: any) => s.slide === 3 && s.virtues)
-			.map((s: any) => ({ name: s.name, alias: s.alias, value: s.virtues }));
-	});
-	const flawsList = $derived.by(() => {
-		return Object.values(classSubmissions)
-			.filter((s: any) => s.slide === 3 && s.flaws)
-			.map((s: any) => ({ name: s.name, alias: s.alias, value: s.flaws }));
-	});
+	// Slide 4 Waiting Columns
+	const submittedJoys = $derived(
+		Object.values(classSubmissions)
+			.filter((s: any) => s.virtues)
+			.map((s: any) => ({ alias: s.alias, value: s.virtues }))
+	);
+	const submittedFlaws = $derived(
+		Object.values(classSubmissions)
+			.filter((s: any) => s.flaws)
+			.map((s: any) => ({ alias: s.alias, value: s.flaws }))
+	);
 
-	// Slide 5 Waiting analytics: counts for game preferences
+	// Slide 5 Preference Counts
 	const preferenceCounts = $derived.by(() => {
 		const counts: Record<string, number> = {};
 		preferences.forEach(p => counts[p.id] = 0);
@@ -493,8 +545,8 @@
 			}
 
 			// 2. Broadcast reset event to all connected clients
-			if (session.channel) {
-				await session.channel.send({
+			if (channel) {
+				await channel.send({
 					type: 'broadcast',
 					event: 'workshop-reset',
 					payload: {}
@@ -529,31 +581,85 @@
 	<!-- ---------------------------------------------------- -->
 	<!-- HOST CONTROL PANEL OVERLAY (For Javier)              -->
 	<!-- ---------------------------------------------------- -->
-	<FacilitatorControlPanel
-		isHost={session.isHost}
-		onlineCount={session.onlinePlayers.length}
-		submittedCount={slideSubmissionsCount}
-		isFirstStep={currentSlide === 0}
-		isLastStep={currentSlide === 5}
-		activeMode={activeSlideMode}
-		onReset={handleResetWorkshop}
-		onPrev={() => changeSlide(currentSlide - 1, 'actividad')}
-		onNext={() => changeSlide(currentSlide + 1, 'actividad')}
-		onToggleMode={(mode) => changeSlide(currentSlide, mode)}
-		onComplete={finalizeWorkshop}
-	/>
+	{#if isHost}
+		<div class="host-controls-banner" in:slide>
+			<div class="host-title">
+				<span>👑 MENTOR ORQUESTADOR (JAVIER)</span>
+			</div>
+			
+			<div class="host-actions-row">
+				<div class="host-buttons-group">
+					<button 
+						type="button" 
+						class="btn-solar-danger btn-sm font-bold"
+						onclick={handleResetWorkshop}
+					>
+						🔄 Reiniciar
+					</button>
+
+					<button 
+						type="button" 
+						class="btn-solar-secondary btn-sm"
+						disabled={currentSlide === 0}
+						onclick={() => changeSlide(currentSlide - 1, 'actividad')}
+					>
+						◀ Slide Anterior
+					</button>
+
+					{#if activeSlideMode === 'actividad'}
+						<button 
+							type="button" 
+							class="btn-solar-accent btn-sm font-bold animate-solar-pulse"
+							onclick={() => changeSlide(currentSlide, 'feedback')}
+						>
+							📢 Activar Feedback en Vivo
+						</button>
+					{:else}
+						<button 
+							type="button" 
+							class="btn-solar-secondary btn-sm font-bold"
+							onclick={() => changeSlide(currentSlide, 'actividad')}
+						>
+							✏️ Regresar a Actividad
+						</button>
+					{/if}
+					
+					{#if currentSlide < 5}
+						<button 
+							type="button" 
+							class="btn-solar-primary btn-sm font-bold"
+							onclick={() => changeSlide(currentSlide + 1, 'actividad')}
+						>
+							Siguiente Slide ▶
+						</button>
+					{:else}
+						<button 
+							type="button" 
+							class="btn-solar-primary btn-sm font-bold"
+							onclick={finalizeWorkshop}
+						>
+							✓ Finalizar Workshop
+						</button>
+					{/if}
+				</div>
+
+				<div class="presence-tag">
+					🟢 Estudiantes: <strong>{onlinePlayers.length}</strong> | Respondieron: <strong>{slideSubmissionsCount}</strong>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- STEPS TAB NAVIGATION MAP -->
 	<div class="steps-progress-dots">
 		{#each Array(6) as _, i}
-			<div class="step-dot" class:active={currentSlide === i} class:host={session.isHost}>
+			<div class="step-dot" class:active={currentSlide === i} class:host={isHost}>
 				<span class="step-num">{i + 1}</span>
 			</div>
 		{/each}
 	</div>
 
-	<GameUIWrapper maxWidth="1200px">
-		<div class="slide-main-content">
+	<div class="slide-main-content">
 		<!-- ---------------------------------------------------- -->
 		<!-- SLIDE 1: ESCUELA DE COFRADÍAS                        -->
 		<!-- ---------------------------------------------------- -->
@@ -890,7 +996,7 @@
 							<div class="glass-card text-left">
 								<h5 class="font-bold text-solar-green-medium mb-2">💚 Juegos Virtuosos (Amados):</h5>
 								<ul class="text-xs list-disc pl-4 space-y-1">
-									{#each virtuesList as j}
+									{#each submittedJoys as j}
 										<li><strong>{j.alias}:</strong> {j.value}</li>
 									{/each}
 								</ul>
@@ -899,7 +1005,7 @@
 							<div class="glass-card text-left">
 								<h5 class="font-bold text-solar-terracotta mb-2">💔 Juegos No Virtuosos (Odiados):</h5>
 								<ul class="text-xs list-disc pl-4 space-y-1">
-									{#each flawsList as f}
+									{#each submittedFlaws as f}
 										<li><strong>{f.alias}:</strong> {f.value}</li>
 									{/each}
 								</ul>
@@ -1150,7 +1256,6 @@
 			</div>
 		{/if}
 	</div>
-	</GameUIWrapper>
 </div>
 
 <style>

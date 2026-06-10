@@ -221,18 +221,45 @@
 															<div class="canvas-row-saved-container">
 																<h5 class="canvas-row-title">Fila de Diseño #{index + 1}</h5>
 																<div class="canvas-row-items">
-																	<div class="driver-item-saved">
-																		<span class="d-label">META (GOAL)</span>
-																		<p class="d-answer">"{row.meta}"</p>
-																	</div>
-																	<div class="driver-item-saved">
-																		<span class="d-label">RETROALIMENTACIÓN (FEEDBACK)</span>
-																		<p class="d-answer">"{row.retroalimentacion}"</p>
-																	</div>
-																	<div class="driver-item-saved">
-																		<span class="d-label">RECOMPENSA (REWARD)</span>
-																		<p class="d-answer">"{row.recompensa}"</p>
-																	</div>
+																	{#if w.id === 3}
+																		<div class="driver-item-saved">
+																			<span class="d-label">1. META</span>
+																			<p class="d-answer">"{row.meta || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">2. ESTÍMULO / LLAMADO A LA ACCIÓN</span>
+																			<p class="d-answer">"{row.llamado || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">3. EVALUACIÓN COGNITIVA ESPERADA</span>
+																			<p class="d-answer">"{row.eval_cognitiva || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">4. ACCIÓN DISPARADORA</span>
+																			<p class="d-answer">"{row.accion_disparadora || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">5. EVALUACIÓN DEL JUEGO</span>
+																			<p class="d-answer">"{row.eval_juego || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">6. RETROALIMENTACIÓN</span>
+																			<p class="d-answer">"{row.retroalimentacion || ''}"</p>
+																		</div>
+																	{:else}
+																		<div class="driver-item-saved">
+																			<span class="d-label">META (GOAL)</span>
+																			<p class="d-answer">"{row.meta || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">RETROALIMENTACIÓN (FEEDBACK)</span>
+																			<p class="d-answer">"{row.retroalimentacion || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">RECOMPENSA (REWARD)</span>
+																			<p class="d-answer">"{row.recompensa || ''}"</p>
+																		</div>
+																	{/if}
 																</div>
 															</div>
 														{/each}

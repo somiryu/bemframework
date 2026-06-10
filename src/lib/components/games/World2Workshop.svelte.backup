@@ -4,9 +4,6 @@
 	import { supabase } from '$lib/supabase';
 	import { workshopCards, type GFRCard } from '$lib/content/gfrCards';
 	import confetti from 'canvas-confetti';
-	import { createWorkshopSession } from '$lib/utils/workshop.svelte';
-	import FacilitatorControlPanel from '$lib/components/workshop/FacilitatorControlPanel.svelte';
-	import GameUIWrapper from '$lib/components/workshop/GameUIWrapper.svelte';
 
 	function generateRandomOrder(length: number): number[] {
 		const arr = Array.from({ length }, (_, i) => i);
@@ -35,12 +32,17 @@
 		onComplete: () => void 
 	} = $props();
 
-	// Initialize the shared workshop session
-	const session = createWorkshopSession(initialPlayer, instance, 2, onComplete);
+	let player = $state(JSON.parse(JSON.stringify(initialPlayer)));
+
+	// Host check
+	const isHost = $derived(player.email === 'javier@f2p.co');
 
 	// Real-time synchronization
 	let currentRound = $state(0); // 0 to 11
 	let activeMode = $state<'actividad' | 'feedback' | 'final_feedback'>('actividad'); // 'actividad' = voting, 'feedback' = explanation, 'final_feedback' = final summary
+	let channel: any = null;
+	let onlinePlayers = $state<any[]>([]);
+	let allClassPlayers = $state<any[]>([]);
 
 	// Student selection state for current round
 	let selectedCol = $state<'meta' | 'retroalimentacion' | 'recompensa' | null>(null);
@@ -49,7 +51,7 @@
 	let lastSelectTime = 0;
 
 	// State to track liked ideas locally
-	let likedIdeas = $state<string[]>(session.player.game_state?.liked_ideas || []);
+	let likedIdeas = $state<string[]>(player.game_state?.liked_ideas || []);
 
 	function isIdeaLiked(id: string) {
 		return likedIdeas.includes(id);
@@ -59,7 +61,7 @@
 		let currentLiked = [...likedIdeas];
 		
 		// Create safe deep copy of game_state to avoid Svelte 5 proxy serialization errors
-		const state = session.player.game_state ? JSON.parse(JSON.stringify(session.player.game_state)) : {};
+		const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
 		if (!state.ideas) {
 			state.ideas = [];
 		}
@@ -82,8 +84,15 @@
 		
 		likedIdeas = currentLiked;
 		state.liked_ideas = likedIdeas;
+		player.game_state = state;
 
-		await session.updatePlayerGameState(state);
+		// Save to Supabase in the background
+		if (supabase && player.id) {
+			await supabase
+				.from('course_players')
+				.update({ game_state: state })
+				.eq('id', player.id);
+		}
 	}
 
 	// Class submissions and votes for current round
@@ -133,7 +142,7 @@
 		const rowErrors: Record<string, number> = { regulatorio: 0, integrado: 0, intrinseco: 0 };
 		let totalVotesCount = 0;
 
-		session.allClassPlayers.forEach(p => {
+		allClassPlayers.forEach(p => {
 			if (p.email === 'javier@f2p.co') return;
 			const rounds = p.game_state?.[2]?.workshop_completed_rounds;
 			if (rounds) {
@@ -231,7 +240,14 @@
 	}
 
 	async function loadAllClassPlayers() {
-		await session.loadAllClassPlayers();
+		if (!supabase) return;
+		const { data: players } = await supabase
+			.from('course_players')
+			.select('id, alias, game_state')
+			.eq('instance_code', instance.code);
+		if (players) {
+			allClassPlayers = players;
+		}
 	}
 
 	// Load class votes from database for a specific round to preserve state on reload
@@ -260,9 +276,9 @@
 
 	// Load initial state
 	onMount(() => {
-		session.loadAllClassPlayers();
+		loadAllClassPlayers();
 
-		const existingState = session.player.game_state?.[2] || {};
+		const existingState = player.game_state?.[2] || {};
 		if (existingState.workshop_performance_points) {
 			personalScore = existingState.workshop_performance_points;
 		}
@@ -275,19 +291,21 @@
 			}
 		}
 
-		session.initConnection(async (event, payload) => {
-			if (event === 'round-sync') {
-				const isNewRound = payload.roundIndex !== currentRound;
-				currentRound = payload.roundIndex;
-				activeMode = payload.mode;
-				if (isNewRound || activeMode === 'actividad') {
-					classVotes = {};
-				}
-				if (payload.cardOrder) {
-					cardOrder = payload.cardOrder;
+		if (supabase) {
+			const channelId = `workshop_session_omie_w2_${instance.code}`;
+			channel = supabase.channel(channelId, {
+				config: { presence: { key: player.id } }
+			});
+
+			channel.on('broadcast', { event: 'round-sync' }, async (payload: any) => {
+				const data = payload.payload;
+				currentRound = data.roundIndex;
+				activeMode = data.mode;
+				if (data.cardOrder) {
+					cardOrder = data.cardOrder;
 				}
 				
-				const savedState = session.player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
+				const savedState = player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
 				if (savedState) {
 					selectedCol = savedState.col;
 					selectedRow = savedState.row;
@@ -298,35 +316,49 @@
 					hasVotedThisRound = false;
 				}
 				await loadClassVotes(currentRound);
-				await session.loadAllClassPlayers();
-			} else if (event === 'student-vote') {
+				await loadAllClassPlayers();
+			});
+
+			channel.on('broadcast', { event: 'student-vote' }, async (payload: any) => {
+				const vote = payload.payload;
 				classVotes = {
 					...classVotes,
-					[payload.playerId]: { col: payload.col, row: payload.row, alias: payload.alias }
+					[vote.playerId]: { col: vote.col, row: vote.row, alias: vote.alias }
 				};
-				if (payload.gameState) {
-					session.allClassPlayers = session.allClassPlayers.map(p => {
-						if (p.id === payload.playerId) {
-							return { ...p, game_state: payload.gameState };
+				if (vote.gameState) {
+					allClassPlayers = allClassPlayers.map(p => {
+						if (p.id === vote.playerId) {
+							return { ...p, game_state: vote.gameState };
 						}
 						return p;
 					});
-				} else if (session.isHost) {
-					await session.loadAllClassPlayers();
+				} else if (isHost) {
+					await loadAllClassPlayers();
 				}
-			} else if (event === 'workshop-complete') {
-				if (!session.isHost) {
-					const state = session.player.game_state ? JSON.parse(JSON.stringify(session.player.game_state)) : {};
+			});
+
+			channel.on('broadcast', { event: 'workshop-complete' }, async () => {
+				if (!isHost) {
+					const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
 					if (!state[2]) state[2] = {};
 					state[2].workshop_completed = true;
 					state[2].workshop_performance_points = personalScore;
+					player.game_state = state;
 
-					await session.updatePlayerGameState(state, {
-						coins: session.player.coins + 5
-					});
+					if (supabase && player.id) {
+						await supabase
+							.from('course_players')
+							.update({ 
+								game_state: state,
+								coins: player.coins + 5
+							})
+							.eq('id', player.id);
+					}
 				}
 				onComplete();
-			} else if (event === 'workshop-reset') {
+			});
+
+			channel.on('broadcast', { event: 'workshop-reset' }, (payload: any) => {
 				personalScore = 0;
 				selectedCol = null;
 				selectedRow = null;
@@ -334,30 +366,47 @@
 				classVotes = {};
 				currentRound = 0;
 				activeMode = 'actividad';
-				session.allClassPlayers = [];
-				if (payload?.cardOrder) {
-					cardOrder = payload.cardOrder;
+				allClassPlayers = [];
+				if (payload?.payload?.cardOrder) {
+					cardOrder = payload.payload.cardOrder;
 				}
-				if (session.player.game_state) {
-					const newState = { ...session.player.game_state };
+				if (player.game_state) {
+					const newState = { ...player.game_state };
 					delete newState['2'];
 					delete newState[2];
-					session.player.game_state = newState;
+					player.game_state = newState;
 				}
-			}
-		});
+			});
 
-		if (supabase) {
-			supabase
-				.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(async ({ data: inst }) => {
+			channel.on('presence', { event: 'sync' }, () => {
+				const state = channel.presenceState();
+				const list: any[] = [];
+				Object.keys(state).forEach((key) => {
+					const user = state[key][0];
+					if (user) list.push(user);
+				});
+				onlinePlayers = list;
+			});
+
+			channel.subscribe(async (status) => {
+				if (status === 'SUBSCRIBED') {
+					await channel.track({
+						playerId: player.id,
+						name: player.name,
+						alias: player.alias,
+						email: player.email
+					});
+
+					const { data: inst } = await supabase
+						.from('course_instances')
+						.select('current_workshop_state')
+						.eq('code', instance.code)
+						.single();
+
 					let currentWorkshopState = inst?.current_workshop_state;
 
 					// If state is not initialized for World 2, or card_order is missing, or it's sequential, the host creates/resets it!
-					if (session.isHost && (!currentWorkshopState || currentWorkshopState.world_id !== 2 || !currentWorkshopState.card_order || isSequential(currentWorkshopState.card_order))) {
+					if (isHost && (!currentWorkshopState || currentWorkshopState.world_id !== 2 || !currentWorkshopState.card_order || isSequential(currentWorkshopState.card_order))) {
 						const newOrder = generateRandomOrder(workshopCards.length);
 						cardOrder = newOrder;
 						currentRound = 0;
@@ -382,14 +431,15 @@
 						}
 					}
 
-					const savedState = session.player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
+					const savedState = player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
 					if (savedState) {
 						selectedCol = savedState.col;
 						selectedRow = savedState.row;
 						hasVotedThisRound = true;
 					}
 					await loadClassVotes(currentRound);
-				});
+				}
+			});
 
 			// Sync and listen to any student state updates (e.g. database change)
 			const playersChannel = supabase
@@ -400,16 +450,16 @@
 					table: 'course_players',
 					filter: `instance_code=eq.${instance.code}`
 				}, (payload: any) => {
-					if (session.isHost) {
-						session.loadAllClassPlayers();
+					if (isHost) {
+						loadAllClassPlayers();
 					}
-					if (payload.new && payload.new.id === session.player.id) {
-						session.player.game_state = payload.new.game_state;
-						session.player.coins = payload.new.coins;
-						session.player.avatar = payload.new.avatar;
-						likedIdeas = session.player.game_state?.liked_ideas || [];
+					if (payload.new && payload.new.id === player.id) {
+						player.game_state = payload.new.game_state;
+						player.coins = payload.new.coins;
+						player.avatar = payload.new.avatar;
+						likedIdeas = player.game_state?.liked_ideas || [];
 
-						const pState = session.player.game_state?.[2] || {};
+						const pState = player.game_state?.[2] || {};
 						personalScore = pState.workshop_performance_points || 0;
 						
 						const roundState = pState.workshop_completed_rounds?.[currentRound];
@@ -443,7 +493,7 @@
 							cardOrder = instState.card_order;
 						}
 						
-						const savedState = session.player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
+						const savedState = player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
 						if (savedState) {
 							selectedCol = savedState.col;
 							selectedRow = savedState.row;
@@ -458,6 +508,7 @@
 				.subscribe();
 
 			return () => {
+				supabase.removeChannel(channel);
 				supabase.removeChannel(playersChannel);
 				supabase.removeChannel(instancesChannel);
 			};
@@ -465,7 +516,7 @@
 	});
 
 	// Host broadcast sync triggers
-	async function changeRound(index: number, mode: 'actividad' | 'feedback' | 'final_feedback') {
+	async function changeRound(index: number, mode: 'actividad' | 'feedback') {
 		const isNewRound = index !== currentRound;
 		currentRound = index;
 		activeMode = mode;
@@ -473,17 +524,20 @@
 			classVotes = {};
 		}
 		
-		if (session.isHost) {
-			const state = session.player.game_state ? JSON.parse(JSON.stringify(session.player.game_state)) : {};
+		if (isHost) {
+			const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
 			if (!state[2]) state[2] = {};
 			state[2].workshop_team_points = teamScore;
-			session.player.game_state = state;
+			player.game_state = state;
 			
-			await session.updatePlayerGameState(state);
+			await supabase
+				.from('course_players')
+				.update({ game_state: state })
+				.eq('id', player.id);
 		}
 		
-		if (session.channel) {
-			await session.channel.send({
+		if (channel) {
+			await channel.send({
 				type: 'broadcast',
 				event: 'round-sync',
 				payload: { roundIndex: index, mode, cardOrder }
@@ -519,7 +573,7 @@
 		personalScore += pointsEarned;
 
 		// Persist round results in player game_state
-		const state = session.player.game_state ? JSON.parse(JSON.stringify(session.player.game_state)) : {};
+		const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
 		if (!state[2]) {
 			state[2] = {
 				workshop_completed_rounds: {},
@@ -537,19 +591,19 @@
 			points: pointsEarned
 		};
 		state[2].workshop_performance_points = personalScore;
-		session.player.game_state = state;
+		player.game_state = state;
 
 		const payloadData = {
-			playerId: session.player.id,
-			alias: session.player.alias,
+			playerId: player.id,
+			alias: player.alias,
 			col: selectedCol,
 			row: selectedRow,
 			round: currentRound,
 			gameState: state
 		};
 
-		if (session.channel) {
-			await session.channel.send({
+		if (channel) {
+			await channel.send({
 				type: 'broadcast',
 				event: 'student-vote',
 				payload: payloadData
@@ -558,10 +612,13 @@
 
 		classVotes = {
 			...classVotes,
-			[session.player.id]: { col: selectedCol, row: selectedRow, alias: session.player.alias }
+			[player.id]: { col: selectedCol, row: selectedRow, alias: player.alias }
 		};
 
-		await session.updatePlayerGameState(state);
+		await supabase
+			.from('course_players')
+			.update({ game_state: state })
+			.eq('id', player.id);
 	}
 
 	// Evaluate team score based on majority vote
@@ -627,7 +684,7 @@
 		let total = 0;
 		const limit = activeMode === 'feedback' ? currentRound + 1 : currentRound;
 		for (let i = 0; i < limit; i++) {
-			total += getCourseScoreForRound(i, session.allClassPlayers);
+			total += getCourseScoreForRound(i, allClassPlayers);
 		}
 		return total;
 	});
@@ -635,7 +692,7 @@
 	// Classroom aggregate performance score (for super_user/host display)
 	const totalClassroomPerformanceScore = $derived.by(() => {
 		let total = 0;
-		session.allClassPlayers.forEach(p => {
+		allClassPlayers.forEach(p => {
 			if (p.email !== 'javier@f2p.co') {
 				const pScore = p.game_state?.[2]?.workshop_performance_points || 0;
 				total += pScore;
@@ -691,8 +748,8 @@
 			hasVotedThisRound = false;
 			classVotes = {};
 
-			if (session.channel) {
-				await session.channel.send({
+			if (channel) {
+				await channel.send({
 					type: 'broadcast',
 					event: 'workshop-reset',
 					payload: { cardOrder: newOrder }
@@ -704,22 +761,27 @@
 	}
 
 	async function finalizeWorkshop() {
-		if (session.channel) {
-			await session.channel.send({
+		if (channel) {
+			await channel.send({
 				type: 'broadcast',
 				event: 'workshop-complete',
 				payload: {}
 			});
 		}
 
-		const state = session.player.game_state ? JSON.parse(JSON.stringify(session.player.game_state)) : {};
+		const state = player.game_state ? JSON.parse(JSON.stringify(player.game_state)) : {};
 		if (!state[2]) state[2] = {};
 		state[2].workshop_completed = true;
 		state[2].workshop_team_points = teamScore; // Make sure host saves final teamScore
+		player.game_state = state;
 
-		await session.updatePlayerGameState(state, {
-			coins: session.player.coins + 5
-		});
+		await supabase
+			.from('course_players')
+			.update({ 
+				game_state: state,
+				coins: player.coins + 5
+			})
+			.eq('id', player.id);
 
 		onComplete();
 	}
@@ -735,64 +797,108 @@
 		intrinseco: 'Intrínseco',
 		integrado: 'Integrado'
 	};
-
-	function handleNextStep() {
-		if (currentRound < 11) {
-			changeRound(currentRound + 1, 'actividad');
-		} else if (activeMode === 'feedback') {
-			changeRound(currentRound, 'final_feedback');
-		}
-	}
 </script>
 
 <div class="workshop-container">
-	<FacilitatorControlPanel
-		isHost={session.isHost}
-		onlineCount={session.onlinePlayers.length}
-		submittedCount={Object.keys(classVotes).length}
-		teamScore={teamScore}
-		isFirstStep={currentRound === 0}
-		isLastStep={currentRound === 11 && activeMode === 'final_feedback'}
-		activeMode={activeMode}
-		onReset={handleResetWorkshop}
-		onPrev={() => changeRound(currentRound - 1, 'actividad')}
-		onNext={handleNextStep}
-		onToggleMode={(mode) => changeRound(currentRound, mode)}
-		onComplete={finalizeWorkshop}
-		coinsLabel="+5 BEM Coins"
-		stepLabel="Ronda"
-	>
-		{#if currentRound === 11 && activeMode === 'final_feedback'}
-			<button 
-				type="button" 
-				class="btn-solar-secondary btn-sm"
-				onclick={() => changeRound(currentRound, 'feedback')}
-			>
-				◀ Reabrir Feedback de Ronda
-			</button>
-		{/if}
-	</FacilitatorControlPanel>
-
-	<GameUIWrapper maxWidth="1400px">
-		<!-- Rounds Tracker -->
-		<header class="rounds-tracker">
-			<div class="tracker-left">
-				<span class="m-badge">Ronda {currentRound + 1} de 12</span>
-				<h4>GFR Live Board</h4>
+	{#if isHost}
+		<!-- Host controller banner -->
+		<div class="host-controls-banner">
+			<div class="host-title">
+				<span>👑 MENTOR ORQUESTADOR (JAVIER)</span>
 			</div>
-			<div class="tracker-right">
-				<div class="score-pill personal">
-					{#if session.isHost}
-						🏆 Desempeño Clase: <strong>{totalClassroomPerformanceScore} pts</strong>
+			
+			<div class="host-actions-row">
+				<div class="host-buttons-group">
+					<button type="button" class="btn-solar-danger btn-sm" onclick={handleResetWorkshop}>
+						🔄 Reiniciar
+					</button>
+
+					<button 
+						type="button" 
+						class="btn-solar-secondary btn-sm"
+						disabled={currentRound === 0}
+						onclick={() => changeRound(currentRound - 1, 'actividad')}
+					>
+						◀ Anterior
+					</button>
+
+					{#if activeMode === 'actividad'}
+						<button 
+							type="button" 
+							class="btn-solar-accent btn-sm animate-solar-pulse font-bold"
+							onclick={() => changeRound(currentRound, 'feedback')}
+						>
+							📢 Revelar Votación y Activar Feedback
+						</button>
 					{:else}
-						🏆 Desempeño: <strong>{personalScore} pts</strong>
+						<button 
+							type="button" 
+							class="btn-solar-secondary btn-sm font-bold"
+							onclick={() => changeRound(currentRound, 'actividad')}
+						>
+							✏️ Reabrir Votación
+						</button>
+					{/if}
+					
+					{#if currentRound < 11}
+						<button 
+							type="button" 
+							class="btn-solar-primary btn-sm font-bold"
+							onclick={() => changeRound(currentRound + 1, 'actividad')}
+						>
+							Siguiente Ronda ▶
+						</button>
+					{:else if activeMode === 'feedback'}
+						<button 
+							type="button" 
+							class="btn-solar-accent btn-sm font-bold animate-solar-pulse"
+							onclick={() => changeRound(currentRound, 'final_feedback')}
+						>
+							Ver Retroalimentación Final 📊
+						</button>
+					{:else if activeMode === 'final_feedback'}
+						<button 
+							type="button" 
+							class="btn-solar-secondary btn-sm"
+							onclick={() => changeRound(currentRound, 'feedback')}
+						>
+							◀ Reabrir Feedback de Ronda
+						</button>
+						<button 
+							type="button" 
+							class="btn-solar-primary btn-sm font-bold"
+							onclick={finalizeWorkshop}
+						>
+							✓ Finalizar Taller (+5 BEM Coins)
+						</button>
 					{/if}
 				</div>
-				<div class="score-pill team">
-					👥 Salón: <strong>{teamScore} pts</strong>
+
+				<div class="presence-tag">
+					🟢 Conectados: <strong>{onlinePlayers.length}</strong> | Votos: <strong>{Object.keys(classVotes).length}</strong> | Puntaje Salón: <strong>{teamScore} pts</strong>
 				</div>
 			</div>
-		</header>
+		</div>
+	{/if}
+
+	<!-- Rounds Tracker -->
+	<header class="rounds-tracker">
+		<div class="tracker-left">
+			<span class="m-badge">Ronda {currentRound + 1} de 12</span>
+			<h4>GFR Live Board</h4>
+		</div>
+		<div class="tracker-right">
+			<div class="score-pill personal">
+				{#if isHost}
+					🏆 Desempeño Clase: <strong>{totalClassroomPerformanceScore} pts</strong>
+				{:else}
+					🏆 Desempeño: <strong>{personalScore} pts</strong>
+				{/if}
+			<div class="score-pill team">
+				👥 Salón: <strong>{teamScore} pts</strong>
+			</div>
+		</div>
+	</header>
 
 	{#if activeMode === 'final_feedback'}
 		<div class="final-feedback-container glass-card" in:fade>
@@ -846,7 +952,7 @@
 											<div class="placed-cards-list">
 												{#each placedCards[cellKey] as card}
 													{@const roundIdx = cardRoundMap.get(card.id)}
-													{@const courseScore = roundIdx !== undefined ? getCourseScoreForRound(roundIdx, session.allClassPlayers) : 0}
+													{@const courseScore = roundIdx !== undefined ? getCourseScoreForRound(roundIdx, allClassPlayers) : 0}
 													<div class="placed-card-pill-wrapper">
 														<div class="placed-card-pill score-{courseScore}">
 															📄 {card.text.substring(0, 24)}...
@@ -937,7 +1043,7 @@
 				</div>
 			</div>
 
-			{#if session.isHost}
+			{#if isHost}
 				<div class="final-actions-row" style="margin-top: 2rem; display: flex; justify-content: center;">
 					<button type="submit" class="btn-solar-primary font-bold shadow-solar-md" onclick={finalizeWorkshop}>
 						✓ Finalizar Taller y Guardar Resultados (+5 BEM Coins)
@@ -979,7 +1085,7 @@
 												<div class="placed-cards-list">
 													{#each placedCards[cellKey] as card}
 														{@const roundIdx = cardRoundMap.get(card.id)}
-														{@const courseScore = roundIdx !== undefined ? getCourseScoreForRound(roundIdx, session.allClassPlayers) : 0}
+														{@const courseScore = roundIdx !== undefined ? getCourseScoreForRound(roundIdx, allClassPlayers) : 0}
 														<div class="placed-card-pill-wrapper">
 															<div class="placed-card-pill score-{courseScore}">
 																📄 {card.text.substring(0, 24)}...
@@ -1002,7 +1108,7 @@
 														</div>
 													{/if}
 													
-													{#if !session.isHost && !hasVotedThisRound}
+													{#if !isHost && !hasVotedThisRound}
 														<button 
 															type="button" 
 															class="select-cell-btn" 
@@ -1051,7 +1157,7 @@
 							<p class="card-quote">"{activeCard.text}"</p>
 						</div>
 
-						{#if !session.isHost}
+						{#if !isHost}
 							<div class="idea-btn-container" style="margin-bottom: 1rem;">
 								<button
 									type="button"
@@ -1069,7 +1175,7 @@
 						{/if}
 
 						{#if activeMode === 'actividad'}
-							{#if !session.isHost}
+							{#if !isHost}
 								{#if hasVotedThisRound}
 									<div class="waiting-box" in:fade>
 										<span class="waiting-icon">⏳</span>
@@ -1099,7 +1205,7 @@
 							{/if}
 						{:else}
 							<!-- Feedback Explanation Mode -->
-							<div class="explanation-box" class:correct={!session.isHost && selectedCol === activeCard.gfr && selectedRow === activeCard.rii} class:wrong={!session.isHost && (selectedCol !== activeCard.gfr || selectedRow !== activeCard.rii)}>
+							<div class="explanation-box" class:correct={!isHost && selectedCol === activeCard.gfr && selectedRow === activeCard.rii} class:wrong={!isHost && (selectedCol !== activeCard.gfr || selectedRow !== activeCard.rii)}>
 								<h5 class="explanation-header">Retroalimentación del Mentor:</h5>
 								<p class="explanation-text">{activeCard.explanation}</p>
 
@@ -1130,7 +1236,6 @@
 
 		</div>
 	{/if}
-	</GameUIWrapper>
 </div>
 
 <style>

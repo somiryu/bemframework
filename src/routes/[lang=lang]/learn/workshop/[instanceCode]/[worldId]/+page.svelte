@@ -3,7 +3,8 @@
 	import type { PageData } from './$types';
 	import World1Workshop from '$lib/components/games/World1Workshop.svelte';
 	import World2Workshop from '$lib/components/games/World2Workshop.svelte';
-	import MapIcon from '$lib/components/icons/MapIcon.svelte';
+	import World3Workshop from '$lib/components/games/World3Workshop.svelte';
+	import WorkshopHeader from '$lib/components/workshop/WorkshopHeader.svelte';
 	import { page } from '$app/state';
 	import { learnTranslations } from '$lib/content/learn';
 
@@ -18,18 +19,12 @@
 </script>
 
 <div class="fullscreen-workshop-layout" transition:fade>
-	<!-- Solarpunk Header Banner -->
-	<header class="workshop-header glass-card">
-		<div class="header-left">
-			<span class="w-badge">LIVE WORKSHOP (SALA: {data.instance.code})</span>
-			<h1 class="header-title">{data.world.title}</h1>
-		</div>
-		<div class="header-right">
-			<button type="button" class="btn-solar-secondary btn-sm flex items-center gap-1.5" onclick={handleBackToMap}>
-				<MapIcon size={16} /> {t.backToMap}
-			</button>
-		</div>
-	</header>
+	<WorkshopHeader 
+		instanceCode={data.instance.code}
+		worldTitle={data.world.title}
+		backLabel={t.backToMap}
+		onBack={handleBackToMap}
+	/>
 
 	<main class="workshop-body">
 		{#if data.world.id === 1}
@@ -40,6 +35,12 @@
 			/>
 		{:else if data.world.id === 2}
 			<World2Workshop 
+				player={data.player} 
+				instance={data.instance}
+				onComplete={handleBackToMap}
+			/>
+		{:else if data.world.id === 3}
+			<World3Workshop 
 				player={data.player} 
 				instance={data.instance}
 				onComplete={handleBackToMap}

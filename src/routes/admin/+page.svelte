@@ -689,7 +689,7 @@
 													🔗 Copiar Enlace
 												{/if}
 											</button>
-											<form method="POST" action="?/loginAsSuperUserPlayer" use:enhance class="flex-1 flex" target="_blank">
+											<form method="POST" action="?/loginAsSuperUserPlayer" class="flex-1 flex" target="_blank">
 												<input type="hidden" name="code" value={instance.code} />
 												<button 
 													type="submit" 
