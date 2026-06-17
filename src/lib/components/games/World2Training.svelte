@@ -1,26 +1,39 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { tick } from 'svelte';
-	import { fade, slide, fly, scale } from 'svelte/transition';
+	import { fade, scale, fly } from 'svelte/transition';
 	import { trainingCards, type GFRCard } from '$lib/content/gfrCards';
 	import { supabase } from '$lib/supabase';
 
 	let { 
 		world, 
 		player, 
-		onComplete, 
+		onGameComplete, 
 		onUpdateCoins 
 	}: { 
 		world: any; 
 		player: any; 
-		onComplete: () => void; 
+		onGameComplete: (results: any) => void; 
 		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
 	} = $props();
 
+	// Initialize 10 random cards from training cards pool on load
+	const shuffled = [...trainingCards];
+	for (let i = shuffled.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+	}
+	let activeTrainingCards = $state<GFRCard[]>(shuffled.slice(0, 10));
+
 	// Gameplay states
-	let gameStateStep = $state('intro'); // 'intro', 'quiz', 'summary'
 	let currentRoundIndex = $state(0);
-	let activeTrainingCards = $state<GFRCard[]>([]);
+	let selectedCol = $state<'meta' | 'retroalimentacion' | 'recompensa' | null>(null);
+	let selectedRow = $state<'regulatorio' | 'integrado' | 'intrinseco' | null>(null);
+	let isAnswered = $state(false);
+
+	let totalCorrectCols = $state(0);
+	let totalCorrectRows = $state(0);
+	let totalPerfectRounds = $state(0);
+	let personalScore = $state(0); // Max 20 points (10 rounds * 2)
 
 	// State to track liked ideas locally
 	let likedIdeas = $state<string[]>(player.game_state?.liked_ideas || []);
@@ -70,20 +83,8 @@
 		}
 	}
 
-	let selectedCol = $state<'meta' | 'retroalimentacion' | 'recompensa' | null>(null);
-	let selectedRow = $state<'regulatorio' | 'integrado' | 'intrinseco' | null>(null);
-	let isAnswered = $state(false);
-
-	let totalCorrectCols = $state(0);
-	let totalCorrectRows = $state(0);
-	let totalPerfectRounds = $state(0);
-	let personalScore = $state(0); // Max 20 points (10 rounds * 2)
-
-	let isSubmitting = $state(false);
-
-	// Scroll to top on step change
+	// Scroll to top on step/round change
 	$effect(() => {
-		gameStateStep;
 		currentRoundIndex;
 		isAnswered;
 
@@ -98,42 +99,9 @@
 					container.scrollTop = 0;
 				}
 			});
+			window.scrollTo({ top: 0, behavior: 'instant' });
 		});
 	});
-
-	// Secure Coins and Star Proportions
-	const starsCount = $derived.by(() => {
-		if (personalScore >= 18) return 5;
-		if (personalScore >= 14) return 4;
-		if (personalScore >= 10) return 3;
-		if (personalScore >= 6) return 2;
-		if (personalScore >= 1) return 1;
-		return 0;
-	});
-	const coinsEarned = $derived(starsCount * 5);
-
-	// Lifetime Coins tracker
-	const lifetimeCoinsEarned = $derived(player.game_state?.[world.id]?.training_coins_gained || 0);
-	const remainingToCap = $derived(Math.max(0, 50 - lifetimeCoinsEarned));
-	const actualCoinsAwarded = $derived(Math.min(remainingToCap, coinsEarned));
-
-	// Select 10 random cards from training cards pool
-	function startTraining() {
-		const shuffled = [...trainingCards];
-		for (let i = shuffled.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-		}
-		activeTrainingCards = shuffled.slice(0, 10);
-
-		gameStateStep = 'quiz';
-		currentRoundIndex = 0;
-		totalCorrectCols = 0;
-		totalCorrectRows = 0;
-		totalPerfectRounds = 0;
-		personalScore = 0;
-		resetRoundState();
-	}
 
 	function resetRoundState() {
 		selectedCol = null;
@@ -178,7 +146,7 @@
 			currentRoundIndex++;
 			resetRoundState();
 		} else {
-			gameStateStep = 'summary';
+			onGameComplete({ totalCorrectCols, totalCorrectRows, totalPerfectRounds, personalScore });
 		}
 	}
 
@@ -195,44 +163,9 @@
 	};
 </script>
 
-<div class="training-game-wrapper">
-	{#if gameStateStep === 'intro'}
-		<div class="intro-screen glass-card-premium" in:fly={{ y: 30, duration: 500 }}>
-			<div class="giochi-avatar-container animate-float">
-				<div class="giochi-bot">
-					<div class="giochi-eyes">
-						<div class="eye"></div>
-						<div class="eye"></div>
-					</div>
-					<div class="giochi-body"></div>
-					<div class="giochi-antenna"></div>
-				</div>
-			</div>
-
-			<span class="agency-tag-premium font-bold">OMIE SIMULADOR GFR</span>
-			<h3 class="game-title">
-				Entrenamiento de Clasificación GFR
-			</h3>
-			
-			<div class="speech-box-premium">
-				<p class="intro-text">¡Bienvenido, Agente! Este módulo calibrará tus habilidades para distinguir los componentes del diseño gamificado bajo el modelo GFR (Goal, Feedback, Reward) y la Teoría de la Autodeterminación (RII):</p>
-				<ul class="solar-bullets">
-					<li><strong>10 Casos de Estudio:</strong> Clasificarás 10 tarjetas aleatorias en la cuadrícula de 3x3.</li>
-					<li><strong>Reglas de Puntaje:</strong> Obtienes <strong>+2 puntos</strong> por ubicar perfectamente la tarjeta. Si solo aciertas en un eje (ya sea la columna GFR o la fila de regulación RII), recibes <strong>+1 punto</strong>.</li>
-					<li><strong>Calibración de Estrellas:</strong> Dependiendo de tus aciertos, ganarás hasta 5 estrellas de calibración. Cada estrella te otorga <strong>+5 BEM Coins</strong>.</li>
-					<li><strong>Capa Máxima de 50 Monedas:</strong> Puedes practicar cuantas veces lo necesites para dominar el modelo, acumulando hasta un total de 50 monedas en este entrenamiento.</li>
-				</ul>
-			</div>
-
-			<button type="button" class="btn-solar-primary-premium animate-solar-pulse" onclick={startTraining}>
-				🧠 Iniciar Simulador GFR
-			</button>
-		</div>
-	{/if}
-
-	{#if gameStateStep === 'quiz' && activeCard}
+<div class="training-game-wrapper" in:fade>
+	{#if activeCard}
 		<div class="quiz-screen" in:fly={{ y: 20, duration: 400 }}>
-			
 			<!-- Game Header / Scoreboard Panel -->
 			<div class="quiz-header glass-card-premium">
 				<div class="header-left">
@@ -354,7 +287,6 @@
 			<!-- Board slot matrix grid layout -->
 			<div class="board-matrix-container glass-card-premium">
 				<div class="board-grid">
-					
 					<!-- Column Headers Row -->
 					<div class="grid-header-row">
 						<div class="corner-header"></div>
@@ -408,110 +340,7 @@
 							{/each}
 						</div>
 					{/each}
-
 				</div>
-			</div>
-		</div>
-	{/if}
-
-	{#if gameStateStep === 'summary'}
-		<div class="summary-screen glass-card-premium" in:fly={{ y: 30, duration: 500 }}>
-			<div class="trophy-badge animate-float">🏅</div>
-			<h3 class="game-title">Entrenamiento Completado</h3>
-			<p class="summary-desc">Has concluido la calibración de tu simulador de diseño gamificado GFR.</p>
-
-			<!-- Premium Stars rating with animated SVG shapes -->
-			<div class="stars-display">
-				{#each Array(5) as _, i}
-					<div 
-						class="star-wrapper" 
-						class:active={i < starsCount}
-						in:scale={{ delay: i * 150, duration: 300 }}
-					>
-						<svg class="star-svg" viewBox="0 0 24 24" fill="currentColor">
-							<path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-						</svg>
-					</div>
-				{/each}
-			</div>
-
-			<!-- Performance stats card -->
-			<div class="score-card-stats-premium">
-				<div class="score-stat-row">
-					<span class="stat-label">Aciertos de Categoría (Goal, Feedback, Reward)</span>
-					<span class="stat-value">{totalCorrectCols} / 10</span>
-				</div>
-				<div class="score-stat-row">
-					<span class="stat-label">Aciertos de Regulación (Teoría RII)</span>
-					<span class="stat-value">{totalCorrectRows} / 10</span>
-				</div>
-				<div class="score-stat-row">
-					<span class="stat-label">Ubicaciones Perfectas (Matriz 3x3)</span>
-					<span class="stat-value highlight-green">{totalPerfectRounds} / 10</span>
-				</div>
-				<div class="score-stat-row total">
-					<span class="stat-label">Puntaje Final</span>
-					<span class="stat-value highlight-green">{personalScore} / 20 pts</span>
-				</div>
-			</div>
-
-			<!-- Coins award summary -->
-			<div class="coins-earned-summary-premium">
-				{#if remainingToCap > 0}
-					<span class="coin-badge-label">Monedas obtenidas en este intento</span>
-					<h2 class="coin-awarded-amount">🪙 +{actualCoinsAwarded} BEM Coins</h2>
-					
-					<!-- Progress meter toward 50 coin cap -->
-					<div class="coin-cap-progress-container">
-						<div class="progress-labels">
-							<span>Monedas acumuladas en este entrenamiento</span>
-							<span>{lifetimeCoinsEarned + actualCoinsAwarded} / 50</span>
-						</div>
-						<div class="coin-cap-bar-bg">
-							<div class="coin-cap-bar-fill" style="width: {Math.min(100, ((lifetimeCoinsEarned + actualCoinsAwarded) / 50) * 100)}%"></div>
-						</div>
-					</div>
-				{:else}
-					<span class="coin-badge-label capped">Entrenamiento al Máximo</span>
-					<h2 class="coin-awarded-amount capped">🪙 +0 BEM Coins</h2>
-					<div class="capped-alert-box">
-						¡Ya has alcanzado el límite máximo de 50 monedas otorgadas por entrenamientos de este mundo!
-					</div>
-				{/if}
-			</div>
-
-			<!-- Actions -->
-			<div class="summary-actions">
-				<button type="button" class="btn-solar-secondary-premium" onclick={startTraining}>
-					🔄 Volver a Calibrar
-				</button>
-
-				<form
-					method="POST"
-					action="?/completeTrainingTrivia"
-					use:enhance={() => {
-						isSubmitting = true;
-						return async ({ result, update }) => {
-							isSubmitting = false;
-							if (result.type === 'success' && result.data) {
-								onUpdateCoins(result.data.coins, result.data.game_state);
-								onComplete();
-							}
-							await update();
-						};
-					}}
-				>
-					<input type="hidden" name="world_id" value={world.id} />
-					<input type="hidden" name="coins" value={actualCoinsAwarded} />
-
-					<button type="submit" class="btn-solar-primary-premium" disabled={isSubmitting}>
-						{#if isSubmitting}
-							📨 Registrando bitácora...
-						{:else}
-							🚪 Guardar & Volver al Mapa
-						{/if}
-					</button>
-				</form>
 			</div>
 		</div>
 	{/if}
@@ -536,71 +365,6 @@
 			inset 0 1px 3px rgba(255, 255, 255, 0.9);
 		margin-bottom: 2rem;
 		text-align: center;
-	}
-
-	.giochi-avatar-container {
-		display: flex;
-		justify-content: center;
-		margin-bottom: 1.5rem;
-	}
-
-	.agency-tag-premium {
-		display: inline-block;
-		font-size: 0.7rem;
-		letter-spacing: 0.15em;
-		color: var(--color-solar-green-dark);
-		background: var(--color-solar-green-light);
-		padding: 0.4rem 1.2rem;
-		border-radius: var(--radius-solar-full);
-		border: 1.5px solid rgba(61, 143, 104, 0.2);
-		margin-bottom: 1rem;
-	}
-
-	.game-title {
-		font-family: var(--font-solar-header);
-		font-weight: 800;
-		font-size: 2.2rem;
-		color: var(--color-solar-green-dark);
-		margin: 0.5rem 0 1.5rem;
-		line-height: 1.2;
-	}
-
-	.speech-box-premium {
-		background: var(--color-solar-yellow-light);
-		border: 1.5px solid rgba(255, 209, 102, 0.4);
-		padding: 1.75rem;
-		border-radius: var(--radius-solar-md);
-		text-align: left;
-		margin-bottom: 2rem;
-	}
-
-	.intro-text {
-		font-weight: 600;
-		color: var(--color-solar-green-dark);
-		margin-bottom: 1rem;
-		line-height: 1.5;
-	}
-
-	.solar-bullets {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-	}
-
-	.solar-bullets li {
-		position: relative;
-		padding-left: 1.5rem;
-		margin-bottom: 0.75rem;
-		font-size: 0.9rem;
-		line-height: 1.5;
-	}
-
-	.solar-bullets li::before {
-		content: '⚡';
-		position: absolute;
-		left: 0;
-		top: 2px;
-		font-size: 0.85rem;
 	}
 
 	/* Game Interactive Header */
@@ -1104,177 +868,6 @@
 		100% { transform: scale(1); }
 	}
 
-	/* Summary Results screen */
-	.summary-screen {
-		text-align: center;
-		padding: 3rem 2rem;
-	}
-
-	.trophy-badge {
-		font-size: 4rem;
-		margin-bottom: 1rem;
-	}
-
-	.summary-desc {
-		font-size: 0.95rem;
-		color: var(--color-solar-text-muted);
-		margin: 0 0 2rem 0;
-		font-weight: 550;
-	}
-
-	.stars-display {
-		display: flex;
-		justify-content: center;
-		gap: 0.75rem;
-		margin-bottom: 2.5rem;
-	}
-
-	.star-wrapper {
-		transform: scale(1);
-		transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-	}
-
-	.star-wrapper.active {
-		transform: scale(1.15);
-	}
-
-	.star-svg {
-		width: 4rem;
-		height: 4rem;
-		color: #e5e7eb;
-		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.05));
-		transition: all 0.3s ease;
-	}
-
-	.star-wrapper.active .star-svg {
-		color: var(--color-solar-yellow);
-		filter: drop-shadow(0 0 15px rgba(255, 209, 102, 0.85));
-	}
-
-	.score-card-stats-premium {
-		background: #ffffff;
-		border: 2px solid var(--color-solar-card-border);
-		border-radius: var(--radius-solar-md);
-		padding: 1.5rem;
-		max-width: 500px;
-		margin: 0 auto 2rem;
-		box-shadow: var(--shadow-solar-sm);
-	}
-
-	.score-stat-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.85rem 0.5rem;
-		border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-	}
-
-	.score-stat-row:last-child {
-		border-bottom: none;
-	}
-
-	.score-stat-row.total {
-		font-size: 1.15rem;
-		font-weight: 800;
-		padding-top: 1.25rem;
-		margin-top: 0.5rem;
-		border-top: 2px solid var(--color-solar-card-border);
-	}
-
-	.stat-label {
-		font-size: 0.85rem;
-		color: var(--color-solar-text-muted);
-		font-weight: 600;
-		text-align: left;
-	}
-
-	.stat-value {
-		font-family: var(--font-solar-header);
-		font-weight: 800;
-		font-size: 1rem;
-		color: var(--color-solar-green-dark);
-		white-space: nowrap;
-	}
-
-	/* Coins Panel & cap */
-	.coins-earned-summary-premium {
-		background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-		border: 2px solid var(--color-solar-green-medium);
-		border-radius: var(--radius-solar-md);
-		padding: 2rem;
-		max-width: 500px;
-		margin: 0 auto 2.5rem;
-		box-shadow: 0 10px 25px rgba(22, 163, 74, 0.08);
-	}
-
-	.coin-badge-label {
-		font-size: 0.75rem;
-		font-weight: 800;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--color-solar-green-medium);
-	}
-
-	.coin-badge-label.capped {
-		color: var(--color-solar-terracotta);
-	}
-
-	.coin-awarded-amount {
-		font-family: var(--font-solar-header);
-		font-weight: 850;
-		font-size: 2rem;
-		margin: 0.5rem 0 1rem;
-		color: var(--color-solar-green-dark);
-	}
-
-	.coin-awarded-amount.capped {
-		color: var(--color-solar-terracotta);
-	}
-
-	.coin-cap-progress-container {
-		text-align: left;
-	}
-
-	.progress-labels {
-		display: flex;
-		justify-content: space-between;
-		font-size: 0.7rem;
-		font-weight: 600;
-		color: var(--color-solar-text-muted);
-		margin-bottom: 0.35rem;
-	}
-
-	.coin-cap-bar-bg {
-		height: 8px;
-		background: rgba(61, 143, 104, 0.15);
-		border-radius: 99px;
-		overflow: hidden;
-	}
-
-	.coin-cap-bar-fill {
-		height: 100%;
-		background: var(--color-solar-green-medium);
-		border-radius: 99px;
-		transition: width 0.6s ease;
-	}
-
-	.capped-alert-box {
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #991b1b;
-		background: #fee2e2;
-		border: 1.5px solid #fca5a5;
-		padding: 0.75rem 1rem;
-		border-radius: 8px;
-		margin-top: 0.5rem;
-	}
-
-	.summary-actions, .btn-solar-primary-premium, .btn-solar-secondary-premium {
-		display: flex;
-		justify-content: center;
-		gap: 1rem;
-	}
-
 	.btn-solar-primary-premium {
 		font-family: var(--font-solar-header);
 		font-weight: 700;
@@ -1288,6 +881,9 @@
 		cursor: pointer;
 		transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 		text-align: center;
+		display: flex;
+		justify-content: center;
+		align-items: center;
 	}
 
 	.btn-solar-primary-premium:hover:not(:disabled) {
@@ -1300,26 +896,8 @@
 		cursor: not-allowed;
 	}
 
-	.btn-solar-secondary-premium {
-		font-family: var(--font-solar-header);
-		font-weight: 700;
-		font-size: 1rem;
-		color: var(--color-solar-green-dark);
-		background: var(--color-solar-green-light);
-		border: 2px solid rgba(61, 143, 104, 0.2);
-		border-radius: var(--radius-solar-md);
-		padding: 0.9rem 2rem;
-		cursor: pointer;
-		transition: all 0.25s ease;
-		text-align: center;
-	}
-
-	.btn-solar-secondary-premium:hover {
-		background: #ffffff;
-		border-color: var(--color-solar-green-medium);
-		transform: translateY(-2px);
-		box-shadow: var(--shadow-solar-md);
-	}
+	.flex { display: flex; }
+	.gap-4 { gap: 1rem; }
 
 	/* Shake Animation for Wrong Cell */
 	@keyframes shake {

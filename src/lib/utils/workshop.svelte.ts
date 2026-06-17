@@ -92,7 +92,7 @@ export function createWorkshopSession(
 		get allClassPlayers() { return allClassPlayers; },
 		set allClassPlayers(v) { allClassPlayers = v; },
 		get channel() { return channel; },
-		isHost,
+		get isHost() { return isHost; },
 		loadAllClassPlayers,
 		initConnection,
 		updatePlayerGameState

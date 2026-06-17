@@ -14,16 +14,10 @@
 
 	// Game components
 	import World1Workshop from '$lib/components/games/World1Workshop.svelte';
-	import World1Training from '$lib/components/games/World1Training.svelte';
-	import World1Design from '$lib/components/games/World1Design.svelte';
-	import World1Wiki from '$lib/components/games/World1Wiki.svelte';
+	import WorldTraining from '$lib/components/games/WorldTraining.svelte';
+	import WorldDesign from '$lib/components/games/WorldDesign.svelte';
+	import WorldWiki from '$lib/components/games/WorldWiki.svelte';
 	import World2Workshop from '$lib/components/games/World2Workshop.svelte';
-	import World2Training from '$lib/components/games/World2Training.svelte';
-	import World2Design from '$lib/components/games/World2Design.svelte';
-	import World2Wiki from '$lib/components/games/World2Wiki.svelte';
-	import World3Training from '$lib/components/games/World3Training.svelte';
-	import World3Design from '$lib/components/games/World3Design.svelte';
-	import World3Wiki from '$lib/components/games/World3Wiki.svelte';
 
 	import { page } from '$app/state';
 	import { learnTranslations } from '$lib/content/learn';
@@ -394,101 +388,26 @@
 								</div>
 							{/if}
 						{:else if activeGameMode === 'training'}
-							{#if selectedWorld.id === 1}
-								<World1Training 
-									world={selectedWorld}
-									player={localPlayer}
-									onComplete={handleCloseGame}
-									onUpdateCoins={handleCoinsUpdated}
-								/>
-							{:else}
-								{@const key = activeGameMode + '-' + selectedWorld.id}
-								{#if selectedWorld.id === 2}
-									<World2Training 
-										world={selectedWorld}
-										player={localPlayer}
-										onComplete={handleCloseGame}
-										onUpdateCoins={handleCoinsUpdated}
-									/>
-								{:else if selectedWorld.id === 3}
-									<World3Training 
-										world={selectedWorld}
-										player={localPlayer}
-										onComplete={handleCloseGame}
-										onUpdateCoins={handleCoinsUpdated}
-									/>
-								{:else}
-									<div class="empty-list">
-										{#if lang === 'es'}
-											Training para el Mundo {selectedWorld.id} {t.emptyMode}
-										{:else}
-											Training for World {selectedWorld.id} {t.emptyMode}
-										{/if}
-									</div>
-								{/if}
-							{/if}
+							<WorldTraining 
+								world={selectedWorld}
+								player={localPlayer}
+								onComplete={handleCloseGame}
+								onUpdateCoins={handleCoinsUpdated}
+							/>
 						{:else if activeGameMode === 'design'}
-							{#if selectedWorld.id === 1}
-								<World1Design 
-									world={selectedWorld}
-									player={localPlayer}
-									onComplete={handleCloseGame}
-									onUpdateCoins={handleCoinsUpdated}
-								/>
-							{:else if selectedWorld.id === 2}
-								<World2Design 
-									world={selectedWorld}
-									player={localPlayer}
-									onComplete={handleCloseGame}
-									onUpdateCoins={handleCoinsUpdated}
-								/>
-							{:else if selectedWorld.id === 3}
-								<World3Design 
-									world={selectedWorld}
-									player={localPlayer}
-									onComplete={handleCloseGame}
-									onUpdateCoins={handleCoinsUpdated}
-								/>
-							{:else}
-								<div class="empty-list">
-									{#if lang === 'es'}
-										Design Canvas para el Mundo {selectedWorld.id} {t.emptyMode}
-									{:else}
-										Design Canvas for World {selectedWorld.id} {t.emptyMode}
-									{/if}
-								</div>
-							{/if}
+							<WorldDesign 
+								world={selectedWorld}
+								player={localPlayer}
+								onComplete={handleCloseGame}
+								onUpdateCoins={handleCoinsUpdated}
+							/>
 						{:else if activeGameMode === 'wiki'}
-							{#if selectedWorld.id === 1}
-								<World1Wiki 
-									world={selectedWorld}
-									player={localPlayer}
-									onComplete={handleCloseGame}
-									onUpdateCoins={handleCoinsUpdated}
-								/>
-							{:else if selectedWorld.id === 2}
-								<World2Wiki 
-									world={selectedWorld}
-									player={localPlayer}
-									onComplete={handleCloseGame}
-									onUpdateCoins={handleCoinsUpdated}
-								/>
-							{:else if selectedWorld.id === 3}
-								<World3Wiki 
-									world={selectedWorld}
-									player={localPlayer}
-									onComplete={handleCloseGame}
-									onUpdateCoins={handleCoinsUpdated}
-								/>
-							{:else}
-								<div class="empty-list">
-									{#if lang === 'es'}
-										Wiki Biblioteca para el Mundo {selectedWorld.id} {t.emptyMode}
-									{:else}
-										Wiki Library for World {selectedWorld.id} {t.emptyMode}
-									{/if}
-								</div>
-							{/if}
+							<WorldWiki 
+								world={selectedWorld}
+								player={localPlayer}
+								onComplete={handleCloseGame}
+								onUpdateCoins={handleCoinsUpdated}
+							/>
 						{/if}
 					</div>
 				</div>

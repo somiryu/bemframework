@@ -1,15 +1,28 @@
 <script lang="ts">
+	import World1Design from './World1Design.svelte';
+	import World2Design from './World2Design.svelte';
+	import World3Design from './World3Design.svelte';
+	import World4Design from './World4Design.svelte';
+
 	let { 
-		worldId, 
-		children 
+		world, 
+		canvasAnswers = $bindable() 
 	}: { 
-		worldId: number; 
-		children: any; 
+		world: any; 
+		canvasAnswers: any; 
 	} = $props();
 </script>
 
-<div class="world-canvas world-{worldId}-canvas">
-	{@render children()}
+<div class="world-canvas world-{world.id}-canvas">
+	{#if world.id === 1}
+		<World1Design {world} bind:canvasAnswers />
+	{:else if world.id === 2}
+		<World2Design bind:canvasAnswers />
+	{:else if world.id === 3}
+		<World3Design bind:canvasAnswers />
+	{:else if world.id === 4}
+		<World4Design bind:canvasAnswers />
+	{/if}
 </div>
 
 <style>
@@ -43,8 +56,15 @@
 		border-radius: 24px;
 	}
 
+	.world-4-canvas {
+		background: radial-gradient(120% 120% at 50% 0%, #ffffff 0%, var(--color-solar-bg, #FAF9F6) 100%);
+		padding: 2rem 2.5rem;
+		border: 1px solid var(--color-solar-card-border, rgba(0, 0, 0, 0.05));
+		border-radius: 24px;
+	}
+
 	@media (max-width: 768px) {
-		.world-1-canvas, .world-2-canvas, .world-3-canvas {
+		.world-1-canvas, .world-2-canvas, .world-3-canvas, .world-4-canvas {
 			padding: 1rem;
 		}
 	}

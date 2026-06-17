@@ -1,15 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { fade } from 'svelte/transition';
-	import WikiHeader from './WikiHeader.svelte';
-	import WikiMentorExplain from './WikiMentorExplain.svelte';
-	import WorldCanvas from './WorldCanvas.svelte';
-	import WikiSubmitFooter from './WikiSubmitFooter.svelte';
-	
-	// Import specific inner wiki canvas components
-	import World1Wiki from './World1Wiki.svelte';
-	import World2Wiki from './World2Wiki.svelte';
-	import World3Wiki from './World3Wiki.svelte';
+	import { fade, slide } from 'svelte/transition';
+	import MentorExplain from './MentorExplain.svelte';
 
 	let { 
 		world, 
@@ -23,262 +15,337 @@
 		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
 	} = $props();
 
-	// Mentor and world configurations
-	const worldConfigs: Record<number, {
+	// Config details per world
+	const wikiConfigs: Record<number, {
 		title: string;
-		description: string;
 		badge: string;
-		mentorName: string;
-		mentorAvatar: string;
-		instructions: string;
+		description: string;
+		tip: string;
 	}> = {
 		1: {
-			title: 'Canvas de Actividades de Aprendizaje BEM',
-			description: 'Define para cada uno de los 7 Drivers una actividad seria aplicable en tu clase.',
-			badge: 'CANVAS DE DISEÑO BEM',
-			mentorName: 'Sara',
-			mentorAvatar: '/learn_resoruces/characters/char_sara.png',
-			instructions: '¡Atención, Agente en entrenamiento! En el modelo BEM no diseñamos juegos superficiales. En su lugar, pensamos como diseñadores de juegos para crear sistemas serios de aprendizaje. Completa una propuesta seria para cada driver para archivar tu bitácora de viaje.'
+			title: 'Biblioteca Opcional OMIE',
+			badge: 'BIBLIOTECA OMIE',
+			description: 'Intercambia monedas por guías teóricas avanzadas.',
+			tip: '¡Bienvenido a la Bóveda del Conocimiento de la OMIE! Los mentores han depositado guías de campo, videos de bucles y artículos sobre el marco BEM. Desbloquear cada recurso requiere <strong>BEM Coins</strong> (obtenidos en el Training mode). Una vez desbloqueados, aparecerán guardados para siempre en tu <strong>Libro Bitácora flotante</strong>.'
 		},
 		2: {
-			title: 'Canvas de Diseño GFR Integrado',
-			description: 'Alinea la Meta (Goal), Retroalimentación (Feedback) y Recompensa (Reward) en un ciclo motivacional continuo.',
-			badge: 'CANVAS DE DISEÑO GFR',
-			mentorName: 'Kira',
-			mentorAvatar: '/learn_resoruces/characters/char_kira.png',
-			instructions: 'Para cada fila, describe una Meta, su Retroalimentación correspondiente y la Recompensa esperada. Las tres deben estar integradas y alineadas con la actividad principal (sin recurrir a sobornos extrínsecos). Escríbelas en formato de condicional: "Si [acción/condición], entonces [consecuencia/estado]" (Mínimo 15 caracteres por celda).'
+			title: 'Biblioteca de Recursos GFR',
+			badge: 'RECURSOS GFR',
+			description: 'Intercambia monedas por guías teóricas avanzadas y videos.',
+			tip: '¡Bienvenido de nuevo, agente! En esta bóveda encontrarás lecturas del modelo GFR y la teoría de la autodeterminación. Canjea tus <strong>BEM Coins</strong> acumuladas en los entrenamientos para desbloquear estos recursos y agregarlos de forma permanente en tu <strong>Bitácora Flotante</strong>.'
 		},
 		3: {
-			title: 'Canvas de Relojería Lúdica',
-			description: 'Diseña un ciclo interactivo completo de 6 etapas para tus clases.',
-			badge: 'CANVAS DE INTERACTIVIDAD',
-			mentorName: 'John Wilkins',
-			mentorAvatar: '/learn_resoruces/characters/char_wilkins.png',
-			instructions: 'Para que una interactividad funcione con precisión, conecta las 6 piezas de la relojería. Cada casilla representa un engranaje y requiere al menos 15 caracteres de descripción detallada. No dejes engranajes sueltos.'
+			title: 'Relojería de la Interactividad',
+			badge: 'RELOJERÍA DE INTERACTIVIDAD',
+			description: 'Manuales teóricos avanzados de bucles y ciclos interactivos.',
+			tip: '¡Saludos, agente! Actualmente los mentores de la OMIE están digitalizando y curando los manuales teóricos avanzados sobre la relojería de la interactividad. ¡Vuelve más tarde para canjear tus BEM Coins aquí!'
+		},
+		4: {
+			title: 'Bóveda de Metas y Expectativas',
+			badge: 'RECURSOS DE METAS',
+			description: 'Desbloquea documentos de arquitectura de metas y guías teóricas.',
+			tip: '¡Saludos, agente! En esta sección de la biblioteca puedes canjear tus BEM Coins por recursos avanzados y detallados sobre el diseño y la estructuración de metas de aprendizaje. Al desbloquearlos, quedarán archivados para siempre en tu Bitácora.'
 		}
 	};
 
-	const config = $derived(worldConfigs[world.id] || {
-		title: 'Canvas de Diseño',
-		description: 'Completa tu propuesta seria para archivar tu bitácora de viaje.',
-		badge: 'CANVAS DE DISEÑO',
-		mentorName: 'Mentor',
-		mentorAvatar: '/learn_resoruces/characters/char_sara.png',
-		instructions: 'Por favor completa los campos indicados.'
+	const config = $derived(wikiConfigs[world.id] || {
+		title: 'Biblioteca de Recursos',
+		badge: 'BIBLIOTECA',
+		description: 'Canjea tus monedas por recursos teóricos avanzados.',
+		tip: '¡Saludos, agente! Puedes desbloquear recursos y materiales de apoyo en este módulo.'
 	});
 
-	// Canvas Answers state managed centrally
-	let canvasAnswers = $state<any>(null);
-	let isSubmitting = $state(false);
+	const wikiResources = $derived(world.wiki_modules || []);
+	const worldState = $derived(player.game_state?.[world.id] || {});
+	const unlockedResourcesList = $derived(worldState.unlocked_resources || []);
 
-	// Prefill state
-	$effect(() => {
-		if (canvasAnswers !== null) return;
-		
-		const existingCanvas = player.game_state?.[world.id]?.design_canvas || null;
-		
-		if (world.id === 1) {
-			const answers = existingCanvas || {};
-			canvasAnswers = {
-				Hedonismo: answers.Hedonismo || '',
-				Eficiencia: answers.Eficiencia || '',
-				Relacion: answers.Relacion || '',
-				Maestria: answers.Maestria || '',
-				Descubrimiento: answers.Descubrimiento || '',
-				Empoderamiento: answers.Empoderamiento || '',
-				Proposito: answers.Proposito || ''
-			};
-		} else if (world.id === 2) {
-			if (existingCanvas && Array.isArray(existingCanvas)) {
-				canvasAnswers = existingCanvas.map((r: any, idx: number) => ({
-					id: r.id ?? idx,
-					meta: r.meta || '',
-					retroalimentacion: r.retroalimentacion || '',
-					recompensa: r.recompensa || ''
-				}));
-			} else {
-				canvasAnswers = [{ id: Date.now(), meta: '', retroalimentacion: '', recompensa: '' }];
-			}
-		} else if (world.id === 3) {
-			if (existingCanvas && Array.isArray(existingCanvas)) {
-				canvasAnswers = existingCanvas.map((c: any, idx: number) => ({
-					id: c.id ?? idx,
-					meta: c.meta || '',
-					llamado: c.llamado || '',
-					eval_cognitiva: c.eval_cognitiva || '',
-					accion_disparadora: c.accion_disparadora || '',
-					eval_juego: c.eval_juego || '',
-					retroalimentacion: c.retroalimentacion || ''
-				}));
-			} else {
-				canvasAnswers = [{ 
-					id: Date.now(), 
-					meta: '', 
-					llamado: '', 
-					eval_cognitiva: '', 
-					accion_disparadora: '', 
-					eval_juego: '', 
-					retroalimentacion: '' 
-				}];
-			}
-		}
-	});
-
-	// Helper validation functions
-	const startsWithSi = (str: string) => {
-		const clean = str.trim().toLowerCase();
-		return clean.startsWith('si ') || clean.startsWith('si,') || clean.startsWith('si\n');
-	};
-
-	const containsEntonces = (str: string) => {
-		const clean = str.trim().toLowerCase();
-		return clean.includes('entonces');
-	};
-
-	// Validation logic derived centrally
-	const isCanvasValid = $derived.by(() => {
-		if (!canvasAnswers) return false;
-		
-		if (world.id === 1) {
-			return Object.values(canvasAnswers).every((val: any) => val.trim().length >= 10);
-		} else if (world.id === 2) {
-			if (!Array.isArray(canvasAnswers) || canvasAnswers.length === 0) return false;
-			return canvasAnswers.every(r => {
-				const m = r.meta.trim();
-				const f = r.retroalimentacion.trim();
-				const w = r.recompensa.trim();
-				return m.length >= 15 && startsWithSi(m) && containsEntonces(m) &&
-					   f.length >= 15 && startsWithSi(f) && containsEntonces(f) &&
-					   w.length >= 15 && startsWithSi(w) && containsEntonces(w);
-			});
-		} else if (world.id === 3) {
-			if (!Array.isArray(canvasAnswers) || canvasAnswers.length === 0) return false;
-			return canvasAnswers.every(c => {
-				return c.meta.trim().length >= 15 &&
-					   c.llamado.trim().length >= 15 &&
-					   c.eval_cognitiva.trim().length >= 15 &&
-					   c.accion_disparadora.trim().length >= 15 &&
-					   c.eval_juego.trim().length >= 15 &&
-					   c.retroalimentacion.trim().length >= 15;
-			});
-		}
-		return false;
-	});
-
-	// Helper text warning
-	const warningText = $derived.by(() => {
-		if (world.id === 1) {
-			return 'Completa todos los campos (mínimo 10 caracteres) para habilitar el guardado.';
-		} else if (world.id === 2) {
-			return 'Asegúrate de que todas las filas tengan al menos 15 caracteres y el formato "Si..., entonces...".';
-		} else if (world.id === 3) {
-			return 'Asegúrate de que todas las casillas de cada ciclo tengan al menos 15 caracteres.';
-		}
-		return 'Completa todos los campos.';
-	});
+	let selectedArticleToRead = $state<any>(null);
+	let isUnlockingId = $state<string | null>(null);
 </script>
 
-<!-- Note for Future AI Developers:
-     CRITICAL: This component implements `saveToJournal` to serialize the design canvas data.
-     Always verify that JournalComponent.svelte is structured to read this matching serialized structure:
-     - World 1: Record<string, string> (driver mapping)
-     - World 2: Array of { id, meta, retroalimentacion, recompensa }
-     - World 3: Array of { id, meta, llamado, eval_cognitiva, accion_disparadora, eval_juego, retroalimentacion }
-     If you change the structure here, you MUST update the visualization in JournalComponent.svelte!
--->
+<div class="wiki-game-wrapper text-center" in:fade>
+	<!-- Reusable MentorExplain component with GIOCHI bot -->
+	<MentorExplain 
+		mentorName="GIOCHI" 
+		mentorAvatar="/learn_resoruces/characters/char_giochi.gif" 
+		instructions={config.tip} 
+		titlePrefix="Biblioteca" 
+	/>
 
-<div class="world-wiki-fullscreen" in:fade>
-	<div class="wiki-content-container">
-		<WikiHeader 
-			title={config.title} 
-			badge={config.badge} 
-			description={config.description} 
-			onComplete={onComplete} 
-		/>
-
-		<WikiMentorExplain 
-			mentorName={config.mentorName} 
-			mentorAvatar={config.mentorAvatar} 
-			instructions={config.instructions} 
-		/>
-
-		{#if canvasAnswers}
-			<form
-				method="POST"
-				action="?/submitDesignCanvas"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ result, update }) => {
-						isSubmitting = false;
-						if (result.type === 'success' && result.data) {
-							onUpdateCoins(player.coins, result.data.game_state);
-							onComplete();
-						}
-						await update();
-					};
-				}}
-				class="wiki-submit-form"
-			>
-				<input type="hidden" name="world_id" value={world.id} />
-				<input type="hidden" name="canvas_data" value={JSON.stringify(canvasAnswers)} />
-
-				<WorldCanvas worldId={world.id}>
-					{#if world.id === 1}
-						<World1Wiki world={world} bind:canvasAnswers />
-					{:else if world.id === 2}
-						<World2Wiki bind:canvasAnswers />
-					{:else if world.id === 3}
-						<World3Wiki bind:canvasAnswers />
-					{/if}
-				</WorldCanvas>
-
-				<WikiSubmitFooter 
-					isValid={isCanvasValid} 
-					isSubmitting={isSubmitting} 
-					warningText={warningText} 
-				/>
-			</form>
-		{/if}
+	<!-- Wiki header section -->
+	<div class="wiki-header-title text-left flex justify-between items-center mb-6">
+		<div class="info">
+			<span class="lock-badge">📊 {config.badge}</span>
+			<h3 class="mt-2">{config.title}</h3>
+			<p class="text-xs text-solar-text-muted">{config.description}</p>
+		</div>
+		
+		<div class="coin-badge-display animate-solar-pulse">
+			🪙 <strong>{player.coins} BEM Coins</strong>
+		</div>
 	</div>
+
+	<!-- ACTIVE ARTICLE READER POPUP -->
+	{#if selectedArticleToRead}
+		<div class="article-reader-view glass-card text-left mb-6" in:slide>
+			<div class="reader-header flex justify-between items-center pb-2 border-b">
+				<span class="res-type-badge article">ARTÍCULO</span>
+				<button type="button" class="btn-solar-secondary btn-sm" onclick={() => selectedArticleToRead = null}>
+					✕ Cerrar Artículo
+				</button>
+			</div>
+			<h4 class="mt-4 font-bold text-solar-green-dark text-lg">{selectedArticleToRead.title}</h4>
+			<p class="text-xs text-solar-text-muted mt-1">📍 Fuente: Biblioteca de la OMIE</p>
+			
+			<div class="article-body mt-4 font-semibold text-solar-text leading-relaxed">
+				{selectedArticleToRead.content}
+			</div>
+		</div>
+	{/if}
+
+	<!-- RESOURCES GRID / EMPTY STATE -->
+	{#if wikiResources.length > 0}
+		<div class="resources-wiki-grid text-left">
+			{#each wikiResources as r}
+				{@const isUnlocked = unlockedResourcesList.includes(r.id)}
+				{@const canAfford = player.coins >= r.cost}
+
+				<div class="wiki-resource-card glass-card" class:unlocked={isUnlocked}>
+					<div class="card-top-row flex justify-between items-center mb-2">
+						<span class="res-type-badge {r.type}">{r.type.toUpperCase()}</span>
+						{#if isUnlocked}
+							<span class="unlocked-text-tag">✓ Adquirido</span>
+						{:else}
+							<span class="coin-cost-tag">🪙 {r.cost} Coins</span>
+						{/if}
+					</div>
+
+					<h4>{r.title}</h4>
+					<p class="resource-desc-text">{r.desc}</p>
+
+					<hr class="separator-line my-3" />
+
+					<div class="card-action-row mt-auto">
+						{#if isUnlocked}
+							{#if r.type === 'article'}
+								<button type="button" class="btn-solar-primary btn-sm w-full justify-center" onclick={() => selectedArticleToRead = r}>
+									📖 Leer Artículo Completo
+								</button>
+							{:else}
+								<a href={r.url} target="_blank" rel="noopener noreferrer" class="btn-solar-primary btn-sm w-full justify-center">
+									📥 Abrir {r.type.toUpperCase()}
+								</a>
+							{/if}
+						{:else}
+							<form
+								method="POST"
+								action="?/unlockWikiResource"
+								use:enhance={() => {
+									isUnlockingId = r.id;
+									return async ({ result, update }) => {
+										isUnlockingId = null;
+										if (result.type === 'success' && result.data) {
+											onUpdateCoins(result.data.coins, result.data.game_state);
+										}
+										await update();
+									};
+								}}
+							>
+								<input type="hidden" name="world_id" value={world.id} />
+								<input type="hidden" name="resource_id" value={r.id} />
+								<input type="hidden" name="cost" value={r.cost} />
+
+								<button 
+									type="submit" 
+									class="btn-solar-accent btn-sm w-full justify-center font-bold"
+									disabled={!canAfford || isUnlockingId === r.id}
+								>
+									{#if isUnlockingId === r.id}
+										🔑 Canjeando...
+									{:else if !canAfford}
+										❌ Monedas Insuficientes
+									{:else}
+										🔓 Desbloquear por {r.cost} Coins
+									{/if}
+								</button>
+							</form>
+						{/if}
+					</div>
+				</div>
+			{/each}
+		</div>
+	{:else}
+		<!-- Empty Library Panel -->
+		<div class="empty-library-panel glass-card p-8 text-center border-dashed border-2 border-gray-200">
+			<span class="text-4xl block mb-2">📚</span>
+			<h4 class="font-extrabold text-solar-green-dark">Biblioteca Temporalmente Vacía</h4>
+			<p class="text-xs text-solar-text-muted mt-1 max-w-md mx-auto">
+				No hay manuales o videos disponibles para desbloquear en este momento. Sigue acumulando BEM Coins en el Entrenamiento y el Canvas de Diseño.
+			</p>
+
+			<button type="button" class="btn-solar-primary mt-6 px-6 font-bold text-xs" onclick={onComplete}>
+				Regresar al Mapa Principal
+			</button>
+		</div>
+	{/if}
 </div>
 
 <style>
-	.world-wiki-fullscreen {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100vw;
-		height: 100vh;
-		background: var(--color-solar-bg, #FAF9F6);
-		z-index: 99999;
-		display: flex;
-		flex-direction: column;
-		overflow-y: auto;
-		box-sizing: border-box;
-	}
-
-	.wiki-content-container {
-		max-width: 1200px;
-		width: 100%;
+	.wiki-game-wrapper {
+		max-width: 800px;
 		margin: 0 auto;
-		padding: 2rem 3rem;
-		display: flex;
-		flex-direction: column;
-		box-sizing: border-box;
-		min-height: 100%;
+		padding: 1rem;
 	}
 
-	@media (max-width: 768px) {
-		.wiki-content-container {
-			padding: 1.5rem 1rem;
+	.lock-badge {
+		font-size: 0.65rem;
+		font-weight: 800;
+		color: var(--color-solar-sky, #0369a1);
+		background: var(--color-solar-sky-light, #e0f2fe);
+		padding: 0.25rem 0.6rem;
+		border-radius: 6px;
+		letter-spacing: 0.05em;
+		display: inline-block;
+	}
+
+	.wiki-header-title h3 {
+		font-family: var(--font-solar-header);
+		font-size: 1.4rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark);
+		margin: 0.25rem 0 0 0;
+	}
+
+	.coin-badge-display {
+		background: var(--color-solar-yellow);
+		color: var(--color-solar-green-dark);
+		padding: 0.5rem 1.25rem;
+		border-radius: 12px;
+		font-family: var(--font-solar-header);
+		font-weight: 850;
+		font-size: 0.95rem;
+		box-shadow: var(--shadow-solar-sm);
+		flex-shrink: 0;
+	}
+
+	/* ARTICLE VIEW */
+	.article-reader-view {
+		border: 2px solid var(--color-solar-green-medium);
+		padding: 2rem;
+		border-radius: 24px;
+		background: #ffffff;
+	}
+
+	.article-body {
+		font-size: 0.95rem;
+		line-height: 1.7;
+	}
+
+	/* RESOURCES GRID */
+	.resources-wiki-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.5rem;
+	}
+
+	@media (max-width: 640px) {
+		.resources-wiki-grid {
+			grid-template-columns: 1fr;
 		}
 	}
 
-	.wiki-submit-form {
+	.wiki-resource-card {
+		background: white;
+		border: 1px solid var(--color-solar-card-border);
+		border-radius: 24px;
+		padding: 1.5rem;
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
-		width: 100%;
-		flex: 1;
+		box-shadow: var(--shadow-solar-sm);
+		transition: all 0.25s ease;
 	}
+
+	.wiki-resource-card:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-solar-md);
+	}
+
+	.wiki-resource-card.unlocked {
+		border-color: var(--color-solar-green-medium);
+		background: var(--color-solar-bg);
+	}
+
+	.wiki-resource-card h4 {
+		font-family: var(--font-solar-header);
+		font-weight: 800;
+		font-size: 1.05rem;
+		color: var(--color-solar-green-dark);
+		margin: 0.25rem 0 0.5rem 0;
+	}
+
+	.resource-desc-text {
+		font-size: 0.8rem;
+		color: var(--color-solar-text-muted);
+		margin: 0;
+		line-height: 1.4;
+		font-weight: 550;
+	}
+
+	.res-type-badge {
+		font-size: 0.6rem;
+		font-weight: 800;
+		padding: 0.15rem 0.5rem;
+		border-radius: 4px;
+		color: white;
+		text-transform: uppercase;
+	}
+
+	.res-type-badge.pdf { background: #ef4444; }
+	.res-type-badge.video { background: #3b82f6; }
+	.res-type-badge.article { background: #10b981; }
+
+	.coin-cost-tag {
+		font-size: 0.75rem;
+		font-weight: 800;
+		color: #B28200;
+		background: #FFFBEB;
+		padding: 0.15rem 0.5rem;
+		border-radius: 6px;
+		border: 1.5px solid #FEF3C7;
+	}
+
+	.unlocked-text-tag {
+		font-size: 0.75rem;
+		font-weight: 800;
+		color: var(--color-solar-green-dark);
+		background: #D1F5E3;
+		padding: 0.15rem 0.5rem;
+		border-radius: 6px;
+	}
+
+	.separator-line {
+		border: none;
+		border-top: 1px solid var(--color-solar-card-border);
+		margin: 0.5rem 0;
+	}
+
+	.empty-library-panel {
+		background: rgba(255, 255, 255, 0.5);
+	}
+
+	.my-3 { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+	.mt-2 { margin-top: 0.5rem; }
+	.mt-4 { margin-top: 1rem; }
+	.mt-6 { margin-top: 1.5rem; }
+	.mt-auto { margin-top: auto; }
+	.w-full { width: 100%; }
+	.justify-center { justify-content: center; }
+	.text-left { text-align: left; }
+	.flex { display: flex; }
+	.items-center { align-items: center; }
+	.justify-between { justify-content: space-between; }
+	.text-xs { font-size: 0.75rem; }
+	.font-bold { font-weight: 700; }
+	.pb-2 { padding-bottom: 0.5rem; }
+	.border-b { border-bottom: 1px solid #E5E7EB; }
 </style>

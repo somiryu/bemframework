@@ -8,12 +8,12 @@
 	let { 
 		world, 
 		player, 
-		onComplete, 
+		onGameComplete, 
 		onUpdateCoins 
 	}: { 
 		world: any; 
 		player: any; 
-		onComplete: () => void; 
+		onGameComplete: (results: any) => void; 
 		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
 	} = $props();
 
@@ -66,7 +66,7 @@
 	}
 
 	// Local gameplay states
-	let gameStateStep = $state('intro'); // 'intro', 'quiz', 'summary'
+	let gameStateStep = $state('quiz'); // directly start in quiz
 	let currentQuestionIndex = $state(0);
 	
 	let selectedAnswer = $state<string | null>(null);
@@ -75,30 +75,6 @@
 
 	let totalCorrect = $state(0);
 	let totalIncorrect = $state(0);
-
-	// Reactive scroll-to-top on state transitions
-	$effect(() => {
-		// Subscriptions
-		gameStateStep;
-		currentQuestionIndex;
-		isAnswered;
-
-		tick().then(() => {
-			// Find scrollable layout elements in OMIE learning framework
-			const scrollContainers = [
-				document.querySelector('.viewport-body'),
-				document.querySelector('.viewport-card'),
-				document.querySelector('.training-game-wrapper')
-			];
-			scrollContainers.forEach(container => {
-				if (container) {
-					container.scrollTop = 0;
-				}
-			});
-			// Also reset top-level browser scrolls
-			window.scrollTo({ top: 0, behavior: 'instant' });
-		});
-	});
 
 	let isSubmitting = $state(false);
 	let activeQuestions = $state<TrainingQuestion[]>([]);
@@ -112,6 +88,30 @@
 		Descubrimiento: { correct: 0, wrong: 0 },
 		Empoderamiento: { correct: 0, wrong: 0 },
 		Propósito: { correct: 0, wrong: 0 }
+	});
+
+	// Automatically generate questions on load
+	generateRandomizedQuestions();
+
+	// Reactive scroll-to-top on state transitions
+	$effect(() => {
+		gameStateStep;
+		currentQuestionIndex;
+		isAnswered;
+
+		tick().then(() => {
+			const scrollContainers = [
+				document.querySelector('.viewport-body'),
+				document.querySelector('.viewport-card'),
+				document.querySelector('.training-game-wrapper')
+			];
+			scrollContainers.forEach(container => {
+				if (container) {
+					container.scrollTop = 0;
+				}
+			});
+			window.scrollTo({ top: 0, behavior: 'instant' });
+		});
 	});
 
 	// Secure Coins and Star Proportions
@@ -247,7 +247,7 @@
 			currentQuestionIndex++;
 			resetQuestionState();
 		} else {
-			gameStateStep = 'summary';
+			onGameComplete({ totalCorrect, totalIncorrect, driverStats });
 		}
 	}
 
@@ -259,59 +259,69 @@
 	}
 </script>
 
-<div class="training-game-wrapper text-center">
-	{#if gameStateStep === 'intro'}
-		<!-- INTRO SCREEN -->
-		<div class="intro-screen glass-card" in:fade>
-			<div class="giochi-avatar-container animate-float mb-4">
-				<div class="giochi-bot">
-					<div class="giochi-eyes">
-						<div class="eye"></div>
-						<div class="eye"></div>
-					</div>
-					<div class="giochi-body"></div>
-					<div class="giochi-antenna"></div>
-				</div>
-			</div>
+<div class="quiz-screen text-left" in:fade>
+	<div class="quiz-header flex justify-between items-center mb-4 p-2 glass-card">
+		<span class="q-progress">Escenario <strong>{currentQuestionIndex + 1}</strong> de {activeQuestions.length}</span>
+		<span class="net-score-indicator" class:negative={netScore < 0}>
+			Puntaje Neto: <strong>{netScore}</strong>
+		</span>
+	</div>
 
-			<span class="agency-tag">OMIE SIMULADOR</span>
-			<h3 class="font-bold text-solar-green-dark">Entrenamiento de Reconocimiento BEM</h3>
+	{#if !isAnswered}
+		<!-- Question Card -->
+		<div class="question-card glass-card mb-6" in:fly={{ y: 20, duration: 400 }}>
+			<span class="q-label">CASO DE ESTUDIO</span>
+			<blockquote class="scenario-text mt-2">
+				"{activeQuestions[currentQuestionIndex].scenario}"
+			</blockquote>
 			
-			<div class="speech-box mt-4 text-left p-4">
-				<p>¡Bienvenido de nuevo, Agente en entrenamiento! Los mentores han preparado un desafío riguroso para calibrar tus instintos de diseño motivacional:</p>
-				<ul class="solar-bullets mt-2">
-					<li><strong>21 Escenarios Aleatorios:</strong> Responderás un flujo dinámico de casos seleccionados al azar (3 por cada uno de los 7 drivers).</li>
-					<li><strong>Sistema de Karma en Vivo:</strong> Tus aciertos mueven la barra hacia el éxito (azul/verde), pero equivocarte (o aplicar mal un driver) empuja el indicador hacia atrás (rojo).</li>
-					<li><strong>Estrellas de Calibración:</strong> Al final, se evaluará tu desempeño neto (Aciertos menos Errores) en una escala de 5 estrellas. ¡Cada estrella otorga <strong>+5 BEM Coins</strong>!</li>
-					<li><strong>Copa Máxima de 50 Monedas:</strong> Puedes entrenar y repetir cuantas veces quieras para calibrar tu karma, acumulando hasta un máximo de 50 monedas de por vida en este módulo.</li>
-				</ul>
+			<div class="idea-btn-container">
+				<button 
+					type="button" 
+					class="btn-like-idea"
+					class:liked={isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
+					onclick={() => toggleIdea(activeQuestions[currentQuestionIndex])}
+				>
+					{#if isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
+						💡 ¡Es una Idea en mi Bitácora!
+					{:else}
+						💡 Me gusta. Volver una Idea
+					{/if}
+				</button>
 			</div>
-
-			<button type="button" class="btn-solar-primary mt-6 justify-center w-full animate-solar-pulse" onclick={startTraining}>
-				🧠 Iniciar Simulador BEM
-			</button>
 		</div>
-	{/if}
 
-	{#if gameStateStep === 'quiz'}
-		<!-- QUIZ ACTIVE QUESTIONS -->
-		<div class="quiz-screen text-left" in:fade>
-			<div class="quiz-header flex justify-between items-center mb-4 p-2 glass-card">
-				<span class="q-progress">Escenario <strong>{currentQuestionIndex + 1}</strong> de {activeQuestions.length}</span>
-				<span class="net-score-indicator" class:negative={netScore < 0}>
-					Puntaje Neto: <strong>{netScore}</strong>
-				</span>
+		<!-- Choices Grid -->
+		<div class="choices-grid">
+			{#each activeQuestions[currentQuestionIndex].options as opt}
+				<button
+					type="button"
+					class="choice-btn"
+					onclick={() => checkAnswer(opt)}
+				>
+					<span class="choice-indicator">•</span>
+					<span class="choice-text">{opt}</span>
+				</button>
+			{/each}
+		</div>
+	{:else}
+		<!-- Feedback dialog replacing the question -->
+		<div class="feedback-response-box glass-card" class:correct={isCorrect} in:fade={{ duration: 300 }}>
+			<div class="feedback-title flex items-center gap-2 text-lg font-bold pb-2 border-b border-black/5">
+				{#if isCorrect}
+					<span class="text-solar-green-dark">🤖 ¡Bip-bip! ¡Espectro Correcto! (+1 Karma)</span>
+				{:else}
+					<span class="text-solar-terracotta">🤖 ¡Bup! Calibración Incorrecta (-1 Karma)</span>
+				{/if}
 			</div>
 
-			{#if !isAnswered}
-				<!-- Question Card -->
-				<div class="question-card glass-card mb-6" in:fly={{ y: 20, duration: 400 }}>
-					<span class="q-label">CASO DE ESTUDIO</span>
-					<blockquote class="scenario-text mt-2">
-						"{activeQuestions[currentQuestionIndex].scenario}"
-					</blockquote>
-					
-					<div class="idea-btn-container">
+			<!-- Scenario Feedback Card -->
+			<div class="scenario-feedback-card">
+				<div class="scenario-header-row">
+					<div class="scenario-text-desc">
+						<strong>Escenario:</strong> "{activeQuestions[currentQuestionIndex].scenario}"
+					</div>
+					<div class="flex-shrink-0">
 						<button 
 							type="button" 
 							class="btn-like-idea"
@@ -319,247 +329,67 @@
 							onclick={() => toggleIdea(activeQuestions[currentQuestionIndex])}
 						>
 							{#if isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
-								💡 ¡Es una Idea en mi Bitácora!
+								💡 ¡Es una Idea!
 							{:else}
-								💡 Me gusta. Volver una Idea
+								💡 Volver una Idea
 							{/if}
 						</button>
 					</div>
 				</div>
-
-				<!-- Choices Grid -->
-				<div class="choices-grid">
-					{#each activeQuestions[currentQuestionIndex].options as opt}
-						<button
-							type="button"
-							class="choice-btn"
-							onclick={() => checkAnswer(opt)}
-						>
-							<span class="choice-indicator">•</span>
-							<span class="choice-text">{opt}</span>
-						</button>
-					{/each}
-				</div>
-			{:else}
-				<!-- Feedback dialog replacing the question -->
-				<div class="feedback-response-box glass-card" class:correct={isCorrect} in:fade={{ duration: 300 }}>
-					<div class="feedback-title flex items-center gap-2 text-lg font-bold pb-2 border-b border-black/5">
-						{#if isCorrect}
-							<span class="text-solar-green-dark">🤖 ¡Bip-bip! ¡Espectro Correcto! (+1 Karma)</span>
-						{:else}
-							<span class="text-solar-terracotta">🤖 ¡Bup! Calibración Incorrecta (-1 Karma)</span>
-						{/if}
-					</div>
-
-					<!-- Scenario Feedback Card -->
-					<div class="scenario-feedback-card">
-						<div class="scenario-header-row">
-							<div class="scenario-text-desc">
-								<strong>Escenario:</strong> "{activeQuestions[currentQuestionIndex].scenario}"
-							</div>
-							<div class="flex-shrink-0">
-								<button 
-									type="button" 
-									class="btn-like-idea"
-									class:liked={isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
-									onclick={() => toggleIdea(activeQuestions[currentQuestionIndex])}
-								>
-									{#if isIdeaLiked(activeQuestions[currentQuestionIndex].id)}
-										💡 ¡Es una Idea!
-									{:else}
-										💡 Volver una Idea
-									{/if}
-								</button>
-							</div>
-						</div>
-					</div>
-
-					<div class="explanation-box">
-						<h6 class="font-bold text-xs uppercase tracking-wider text-solar-green-dark mb-1">Análisis BEM:</h6>
-						<p class="explanation-text">
-							{activeQuestions[currentQuestionIndex].explanation}
-						</p>
-					</div>
-
-					<!-- Live Karma Feedback Sliders -->
-					<div class="live-karma-feedback mt-4 p-4 rounded-xl bg-white/60 border border-black/5 shadow-inner">
-						<h5 class="text-xs font-bold uppercase tracking-wider text-solar-green-dark mb-3 text-center">
-							🔮 Calibración de Karma en Vivo
-						</h5>
-						<div class="flex flex-col gap-3">
-							{#each Object.keys(driverStats) as driver}
-								{@const correct = driverStats[driver].correct}
-								{@const wrong = driverStats[driver].wrong}
-								{@const karma = correct - wrong}
-								{@const pct = getKarmaPercentage(correct, wrong)}
-								
-								<div class="karma-bar-item flex items-center justify-between gap-3">
-									<span class="driver-name font-bold text-solar-green-dark text-[11px] w-28 truncate">{driver}</span>
-									
-									<div class="karma-track-wrapper flex-1 flex items-center gap-2">
-										<span class="track-limit wrong text-[10px] font-bold text-solar-terracotta">-3</span>
-										<div class="karma-track relative w-full h-2.5 bg-gray-200/80 rounded-full">
-											<!-- Zero Center Marker -->
-											<div class="karma-mid-line absolute left-1/2 top-0 w-0.5 h-full bg-gray-400/50 z-10"></div>
-
-											<!-- Sliding Dot -->
-											<div 
-												class="karma-dot absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full shadow transition-all duration-500 z-20" 
-												style="left: {pct}%" 
-												class:red={karma < 0} 
-												class:green={karma > 0}
-												class:neutral={karma === 0}
-											></div>
-										</div>
-										<span class="track-limit correct text-[10px] font-bold text-solar-green-medium">+3</span>
-									</div>
-
-									<span class="score-indicator-pill text-[10px] font-bold px-1.5 py-0.5 rounded min-w-[50px] text-center" class:red={karma < 0} class:green={karma > 0}>
-										{karma > 0 ? '+' : ''}{karma}
-									</span>
-								</div>
-							{/each}
-						</div>
-					</div>
-
-					<div class="action-row-feedback mt-8 flex justify-end">
-						<button type="button" class="btn-solar-primary btn-sm animate-solar-pulse" onclick={nextQuestion}>
-							{currentQuestionIndex === activeQuestions.length - 1 ? 'Ver Evaluación Final ➜' : 'Siguiente Escenario ➜'}
-						</button>
-					</div>
-				</div>
-			{/if}
-		</div>
-	{/if}
-
-	{#if gameStateStep === 'summary'}
-		<!-- SUMMARY SCREEN AND SAVE ACTION -->
-		<div class="summary-screen glass-card p-6" in:fade>
-			<span class="success-badge animate-solar-pulse">🎓</span>
-			<h3>Evaluación de Calibración Completada</h3>
-			<p class="summary-desc">Revisa tus barras de Karma BEM y reclama tus BEM Coins acumuladas.</p>
-
-			<!-- STARS RATING INTERFACE -->
-			<div class="stars-display flex justify-center gap-2 mb-6">
-				{#each Array(5) as _, i}
-					<span class="star-shape" class:active={i < starsCount}>★</span>
-				{/each}
 			</div>
 
-			<!-- DETAILS SCORE BOARD -->
-			<div class="score-card-stats glass-card mb-6">
-				<div class="score-row">
-					<span>Aciertos:</span>
-					<span class="score-val correct">{totalCorrect}</span>
-				</div>
-				<div class="score-row">
-					<span>Errores:</span>
-					<span class="score-val wrong">{totalIncorrect}</span>
-				</div>
-				<div class="score-row border-t pt-2 mt-2">
-					<span>Puntaje Neto final:</span>
-					<span class="score-val font-bold">{netScore} pts</span>
-				</div>
-			</div>
-
-			<!-- KARMA PROGRESS BARS (7 DRIVERS) -->
-			<div class="karma-section text-left mb-6 p-6 glass-card">
-				<h4 class="karma-title text-center mb-4">🔮 ALINEACIÓN DE TU KARMA BEM</h4>
-				<p class="text-xs text-center text-solar-text-muted mb-6">
-					El Karma inicia al centro (0). Los aciertos lo mueven a la derecha (+ verde) y los errores o respuestas incorrectas cruzadas lo mueven a la izquierda (- rojo).
+			<div class="explanation-box">
+				<h6 class="font-bold text-xs uppercase tracking-wider text-solar-green-dark mb-1">Análisis BEM:</h6>
+				<p class="explanation-text">
+					{activeQuestions[currentQuestionIndex].explanation}
 				</p>
-				
-				<div class="karma-bars-list flex flex-col gap-5">
+			</div>
+
+			<!-- Live Karma Feedback Sliders -->
+			<div class="live-karma-feedback mt-4 p-4 rounded-xl bg-white/60 border border-black/5 shadow-inner">
+				<h5 class="text-xs font-bold uppercase tracking-wider text-solar-green-dark mb-3 text-center">
+					🔮 Calibración de Karma en Vivo
+				</h5>
+				<div class="flex flex-col gap-3">
 					{#each Object.keys(driverStats) as driver}
 						{@const correct = driverStats[driver].correct}
 						{@const wrong = driverStats[driver].wrong}
 						{@const karma = correct - wrong}
 						{@const pct = getKarmaPercentage(correct, wrong)}
 						
-						<div class="karma-bar-item flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4 pb-4 border-b border-dashed border-solar-card-border">
-							<span class="driver-name font-bold text-solar-green-dark text-sm">{driver}</span>
+						<div class="karma-bar-item flex items-center justify-between gap-3">
+							<span class="driver-name font-bold text-solar-green-dark text-[11px] w-28 truncate">{driver}</span>
 							
-							<div class="karma-track-wrapper flex-1 flex items-center gap-3">
-								<span class="track-limit wrong text-xs font-bold text-solar-terracotta">-3</span>
-								<div class="karma-track relative w-full h-3 bg-gray-200 rounded-full">
+							<div class="karma-track-wrapper flex-1 flex items-center gap-2">
+								<span class="track-limit wrong text-[10px] font-bold text-solar-terracotta">-3</span>
+								<div class="karma-track relative w-full h-2.5 bg-gray-200/80 rounded-full">
 									<!-- Zero Center Marker -->
-									<div class="karma-mid-line absolute left-1/2 top-0 w-0.5 h-full bg-gray-400 z-10"></div>
+									<div class="karma-mid-line absolute left-1/2 top-0 w-0.5 h-full bg-gray-400/50 z-10"></div>
 
 									<!-- Sliding Dot -->
 									<div 
-										class="karma-dot absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-md transition-all duration-500 z-20" 
+										class="karma-dot absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full shadow transition-all duration-500 z-20" 
 										style="left: {pct}%" 
 										class:red={karma < 0} 
 										class:green={karma > 0}
 										class:neutral={karma === 0}
 									></div>
 								</div>
-								<span class="track-limit correct text-xs font-bold text-solar-green-medium">+3</span>
+								<span class="track-limit correct text-[10px] font-bold text-solar-green-medium">+3</span>
 							</div>
 
-							<span class="score-indicator-pill text-xs font-bold px-2 py-1 rounded" class:red={karma < 0} class:green={karma > 0}>
-								{karma > 0 ? '+' : ''}{karma} Karma
+							<span class="score-indicator-pill text-[10px] font-bold px-1.5 py-0.5 rounded min-w-[50px] text-center" class:red={karma < 0} class:green={karma > 0}>
+								{karma > 0 ? '+' : ''}{karma}
 							</span>
 						</div>
 					{/each}
 				</div>
 			</div>
 
-			<!-- REWARDS SUMMARY -->
-			<div class="coins-earned-summary p-4 glass-card mb-6 text-center">
-				{#if remainingToCap > 0}
-					<span class="coin-badge-label">Monedas Ganadas en este intento:</span>
-					<h2 class="text-solar-green-medium mt-1">🪙 +{actualCoinsAwarded} BEM Coins</h2>
-					{#if coinsEarned > actualCoinsAwarded}
-						<p class="text-xs text-solar-terracotta font-bold mt-1">
-							(Llegaste al límite máximo. Monedas acumuladas de entrenamiento: {lifetimeCoinsEarned + actualCoinsAwarded}/50)
-						</p>
-					{:else}
-						<p class="text-xs text-solar-text-muted mt-1">
-							(Monedas acumuladas en este módulo: {lifetimeCoinsEarned + actualCoinsAwarded}/50)
-						</p>
-					{/if}
-				{:else}
-					<span class="coin-badge-label">Balance de Entrenamiento Completado:</span>
-					<h3 class="text-solar-green-medium mt-1">🪙 +0 BEM Coins</h3>
-					<p class="text-xs text-solar-terracotta font-bold mt-1">
-						¡Has alcanzado el límite máximo de 50 monedas para este entrenamiento! Aún puedes repetir el quiz para mejorar tu Karma, pero no se sumarán nuevas monedas.
-					</p>
-				{/if}
-			</div>
-
-			<!-- ACTIONS ROWS -->
-			<div class="flex flex-col gap-3">
-				<button type="button" class="btn-solar-secondary justify-center w-full" onclick={startTraining}>
-					🔄 Volver a Intentar Entrenamiento
+			<div class="action-row-feedback mt-8 flex justify-end">
+				<button type="button" class="btn-solar-primary btn-sm animate-solar-pulse" onclick={nextQuestion}>
+					{currentQuestionIndex === activeQuestions.length - 1 ? 'Ver Evaluación Final ➜' : 'Siguiente Escenario ➜'}
 				</button>
-
-				<form
-					method="POST"
-					action="?/completeTrainingTrivia"
-					use:enhance={() => {
-						isSubmitting = true;
-						return async ({ result, update }) => {
-							isSubmitting = false;
-							if (result.type === 'success' && result.data) {
-								onUpdateCoins(result.data.coins, result.data.game_state);
-								onComplete();
-							}
-							await update();
-						};
-					}}
-				>
-					<input type="hidden" name="world_id" value={world.id} />
-					<input type="hidden" name="coins" value={actualCoinsAwarded} />
-
-					<button type="submit" class="btn-solar-primary w-full justify-center" disabled={isSubmitting}>
-						{#if isSubmitting}
-							📨 Archivando resultados en Roster...
-						{:else}
-							🚪 Registrar Resultados & Salir del Entrenamiento
-						{/if}
-					</button>
-				</form>
 			</div>
 		</div>
 	{/if}

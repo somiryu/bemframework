@@ -120,6 +120,52 @@
 			});
 		}
 
+		// World 3 specific achievements
+		if (gameState['3']?.training_completed) {
+			achievements.push({
+				id: 'interactivity_calibrator',
+				title: 'Calibrador de Engranajes',
+				desc: 'Superar la trivia de entrenamiento de Relojería Lúdica en el Mundo 3.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🛠️'
+			});
+		}
+
+		if (gameState['3']?.design_completed) {
+			achievements.push({
+				id: 'interactivity_architect',
+				title: 'Arquitecto de Interactividad',
+				desc: 'Completar el canvas de Relojería Lúdica del Mundo 3 en la bitácora.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🕰️'
+			});
+		}
+
+		// World 4 specific achievements
+		if (gameState['4']?.training_completed) {
+			achievements.push({
+				id: 'meta_calibrator',
+				title: 'Calibrador de Expectativas',
+				desc: 'Superar la trivia de entrenamiento de Arquitectura de Metas en el Mundo 4.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '📈'
+			});
+		}
+
+		if (gameState['4']?.design_completed) {
+			achievements.push({
+				id: 'meta_architect',
+				title: 'Arquitecto de Metas',
+				desc: 'Completar el canvas de Arquitectura de Metas del Mundo 4 en la bitácora.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '💎'
+			});
+		}
+
 		return achievements;
 	});
 </script>
@@ -219,7 +265,9 @@
 													{#if Array.isArray(canvas)}
 														{#each canvas as row, index}
 															<div class="canvas-row-saved-container">
-																<h5 class="canvas-row-title">Fila de Diseño #{index + 1}</h5>
+																<h5 class="canvas-row-title">
+																	{w.id === 4 ? `Meta de Aprendizaje #${index + 1}` : `Fila de Diseño #${index + 1}`}
+																</h5>
 																<div class="canvas-row-items">
 																	{#if w.id === 3}
 																		<div class="driver-item-saved">
@@ -245,6 +293,23 @@
 																		<div class="driver-item-saved">
 																			<span class="d-label">6. RETROALIMENTACIÓN</span>
 																			<p class="d-answer">"{row.retroalimentacion || ''}"</p>
+																		</div>
+																	{:else if w.id === 4}
+																		<div class="driver-item-saved">
+																			<span class="d-label">1. META DE APRENDIZAJE</span>
+																			<p class="d-answer">"{row.meta || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">2. TIPO DE OBJETIVO</span>
+																			<p class="d-answer">"{row.tipo || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">3. PERFIL DE EXPECTATIVA</span>
+																			<p class="d-answer">"{row.expectativa || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">4. CUADRANTE QUIERO/TENGO</span>
+																			<p class="d-answer">"{row.cuadrante || ''}"</p>
 																		</div>
 																	{:else}
 																		<div class="driver-item-saved">
