@@ -1030,7 +1030,7 @@
 			<aside class="panel-container">
 				<!-- Mentor card -->
 				<div class="mentor-card glass-card">
-					<img src="/learn_resoruces/characters/char_kira.png" alt="Kira" class="mentor-avatar" />
+					<img src="/learn_resources/characters/char_kira.png" alt="Kira" class="mentor-avatar" />
 					<div class="mentor-info">
 						<h5 class="mentor-name">Mentora Kira</h5>
 						<p class="mentor-bubble-text">

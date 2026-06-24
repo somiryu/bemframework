@@ -5,6 +5,7 @@
 	import World2Workshop from '$lib/components/games/World2Workshop.svelte';
 	import World3Workshop from '$lib/components/games/World3Workshop.svelte';
 	import World4Workshop from '$lib/components/games/World4Workshop.svelte';
+	import World5Workshop from '$lib/components/games/World5Workshop.svelte';
 	import WorkshopHeader from '$lib/components/workshop/WorkshopHeader.svelte';
 	import { page } from '$app/state';
 	import { learnTranslations } from '$lib/content/learn';
@@ -48,6 +49,12 @@
 			/>
 		{:else if data.world.id === 4}
 			<World4Workshop 
+				player={data.player} 
+				instance={data.instance}
+				onComplete={handleBackToMap}
+			/>
+		{:else if data.world.id === 5}
+			<World5Workshop 
 				player={data.player} 
 				instance={data.instance}
 				onComplete={handleBackToMap}

@@ -399,7 +399,7 @@
 		<!-- MENTOR DIALOG -->
 		<MentorExplain
 			mentorName="Kira"
-			mentorAvatar="/learn_resoruces/characters/char_kira_animated.gif"
+			mentorAvatar="/learn_resources/characters/char_kira_animated.gif"
 			titlePrefix="Misión 4"
 			instructions="<strong>Slide {currentSlideIndex} de 15</strong><br/><br/>{currentSlide.concept || ''}"
 		/>

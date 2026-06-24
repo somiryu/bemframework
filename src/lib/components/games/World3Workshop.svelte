@@ -481,7 +481,7 @@
 
 		<!-- Mentor Card (small, like World 2) -->
 		<div class="mentor-card glass-card">
-			<img src="/learn_resoruces/characters/char_wilkins.png" alt="Wilkins" class="mentor-avatar" />
+			<img src="/learn_resources/characters/char_wilkins.png" alt="Wilkins" class="mentor-avatar" />
 			<div class="mentor-info">
 				<h5 class="mentor-name">Mentor John Wilkins</h5>
 				<p class="mentor-bubble-text">

@@ -1,7 +1,7 @@
 import os
 from fpdf import FPDF, XPos, YPos
 
-OUTPUT_DIR = "/Users/freetoplay/Dev/Svelte/bem-framework/static/learn_resoruces/resorces/world4"
+OUTPUT_DIR = "static/learn_resources/resources/world4"
 
 GREEN = (30, 69, 51)
 WHITE = (255, 255, 255)

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { fade, fly } from 'svelte/transition';
+	import { fade, fly, slide } from 'svelte/transition';
+
 
 	let { 
 		player = {}, 
@@ -144,25 +145,338 @@
 		}
 
 		// World 4 specific achievements
-		if (gameState['4']?.training_completed) {
+		if (gameState['4']?.workshop_completed) {
 			achievements.push({
-				id: 'meta_calibrator',
-				title: 'Calibrador de Expectativas',
-				desc: 'Superar la trivia de entrenamiento de Arquitectura de Metas en el Mundo 4.',
+				id: 'el_faro_encendido',
+				title: 'El Faro Encendido',
+				desc: 'Completar el Taller Sincrónico del Mundo 4.',
 				date: new Date().toLocaleDateString(),
 				unlocked: true,
-				icon: '📈'
+				icon: '🏮'
 			});
 		}
 
-		if (gameState['4']?.design_completed) {
+		if (gameState['4']?.training_completed) {
 			achievements.push({
-				id: 'meta_architect',
-				title: 'Arquitecto de Metas',
-				desc: 'Completar el canvas de Arquitectura de Metas del Mundo 4 en la bitácora.',
+				id: 'calibrador',
+				title: 'Calibrador',
+				desc: 'Completar las 21 preguntas del Entrenamiento Asíncrono del Mundo 4.',
 				date: new Date().toLocaleDateString(),
 				unlocked: true,
-				icon: '💎'
+				icon: '⚖️'
+			});
+		}
+
+		const canvasW4 = gameState['4']?.design_canvas || [];
+		if (gameState['4']?.design_completed && canvasW4.length >= 3) {
+			achievements.push({
+				id: 'arquitecto_de_metas',
+				title: 'Arquitecto de Metas',
+				desc: 'Guardar al menos 3 metas en el Canvas del Mundo 4 con todos los campos completos.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🏗️'
+			});
+		}
+
+		if (gameState['4']?.block_correct_a === 7) {
+			achievements.push({
+				id: 'ojo_clinico',
+				title: 'Ojo Clínico',
+				desc: 'Responder correctamente las 7 preguntas de Variables de Expectativa sin errores.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🔍'
+			});
+		}
+
+		if (gameState['4']?.block_correct_b === 7) {
+			achievements.push({
+				id: 'tipologo',
+				title: 'Tipólogo',
+				desc: 'Responder correctamente las 7 preguntas de Tipos de Meta sin errores.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🗂️'
+			});
+		}
+
+		if (gameState['4']?.block_correct_c === 7) {
+			achievements.push({
+				id: 'cuadrante_perfecto',
+				title: 'Cuadrante Perfecto',
+				desc: 'Responder correctamente las 7 preguntas de la Matriz Quiero/Tengo sin errores.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🧭'
+			});
+		}
+
+		if (gameState['4']?.block_correct_a === 7 && gameState['4']?.block_correct_b === 7 && gameState['4']?.block_correct_c === 7) {
+			achievements.push({
+				id: 'estrella_de_calibracion',
+				title: 'Estrella de Calibración',
+				desc: 'Completar los 3 bloques de la trivia del Mundo 4 con puntaje perfecto (21/21).',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '⭐'
+			});
+		}
+
+		// Las 4 Esquinas
+		const has4Esquinas = (() => {
+			if (!Array.isArray(canvasW4)) return false;
+			const quads = new Set();
+			canvasW4.forEach(g => {
+				const q = (g.cuadrante || '').toLowerCase();
+				if (q.includes('adquisición') || q.includes('adquisicion') || q.includes('adquirir') || q.includes('quiero y no tengo')) quads.add('adq');
+				if (q.includes('mantenimiento') || q.includes('mantener') || q.includes('conservar') || q.includes('quiero y tengo')) quads.add('mant');
+				if (q.includes('eliminación') || q.includes('eliminacion') || q.includes('eliminar') || q.includes('escapar') || q.includes('no quiero y tengo')) quads.add('elim');
+				if (q.includes('prevención') || q.includes('prevencion') || q.includes('evitar') || q.includes('prevenir') || q.includes('no quiero y no tengo')) quads.add('prev');
+			});
+			return quads.size === 4;
+		})();
+		if (has4Esquinas) {
+			achievements.push({
+				id: 'las_4_esquinas',
+				title: 'Las 4 Esquinas',
+				desc: 'Crear en el Canvas al menos una meta por cada uno de los 4 cuadrantes de la Matriz Quiero/Tengo.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🗺️'
+			});
+		}
+
+		// Diseñador Completo
+		const hasDiseñadorCompleto = (() => {
+			if (!Array.isArray(canvasW4)) return false;
+			const types = new Set();
+			canvasW4.forEach(g => {
+				const t = (g.tipo || '').toLowerCase();
+				if (t.includes('narrativa')) types.add('narr');
+				if (t.includes('aproximación') || t.includes('aproximacion')) types.add('aprox');
+				if (t.includes('evasión') || t.includes('evasion')) types.add('evas');
+				if (t.includes('secundaria')) types.add('secund');
+			});
+			return types.size === 4;
+		})();
+		if (hasDiseñadorCompleto) {
+			achievements.push({
+				id: 'disenador_completo',
+				title: 'Diseñador Completo',
+				desc: 'Crear en el Canvas metas de los 4 tipos distintos: Narrativa, Principal de Aproximación, Principal de Evasión y Secundaria.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🎨'
+			});
+		}
+
+		// Lector del Faro
+		const w4Resources = gameState['4']?.unlocked_resources || [];
+		const hasLectorDelFaro = w4Resources.includes('intrinsic_extrinsic_motivation') &&
+								 w4Resources.includes('badge_goal_orientation') &&
+								 w4Resources.includes('instructional_objectives_gameplay');
+		if (hasLectorDelFaro) {
+			achievements.push({
+				id: 'lector_del_faro',
+				title: 'Lector del Faro',
+				desc: 'Desbloquear y acceder a los 3 recursos académicos de pago en la Biblioteca del Mundo 4.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '📖'
+			});
+		}
+
+		// Maestro del Tablero
+		if (gameState['4']?.maestro_del_tablero) {
+			achievements.push({
+				id: 'maestro_del_tablero',
+				title: 'Maestro del Tablero',
+				desc: 'Clasificar correctamente los 8 escenarios de la Parte 2 del Taller en el primer intento.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '👑'
+			});
+		}
+
+		// Meta Ultra
+		if (canvasW4.length >= 7) {
+			achievements.push({
+				id: 'meta_ultra',
+				title: 'Meta Ultra',
+				desc: 'Crear 7 o más metas en el Canvas de Metas del Mundo 4.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🌟'
+			});
+		}
+
+		// World 5 specific achievements
+		// 1. el_faro_del_ritmo
+		if (gameState['5']?.workshop_participated === true || gameState['5']?.workshop_completed === true) {
+			achievements.push({
+				id: 'el_faro_del_ritmo',
+				title: 'El Faro del Ritmo',
+				desc: 'Participar en el Taller Sincrónico del Mundo 5 (enviar al menos una respuesta como activo o ceder un turno).',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🏮'
+			});
+		}
+
+		// 2. calibrador_de_alertas
+		if (gameState['5']?.training_completed === true) {
+			achievements.push({
+				id: 'calibrador_de_alertas',
+				title: 'Calibrador de Alertas',
+				desc: 'Responder las 21 preguntas del Entrenamiento Asíncrono de la trivia (sin importar el puntaje final).',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '⚖️'
+			});
+		}
+
+		// 3. ingeniero_de_senales
+		const canvasW5 = gameState['5']?.design_canvas || [];
+		if (gameState['5']?.design_completed === true && canvasW5.length >= 3) {
+			achievements.push({
+				id: 'ingeniero_de_senales',
+				title: 'Ingeniero de Señales',
+				desc: 'Guardar en el Canvas al menos 3 notificadores de clase con todos sus campos completos y calificados.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🏗️'
+			});
+		}
+
+		// 4. rutina_de_hierro
+		if (gameState['5']?.block_correct_a === 7) {
+			achievements.push({
+				id: 'rutina_de_hierro',
+				title: 'Rutina de Hierro',
+				desc: 'Responder correctamente las 7 preguntas del Bloque A (Hábitos y Condicionamiento) sin cometer errores.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '⛓️'
+			});
+		}
+
+		// 5. semaforo_verde
+		if (gameState['5']?.block_correct_b === 7) {
+			achievements.push({
+				id: 'semaforo_verde',
+				title: 'Semáforo Verde',
+				desc: 'Responder correctamente las 7 preguntas del Bloque B (Timing y Oportunidad) sin cometer errores.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🚦'
+			});
+		}
+
+		// 6. calma_absoluta
+		if (gameState['5']?.block_correct_c === 7) {
+			achievements.push({
+				id: 'calma_absoluta',
+				title: 'Calma Absoluta',
+				desc: 'Responder correctamente las 7 preguntas del Bloque C (Urgencia y Ansiedad) sin cometer errores.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🧘'
+			});
+		}
+
+		// 7. estrella_de_la_atencion
+		if (gameState['5']?.block_correct_a === 7 && gameState['5']?.block_correct_b === 7 && gameState['5']?.block_correct_c === 7) {
+			achievements.push({
+				id: 'estrella_de_la_atencion',
+				title: 'Estrella de la Atención',
+				desc: 'Completar la trivia con un puntaje perfecto de 21/21 aciertos en el primer intento.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '⭐'
+			});
+		}
+
+		// 8. calibracion_tridimensional
+		const hasCalibracionTridimensional = (() => {
+			if (!Array.isArray(canvasW5)) return false;
+			return canvasW5.some(row => {
+				const intens = row.intensidad !== undefined ? row.intensidad : row.intensity;
+				const clar = row.coherencia !== undefined ? row.coherencia : (row.claridad !== undefined ? row.claridad : row.coherence);
+				const time = row.timing !== undefined ? row.timing : row.timing_value;
+				const just = (row.senal || '').trim() || (row.justificacion || '').trim() || (row.justification || '').trim();
+				return intens >= 4 && clar >= 4 && time >= 4 && just.length > 0;
+			});
+		})();
+		if (hasCalibracionTridimensional) {
+			achievements.push({
+				id: 'calibracion_tridimensional',
+				title: 'Calibración Tridimensional',
+				desc: 'Crear en el Canvas un notificador de clase que tenga calificaciones altas en los 3 sliders (Intensidad >= 4, Claridad >= 4 y Timing >= 4) con su debida justificación.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '📐'
+			});
+		}
+
+		// 9. sutil_pero_claro
+		const hasSutilPeroClaro = (() => {
+			if (!Array.isArray(canvasW5)) return false;
+			return canvasW5.some(row => {
+				const intens = row.intensidad !== undefined ? row.intensidad : row.intensity;
+				const clar = row.coherencia !== undefined ? row.coherencia : (row.claridad !== undefined ? row.claridad : row.coherence);
+				return intens === 1 && clar === 5;
+			});
+		})();
+		if (hasSutilPeroClaro) {
+			achievements.push({
+				id: 'sutil_pero_claro',
+				title: 'Sutil pero Claro',
+				desc: 'Crear en el Canvas una alerta calibrada con Intensidad = 1 (mínimo) y Claridad = 5 (máximo) para modelar un llamado a la acción no intrusivo pero perfectamente descifrable.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🔍'
+			});
+		}
+
+		// 10. lector_de_la_boveda
+		const w5Resources = gameState['5']?.unlocked_resources || [];
+		const hasLectorDeLaBoveda = w5Resources.includes('paper_bavelier') &&
+									w5Resources.includes('paper_shell') &&
+									w5Resources.includes('paper_dayan') &&
+									w5Resources.includes('paper_kober');
+		if (hasLectorDeLaBoveda) {
+			achievements.push({
+				id: 'lector_de_la_boveda',
+				title: 'Lector de la Bóveda',
+				desc: 'Desbloquear y leer los documentos de pago de la biblioteca del Mundo 5 (Bavelier, Shell, Dayan, Kober).',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '📖'
+			});
+		}
+
+		// 11. sintonia_fina
+		if (gameState['5']?.sintonia_fina === true) {
+			achievements.push({
+				id: 'sintonia_fina',
+				title: 'Sintonía Fina',
+				desc: 'Lograr una alineación del 100% con las decisiones de GIOCHI en 5 preguntas consecutivas durante el taller sincrónico.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🤝'
+			});
+		}
+
+		// 12. maestro_de_la_inaccion
+		if (gameState['5']?.maestro_de_la_inaccion === true) {
+			achievements.push({
+				id: 'maestro_de_la_inaccion',
+				title: 'Maestro de la Inacción',
+				desc: 'Resolver correctamente los 3 retos del taller sincrónico que utilizan la inacción como disparador conductual en el primer intento.',
+				date: new Date().toLocaleDateString(),
+				unlocked: true,
+				icon: '🛑'
 			});
 		}
 
@@ -266,7 +580,7 @@
 														{#each canvas as row, index}
 															<div class="canvas-row-saved-container">
 																<h5 class="canvas-row-title">
-																	{w.id === 4 ? `Meta de Aprendizaje #${index + 1}` : `Fila de Diseño #${index + 1}`}
+																	{w.id === 4 ? `Meta de Aprendizaje #${index + 1}` : (w.id === 5 ? `Diseño de Señal #${index + 1}` : `Fila de Diseño #${index + 1}`)}
 																</h5>
 																<div class="canvas-row-items">
 																	{#if w.id === 3}
@@ -310,6 +624,29 @@
 																		<div class="driver-item-saved">
 																			<span class="d-label">4. CUADRANTE QUIERO/TENGO</span>
 																			<p class="d-answer">"{row.cuadrante || ''}"</p>
+																		</div>
+																	{:else if w.id === 5}
+																		<div class="driver-item-saved">
+																			<span class="d-label">🎯 1. COMPORTAMIENTO DESEADO</span>
+																			<p class="d-answer">"{row.accion || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">📢 2. DISEÑO DE LA SEÑAL</span>
+																			<p class="d-answer">"{row.senal || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved" style="display: flex; gap: 1rem;">
+																			<div style="flex: 1;">
+																				<span class="d-label text-[10px] opacity-75">💥 INTENSIDAD</span>
+																				<p class="d-answer font-bold" style="margin-top: 0.15rem;">{row.intensidad || 3} / 5</p>
+																			</div>
+																			<div style="flex: 1;">
+																				<span class="d-label text-[10px] opacity-75">🌀 COHERENCIA</span>
+																				<p class="d-answer font-bold" style="margin-top: 0.15rem;">{row.coherencia || 3} / 5</p>
+																			</div>
+																			<div style="flex: 1;">
+																				<span class="d-label text-[10px] opacity-75">⏱️ TIMING</span>
+																				<p class="d-answer font-bold" style="margin-top: 0.15rem;">{row.timing || 3} / 5</p>
+																			</div>
 																		</div>
 																	{:else}
 																		<div class="driver-item-saved">

@@ -1,21 +1,16 @@
 """
-Converts docs/world4_design.md to a styled PDF via markdown → HTML → PDF (WeasyPrint).
-Sections 7 (Logros, Medallas y Recompensas) is excluded.
+Converts docs/world5_design.md to a styled PDF via markdown → HTML → PDF (WeasyPrint).
 """
 
-import re
 import markdown
 from weasyprint import HTML, CSS
 
-MD_PATH  = "docs/world4_design.md"
-OUT_PATH = "static/learn_resources/resources/world4/diseno_mundo4_detras_de_camaras.pdf"
+MD_PATH  = "docs/world5_design.md"
+OUT_PATH = "static/learn_resources/resources/world5/diseno_mundo5_detras_de_camaras.pdf"
 
-# ── Read and strip section 7 ──────────────────────────────────
+# ── Read Markdown file ────────────────────────────────────────
 with open(MD_PATH, "r", encoding="utf-8") as f:
     raw = f.read()
-
-# Remove everything from "## 🏆 7." onwards
-raw = re.split(r"\n## 🏆 7\.", raw)[0].rstrip()
 
 # ── Convert MD → HTML ─────────────────────────────────────────
 md_html = markdown.markdown(
@@ -28,12 +23,12 @@ html_doc = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Diseño del Mundo 4 — Detrás de Cámaras</title>
+<title>Diseño del Mundo 5 — Detrás de Cámaras</title>
 </head>
 <body>
   <div class="cover">
     <div class="cover-header">ORGANIZACIÓN MUNDIAL DE LA INNOVACIÓN EDUCATIVA (OMIE)</div>
-    <h1 class="cover-title">Diseño del Mundo 4</h1>
+    <h1 class="cover-title">Diseño del Mundo 5</h1>
     <h2 class="cover-subtitle">Detrás de Cámaras</h2>
     <p class="cover-desc">Documento de diseño pedagógico y lúdico completo</p>
   </div>
@@ -51,7 +46,7 @@ css = CSS(string="""
   size: A4;
   margin: 22mm 18mm 20mm 18mm;
   @top-center {
-    content: "OMIE · Mundo 4: Arquitectura de Metas y Expectativas";
+    content: "OMIE · Mundo 5: Llamados a la Acción y Capturadores de Atención";
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 8pt;
     color: #6b7280;
@@ -96,7 +91,7 @@ body {
   font-size: 9pt;
   letter-spacing: 1pt;
   text-transform: uppercase;
-  color: #86efac;
+  color: #4ade80;
   margin-bottom: 40pt;
   border-bottom: 1pt solid #4ade80;
   padding-bottom: 12pt;
@@ -111,7 +106,7 @@ h1.cover-title {
 h2.cover-subtitle {
   font-size: 22pt;
   font-weight: 600;
-  color: #86efac;
+  color: #4ade80;
   margin: 0 0 24pt;
   border: none;
 }
@@ -232,6 +227,6 @@ a { color: #166534; text-decoration: none; }
 """)
 
 # ── Generate PDF ──────────────────────────────────────────────
-print("Generando PDF...")
+print("Generando PDF para el Mundo 5...")
 HTML(string=html_doc, base_url=".").write_pdf(OUT_PATH, stylesheets=[css])
-print(f"[OK] PDF generado: {OUT_PATH}")
+print(f"[OK] PDF generado en: {OUT_PATH}")

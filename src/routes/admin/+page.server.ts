@@ -331,26 +331,42 @@ export const actions: Actions = {
 
 		const cleanCode = code.trim().toUpperCase();
 
-		// Create or update Javier player profile in course_players for this instance
-		const { data: player, error } = await supabase
+		// Check if player already exists to avoid wiping progress
+		const { data: existingPlayer } = await supabase
 			.from('course_players')
-			.upsert({
-				instance_code: cleanCode,
-				email: 'javier@f2p.co',
-				name: 'Javier Velásquez (Superuser)',
-				alias: 'JavierBEM',
-				avatar: 'eco-engineer',
-				coins: 15, // Provide BEM Coins for easy walkthroughs
-				game_state: { is_super_user: true }
-			}, {
-				onConflict: 'instance_code,email'
-			})
-			.select()
-			.single();
+			.select('*')
+			.eq('instance_code', cleanCode)
+			.eq('email', 'javier@f2p.co')
+			.maybeSingle();
+
+		let player;
+		let error;
+
+		if (existingPlayer) {
+			player = existingPlayer;
+		} else {
+			// Create Javier player profile only if it does not exist
+			const { data: newPlayer, error: insertError } = await supabase
+				.from('course_players')
+				.insert({
+					instance_code: cleanCode,
+					email: 'javier@f2p.co',
+					name: 'Javier Velásquez (Superuser)',
+					alias: 'JavierBEM',
+					avatar: 'eco-engineer',
+					coins: 15,
+					game_state: { is_super_user: true }
+				})
+				.select()
+				.single();
+
+			player = newPlayer;
+			error = insertError;
+		}
 
 		if (error || !player) {
 			console.error('Superuser login player error:', error);
-			return fail(400, { success: false, message: `Error al crear jugador superusuario: ${error.message}` });
+			return fail(400, { success: false, message: `Error al crear jugador superusuario: ${error ? error.message : 'No data'}` });
 		}
 
 		// Save player session in secure cookies

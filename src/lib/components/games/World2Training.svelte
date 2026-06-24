@@ -190,7 +190,7 @@
 						<div class="card-inner-glow"></div>
 						<div class="flashcard-layout">
 							<div class="flashcard-avatar-container">
-								<img src="/learn_resoruces/characters/char_kira_animated.gif" alt="Kira" class="flashcard-char-avatar" />
+								<img src="/learn_resources/characters/char_kira_animated.gif" alt="Kira" class="flashcard-char-avatar" />
 							</div>
 							<div class="flashcard-content">
 								<div class="card-tag">TARJETA DE EVALUACIÓN</div>

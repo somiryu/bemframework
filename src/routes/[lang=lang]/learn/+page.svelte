@@ -59,7 +59,7 @@
 		// Check for unviewed narrative outros first (e.g. returning from workshop)
 		let triggeredOutro = false;
 		for (const world of worldsList) {
-			const wState = localGameState[world.id];
+			const wState = localGameState[world.id] || localGameState[String(world.id)];
 			if (wState?.workshop_completed && !wState?.narrative_outro_viewed) {
 				selectedWorld = world;
 				triggerNarrative(world, 'outro');
@@ -70,7 +70,8 @@
 
 		if (!triggeredOutro) {
 			const world1 = worldsList.find((w: any) => w.id === 1);
-			if (world1 && !localGameState[1]?.narrative_intro_viewed) {
+			const w1State = localGameState[1] || localGameState['1'];
+			if (world1 && !w1State?.narrative_intro_viewed) {
 				triggerNarrative(world1, 'intro');
 			}
 		}
@@ -143,40 +144,44 @@
 
 		// Save narrative viewed in player gameState
 		const worldId = selectedWorld.id;
-		const state = { ...localGameState };
-		const worldState = state[worldId] || {};
+		const state = localPlayer.game_state ? JSON.parse(JSON.stringify(localPlayer.game_state)) : {};
+		if (!state[worldId]) state[worldId] = {};
 
 		if (narrativeTriggerType === 'intro') {
-			worldState.narrative_intro_viewed = true;
-			state[worldId] = worldState;
+			state[worldId].narrative_intro_viewed = true;
 			localPlayer.game_state = state;
 			
 			// Save via server action to bypass client RLS restrictions
 			const formData = new FormData();
 			formData.append('world_id', worldId.toString());
 			formData.append('type', 'intro');
-			await fetch('?/setNarrativeViewed', {
+			const res = await fetch('?/setNarrativeViewed', {
 				method: 'POST',
 				body: formData
 			});
+			if (!res.ok) {
+				console.error('Failed to save narrative view state:', res.status, await res.text());
+			}
 
 			// Open mode selector after intro completes!
 			showModeSelector = true;
 		} else {
 			// Outro finished! World is fully unlocked/finished
-			worldState.narrative_outro_viewed = true;
-			state[worldId] = worldState;
+			state[worldId].narrative_outro_viewed = true;
 			localPlayer.game_state = state;
 
 			const formData = new FormData();
 			formData.append('world_id', worldId.toString());
 			formData.append('type', 'outro');
-			await fetch('?/setNarrativeViewed', {
+			const res = await fetch('?/setNarrativeViewed', {
 				method: 'POST',
 				body: formData
 			});
+			if (!res.ok) {
+				console.error('Failed to save narrative view state:', res.status, await res.text());
+			}
 
-			if (!isHost && worldState.workshop_completed && !worldState.workshop_feedback_submitted) {
+			if (!isHost && state[worldId].workshop_completed && !state[worldId].workshop_feedback_submitted) {
 				showFeedbackOverlay = true;
 			} else {
 				selectedWorld = null;
@@ -188,7 +193,8 @@
 		selectedWorld = world;
 		
 		// If intro narrative has not been viewed yet, trigger narrative first!
-		if (!localGameState[world.id]?.narrative_intro_viewed) {
+		const wState = localGameState[world.id] || localGameState[String(world.id)];
+		if (!wState?.narrative_intro_viewed) {
 			triggerNarrative(world, 'intro');
 		} else {
 			showModeSelector = true;

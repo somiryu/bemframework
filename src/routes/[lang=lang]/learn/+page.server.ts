@@ -96,6 +96,16 @@ export const actions: Actions = {
 		// Mark training completed and update metrics
 		worldState.training_completed = true;
 		worldState.training_coins_gained = alreadyEarned + finalCoinsAwarded;
+
+		// Extract block correctness if submitted
+		const blockCorrectA = parseInt(formData.get('block_correct_a') as string, 10);
+		const blockCorrectB = parseInt(formData.get('block_correct_b') as string, 10);
+		const blockCorrectC = parseInt(formData.get('block_correct_c') as string, 10);
+
+		if (!isNaN(blockCorrectA)) worldState.block_correct_a = blockCorrectA;
+		if (!isNaN(blockCorrectB)) worldState.block_correct_b = blockCorrectB;
+		if (!isNaN(blockCorrectC)) worldState.block_correct_c = blockCorrectC;
+
 		state[worldId] = worldState;
 
 		const newCoins = player.coins + finalCoinsAwarded;
@@ -141,7 +151,7 @@ export const actions: Actions = {
 			// Fetch player current data
 			const { data: player } = await supabase
 				.from('course_players')
-				.select('game_state')
+				.select('coins, game_state')
 				.eq('id', playerId)
 				.single();
 
@@ -152,11 +162,21 @@ export const actions: Actions = {
 
 			worldState.design_completed = true;
 			worldState.design_canvas = canvasData;
+
+			let newCoins = player.coins || 0;
+			if (worldId === 5 && Array.isArray(canvasData) && canvasData.length >= 3 && !worldState.design_coins_awarded) {
+				newCoins += 15;
+				worldState.design_coins_awarded = true;
+			}
+
 			state[worldId] = worldState;
 
 			const { error } = await supabase
 				.from('course_players')
-				.update({ game_state: state })
+				.update({ 
+					coins: newCoins,
+					game_state: state 
+				})
 				.eq('id', playerId);
 
 			if (error) {

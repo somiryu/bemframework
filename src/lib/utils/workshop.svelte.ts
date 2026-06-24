@@ -53,6 +53,10 @@ export function createWorkshopSession(
 			onlinePlayers = list;
 		});
 
+		channel.on('presence', { event: 'leave' }, ({ key }: any) => {
+			onBroadcast('presence-leave', { playerId: key });
+		});
+
 		channel.subscribe(async (status: string) => {
 			if (status === 'SUBSCRIBED') {
 				await channel.track({

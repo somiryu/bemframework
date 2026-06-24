@@ -114,7 +114,7 @@ def create_guide():
         "(Nace y se consume internamente)."
     ))
 
-    output_path = "/Users/freetoplay/Dev/Svelte/bem-framework/static/learn_resoruces/resorces/world2/gfr_theory_guide.pdf"
+    output_path = "static/learn_resources/resources/world2/gfr_theory_guide.pdf"
     pdf.output(output_path)
     print("PDF generated successfully at:", output_path)
 

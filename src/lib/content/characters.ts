@@ -10,28 +10,28 @@ export const characterRegistry: Record<string, Character> = {
 	sara: {
 		name: 'Sara Arbelaez',
 		images: {
-			base: '/learn_resoruces/characters/char_sara.png',
-			animated: '/learn_resoruces/characters/char_sara_animated.gif'
+			base: '/learn_resources/characters/char_sara.png',
+			animated: '/learn_resources/characters/char_sara_animated.gif'
 		}
 	},
 	kira: {
 		name: 'Kira Yamada',
 		images: {
-			base: '/learn_resoruces/characters/char_kira.png',
-			animated: '/learn_resoruces/characters/char_kira_animated.gif'
+			base: '/learn_resources/characters/char_kira.png',
+			animated: '/learn_resources/characters/char_kira_animated.gif'
 		}
 	},
 	wilkins: {
 		name: 'John Wilkins',
 		images: {
-			base: '/learn_resoruces/characters/char_wilkins.png',
-			animated: '/learn_resoruces/characters/char_wilkins_animated.gif'
+			base: '/learn_resources/characters/char_wilkins.png',
+			animated: '/learn_resources/characters/char_wilkins_animated.gif'
 		}
 	},
 	giochi: {
 		name: 'GIOCHI',
 		images: {
-			base: '/learn_resoruces/characters/char_giochi.gif'
+			base: '/learn_resources/characters/char_giochi.gif'
 		}
 	}
 };
@@ -40,7 +40,13 @@ export const locationRegistry: Record<string, { name: string; images: { base: st
 	omie: {
 		name: 'Academia OMIE',
 		images: {
-			base: '/learn_resoruces/locations/omie academy.png'
+			base: '/learn_resources/locations/omie academy.png'
+		}
+	},
+	guidance_lighthouse: {
+		name: 'El Faro de la Orientación',
+		images: {
+			base: '/learn_resources/locations/guidance_lighthouse.png'
 		}
 	}
 };

@@ -263,10 +263,10 @@
 
 	// Slide 1 Content
 	const guilds = [
-		{ id: 'gary', name: 'Gary Gygax', motive: 'Identidad / Inmersión', desc: 'Reconocido por D&D y ser el padre de los juegos de rol. Explora historias ricas e inmersión épica.', banner: '/learn_resoruces/banners/guild_gary_gigax_identity.png' },
-		{ id: 'uwe', name: 'Uwe Rosenberg', motive: 'Eficiencia / Placer (Hedonismo)', desc: 'Reconocido por juegos de mesa de motor económico, buenas gráficas y sistemas de optimización profunda.', banner: '/learn_resoruces/banners/guild_uwe_efficiency_hedonism.png' },
-		{ id: 'sid', name: 'Sid Meier', motive: 'Empoderamiento / Descubrimiento', desc: 'Reconocido por juegos legendarios de exploración, expansión y conquista como Civilization y Pirates.', banner: '/learn_resoruces/banners/guild_sid_meier_empowerment_discovery.png' },
-		{ id: 'will', name: 'Will Wright', motive: 'Maestría / Relacionamiento', desc: 'Reconocido por juegos de simulación social y retos interactivos creativos como Sims y Spores.', banner: '/learn_resoruces/banners/guild_will_wright_mastery_relatedness.png' }
+		{ id: 'gary', name: 'Gary Gygax', motive: 'Identidad / Inmersión', desc: 'Reconocido por D&D y ser el padre de los juegos de rol. Explora historias ricas e inmersión épica.', banner: '/learn_resources/banners/guild_gary_gigax_identity.png' },
+		{ id: 'uwe', name: 'Uwe Rosenberg', motive: 'Eficiencia / Placer (Hedonismo)', desc: 'Reconocido por juegos de mesa de motor económico, buenas gráficas y sistemas de optimización profunda.', banner: '/learn_resources/banners/guild_uwe_efficiency_hedonism.png' },
+		{ id: 'sid', name: 'Sid Meier', motive: 'Empoderamiento / Descubrimiento', desc: 'Reconocido por juegos legendarios de exploración, expansión y conquista como Civilization y Pirates.', banner: '/learn_resources/banners/guild_sid_meier_empowerment_discovery.png' },
+		{ id: 'will', name: 'Will Wright', motive: 'Maestría / Relacionamiento', desc: 'Reconocido por juegos de simulación social y retos interactivos creativos como Sims y Spores.', banner: '/learn_resources/banners/guild_will_wright_mastery_relatedness.png' }
 	];
 
 	// Slide 2 Content

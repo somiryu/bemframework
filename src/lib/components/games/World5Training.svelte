@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { goalsTriviaQuestions, type GoalsTriviaQuestion } from '$lib/content/goalsTrivia';
+	import { attentionTriviaQuestions, type AttentionTriviaQuestion } from '$lib/content/attentionTrivia';
 	import { supabase } from '$lib/supabase';
 
 	let { 
@@ -17,12 +17,12 @@
 	} = $props();
 
 	// Shuffle the 21 questions on load
-	const shuffled = [...goalsTriviaQuestions];
+	const shuffled = [...attentionTriviaQuestions];
 	for (let i = shuffled.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
 		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
 	}
-	let activeQuestions = $state<GoalsTriviaQuestion[]>(shuffled);
+	let activeQuestions = $state<AttentionTriviaQuestion[]>(shuffled);
 
 	// Local gameplay states
 	let currentQuestionIndex = $state(0);
@@ -41,7 +41,7 @@
 		return likedIdeas.includes(id);
 	}
 
-	async function toggleIdea(question: GoalsTriviaQuestion) {
+	async function toggleIdea(question: AttentionTriviaQuestion) {
 		let currentLiked = [...likedIdeas];
 		
 		const state = { ...player.game_state };
@@ -56,7 +56,7 @@
 			currentLiked.push(question.id);
 			state.ideas.push({
 				id: question.id,
-				driver: `Mundo 4: ${question.blockName}`,
+				driver: `Mundo 5: ${question.blockName}`,
 				scenario: question.scenario,
 				explanation: question.explanation,
 				likedAt: new Date().toISOString()
@@ -77,7 +77,7 @@
 		}
 	}
 
-	// Reactive scroll-to-top on state transitions
+	// Scroll-to-top effect on slide transition
 	$effect(() => {
 		currentQuestionIndex;
 		isAnswered;
@@ -98,21 +98,23 @@
 	});
 
 	const netScore = $derived(totalCorrect - totalIncorrect);
+	const currentQ = $derived(activeQuestions[currentQuestionIndex]);
 
-	function checkAnswer(option: string) {
+	function selectOption(optionIndex: number) {
 		if (isAnswered) return;
+		const letter = ['A', 'B', 'C', 'D'][optionIndex];
+		selectedAnswer = letter;
+	}
 
-		selectedAnswer = option;
+	function submitAnswer() {
+		if (!selectedAnswer || isAnswered) return;
+
 		isAnswered = true;
-		
-		const currentQ = activeQuestions[currentQuestionIndex];
-		isCorrect = option === currentQ.correct;
+		isCorrect = selectedAnswer === currentQ.correct;
 
 		if (isCorrect) {
 			totalCorrect++;
-			if (currentQ.block === 'A' || currentQ.block === 'B' || currentQ.block === 'C') {
-				blockCorrect[currentQ.block]++;
-			}
+			blockCorrect[currentQ.block]++;
 		} else {
 			totalIncorrect++;
 		}
@@ -124,74 +126,82 @@
 			selectedAnswer = null;
 			isAnswered = false;
 		} else {
-			onGameComplete({ totalCorrect, totalIncorrect, blockCorrect });
+			onGameComplete({
+				totalCorrect,
+				totalIncorrect,
+				blockCorrect
+			});
 		}
 	}
 </script>
 
-<div class="training-game-wrapper text-center" in:fade>
-	{#if activeQuestions.length > 0}
-		{@const currentQ = activeQuestions[currentQuestionIndex]}
-		<!-- QUIZ SCREEN -->
-		<div class="quiz-screen text-left">
-			<div class="quiz-header flex justify-between items-center mb-4 p-2 glass-card">
-				<span class="q-progress">
-					Bloque <strong>{currentQ.block}</strong>: {currentQ.blockName} &bull; Pregunta <strong>{currentQuestionIndex + 1}</strong> de {activeQuestions.length}
-				</span>
-				<span class="net-score-indicator" class:negative={netScore < 0}>
-					Puntaje Neto: <strong>{netScore}</strong>
-				</span>
-			</div>
+<div class="training-game-wrapper" in:fade>
+	<!-- Progress meter -->
+	<div class="flex justify-between items-center mb-4">
+		<span class="q-progress">
+			Pregunta {currentQuestionIndex + 1} de {activeQuestions.length}
+		</span>
+		<div class="flex items-center gap-2">
+			<span class="text-xs font-bold text-solar-text-muted">CALIBRACIÓN DE KARMA:</span>
+			<span class="net-score-indicator" class:negative={netScore < 0}>
+				{netScore >= 0 ? '+' : ''}{netScore} NETO
+			</span>
+		</div>
+	</div>
 
+	<!-- Progress Track -->
+	<div class="w-full bg-gray-200 h-2 rounded-full mb-6 overflow-hidden">
+		<div 
+			class="training-progress-fill h-full"
+			style="width: {((currentQuestionIndex) / activeQuestions.length) * 100}%"
+		></div>
+	</div>
+
+	<!-- Main Question Board -->
+	{#if currentQ}
+		<div class="quiz-screen">
 			{#if !isAnswered}
-				<!-- Question Card -->
-				<div class="question-card glass-card mb-6" in:fly={{ y: 20, duration: 400 }}>
-					<span class="q-label">CASO DE ESTUDIO</span>
-					<blockquote class="scenario-text mt-2">
-						"{currentQ.scenario}"
-					</blockquote>
-					<p class="question-text-prompt mt-4 font-bold text-solar-green-dark">
+				<div class="question-card text-left" in:fade>
+					<span class="q-label">{currentQ.blockName}</span>
+					<h3 class="scenario-text">"{currentQ.scenario}"</h3>
+					
+					<p class="question-text-prompt text-solar-text font-medium mt-4 mb-6">
 						{currentQ.question}
 					</p>
 
-					<div class="idea-btn-container">
-						<button 
-							type="button" 
-							class="btn-like-idea"
-							class:liked={isIdeaLiked(currentQ.id)}
-							onclick={() => toggleIdea(currentQ)}
+					<div class="choices-grid">
+						{#each currentQ.options as option, idx}
+							{@const optLetter = ['A', 'B', 'C', 'D'][idx]}
+							<button
+								type="button"
+								class="choice-btn"
+								class:selected={selectedAnswer === optLetter}
+								onclick={() => selectOption(idx)}
+							>
+								<span class="choice-indicator">{optLetter}</span>
+								<span class="choice-text">{option}</span>
+							</button>
+						{/each}
+					</div>
+
+					<div class="board-footer flex justify-end mt-6 border-t pt-4 border-gray-100">
+						<button
+							type="button"
+							class="btn-solar-accent"
+							disabled={!selectedAnswer}
+							onclick={submitAnswer}
 						>
-							{#if isIdeaLiked(currentQ.id)}
-								💡 ¡Es una Idea en mi Bitácora!
-							{:else}
-								💡 Me gusta. Volver una Idea
-							{/if}
+							Validar Elección ➔
 						</button>
 					</div>
 				</div>
-
-				<!-- Choices Grid -->
-				<div class="choices-grid">
-					{#each currentQ.options as opt}
-						<button
-							type="button"
-							class="choice-btn"
-							onclick={() => checkAnswer(opt)}
-						>
-							<span class="choice-indicator">
-								👉
-							</span>
-							<span class="choice-text">{opt}</span>
-						</button>
-					{/each}
-				</div>
 			{:else}
-				<!-- Feedback Dialog -->
-				<div class="feedback-response-box text-left" class:correct={isCorrect} class:incorrect={!isCorrect} in:fade={{ duration: 300 }}>
+				<!-- Answer Feedback Screen -->
+				<div class="feedback-response-box text-left" class:correct={isCorrect} class:incorrect={!isCorrect} in:fly={{ y: 20, duration: 400 }}>
 					<!-- Top header -->
 					<div class="flex justify-between items-center border-b border-black/[0.08] pb-3 mb-5">
 						<div class="flex flex-col gap-0.5">
-							<span class="q-label text-[10px] tracking-widest opacity-80">CATEGORÍA DE METAS</span>
+							<span class="q-label text-[10px] tracking-widest opacity-80">CATEGORÍA DE ATENCIÓN</span>
 							<span class="block-name-highlight text-sm font-extrabold text-solar-green-dark">{currentQ.blockName}</span>
 						</div>
 						<span class="feedback-badge-premium shadow-sm" class:correct-badge={isCorrect} class:incorrect-badge={!isCorrect}>
@@ -214,9 +224,9 @@
 								</span>
 							</div>
 							<div class="pill-body flex items-start gap-2">
-								<span class="letter-badge">{['A', 'B', 'C', 'D'][currentQ.options.indexOf(selectedAnswer || '')]}</span>
+								<span class="letter-badge">{selectedAnswer}</span>
 								<p class="pill-text font-medium">
-									{selectedAnswer}
+									{currentQ.options[['A', 'B', 'C', 'D'].indexOf(selectedAnswer || '')]}
 								</p>
 							</div>
 						</div>
@@ -225,13 +235,13 @@
 							<div class="response-pill-premium giochi-correct shadow-sm">
 								<div class="pill-header flex items-center gap-2 mb-2">
 									<span class="pill-badge giochi-correct-badge">
-										⭐ RESPUESTA ALINEADA
+										⭐ ALINEACIÓN CON GIOCHI
 									</span>
 								</div>
 								<div class="pill-body flex items-start gap-2">
-									<span class="letter-badge giochi-letter">{['A', 'B', 'C', 'D'][currentQ.options.indexOf(currentQ.correct)]}</span>
+									<span class="letter-badge giochi-letter">{currentQ.correct}</span>
 									<p class="pill-text font-semibold">
-										{currentQ.correct}
+										{currentQ.correctText}
 									</p>
 								</div>
 							</div>
@@ -242,16 +252,16 @@
 					<div class="mentor-speech-card-premium flex gap-4 items-start mb-6 shadow-sm">
 						<div class="mentor-avatar-container">
 							<img 
-								src="/learn_resources/characters/char_kira.png" 
-								alt="Kira" 
+								src="/learn_resources/characters/char_sara_animated.gif" 
+								alt="Sara" 
 								class="mentor-portrait-circle-premium"
 							/>
 							<div class="mentor-avatar-glow"></div>
 						</div>
 						<div class="speech-bubble-body">
 							<div class="flex items-center gap-2 mb-1">
-								<span class="mentor-name-tag">Kira Yamada</span>
-								<span class="mentor-role-tag">Mentora de Metas</span>
+								<span class="mentor-name-tag">Sara Arbeláez</span>
+								<span class="mentor-role-tag">Mentora de Atención</span>
 							</div>
 							<p class="speech-text">
 								"{currentQ.explanation}"
@@ -287,6 +297,7 @@
 		max-width: 720px;
 		margin: 0 auto;
 		padding: 1rem;
+		font-family: var(--font-solar-body), sans-serif;
 	}
 
 	.quiz-screen {
@@ -315,11 +326,21 @@
 		color: #b91c1c;
 	}
 
+	.training-progress-fill {
+		background: linear-gradient(90deg,
+			var(--color-solar-green-medium, #3d8f68),
+			var(--color-solar-sky, #188db5)
+		);
+		border-radius: var(--radius-solar-full, 9999px);
+		transition: width 400ms ease;
+	}
+
 	.question-card {
 		padding: 2rem 1.5rem;
 		border-radius: 24px;
-		background: var(--color-solar-bg, #FAF9F6);
-		border: 1px solid rgba(0,0,0,0.03);
+		background: var(--color-solar-card, #ffffff);
+		border: 1px solid var(--color-solar-card-border, rgba(0,0,0,0.05));
+		box-shadow: var(--shadow-solar-sm);
 	}
 
 	.q-label {
@@ -363,12 +384,18 @@
 		align-items: center;
 		gap: 1rem;
 		transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		outline: none;
 	}
 
 	.choice-btn:hover:not(:disabled) {
 		transform: translateY(-2px);
 		border-color: var(--color-solar-green-medium, #3d8f68);
 		box-shadow: var(--shadow-solar-sm, 0 2px 8px rgba(0,0,0,0.04));
+	}
+
+	.choice-btn.selected {
+		border-color: var(--color-solar-green-medium, #3d8f68);
+		background: var(--color-solar-green-light, #d2f5e3);
 	}
 
 	.choice-indicator {
@@ -381,6 +408,13 @@
 		align-items: center;
 		justify-content: center;
 		font-size: 0.95rem;
+		font-weight: 800;
+	}
+
+	.choice-btn.selected .choice-indicator {
+		background: var(--color-solar-green-medium, #3d8f68);
+		color: white;
+		border-color: var(--color-solar-green-medium, #3d8f68);
 	}
 
 	.choice-text {
@@ -391,7 +425,7 @@
 
 	/* FEEDBACK EXPLANATION BOX */
 	.feedback-response-box {
-		padding: 2.25rem 2rem;
+		padding: 2rem;
 		border-radius: 28px;
 		border: 1px solid rgba(255, 255, 255, 0.5);
 		backdrop-filter: blur(16px);
@@ -405,136 +439,22 @@
 
 	.feedback-response-box.correct {
 		background: rgba(240, 253, 244, 0.85);
-		border-top: 4px solid var(--color-solar-green-medium, #3d8f68);
-		box-shadow: 
-			inset 0 0 20px rgba(61, 143, 104, 0.05),
-			0 10px 30px rgba(61, 143, 104, 0.08);
+		border-left: 5px solid var(--color-solar-green-medium, #3d8f68);
 	}
 
-	.feedback-response-box:not(.correct) {
+	.feedback-response-box.incorrect {
 		background: rgba(254, 242, 242, 0.85);
-		border-top: 4px solid var(--color-solar-terracotta, #e11d48);
-		box-shadow: 
-			inset 0 0 20px rgba(225, 29, 72, 0.05),
-			0 10px 30px rgba(225, 29, 72, 0.08);
+		border-left: 5px solid var(--color-solar-terracotta, #e11d48);
 	}
 
-	.feedback-title {
+	.feedback-badge {
 		font-family: var(--font-solar-header, sans-serif);
-		font-weight: 800;
-		font-size: 1.2rem;
-		letter-spacing: -0.01em;
-	}
-
-	.explanation-text {
-		font-size: 0.85rem;
-		line-height: 1.5;
-		font-weight: 600;
-	}
-
-	.action-row-feedback {
-		margin-top: 2.25rem !important;
-	}
-
-	.w-full { width: 100%; }
-	.items-start { align-items: flex-start; }
-	.justify-between { justify-content: space-between; }
-	.flex { display: flex; }
-	.flex-shrink-0 { flex-shrink: 0; }
-	.object-cover { object-fit: cover; }
-	.gap-2 { gap: 0.5rem; }
-	.gap-4 { gap: 1rem; }
-	.mb-4 { margin-bottom: 1rem; }
-	.mb-6 { margin-bottom: 1.5rem; }
-	.my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
-	.my-4 { margin-top: 1rem; margin-bottom: 1rem; }
-	.mt-2 { margin-top: 0.5rem; }
-	.mt-4 { margin-top: 1rem; }
-	.mt-6 { margin-top: 1.5rem; }
-
-	.btn-solar-primary {
-		font-family: var(--font-solar-header, sans-serif);
-		font-weight: 700;
-		font-size: 1rem;
-		color: #ffffff;
-		background: linear-gradient(135deg, var(--color-solar-green-medium, #3d8f68), var(--color-solar-green-dark, #1e4533));
-		border: none;
-		border-radius: 12px;
-		padding: 0.9rem 2rem;
-		box-shadow: 0 4px 15px rgba(61, 143, 104, 0.25);
-		cursor: pointer;
-		transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-		text-align: center;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-	}
-
-	/* LIKE IDEA BUTTON STYLES */
-	.idea-btn-container {
-		display: flex;
-		justify-content: flex-end;
-		margin-top: 1.25rem;
-		width: 100%;
-	}
-
-	.btn-like-idea {
-		background: #ffffff;
-		border: 2px solid var(--color-solar-card-border, rgba(0, 0, 0, 0.08));
-		color: var(--color-solar-green-dark, #1e4533);
-		cursor: pointer;
-		padding: 0.5rem 1rem;
-		border-radius: 12px;
-		font-weight: 750;
-		font-size: 0.8rem;
-		font-family: var(--font-solar-body, sans-serif), sans-serif;
-		box-shadow: var(--shadow-solar-sm, 0 2px 8px rgba(0,0,0,0.04));
-		transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		outline: none;
-	}
-
-	.btn-like-idea:hover {
-		transform: translateY(-2px);
-		border-color: var(--color-solar-yellow, #ffd166);
-		background: #FFFDF4;
-		box-shadow: var(--shadow-solar-md, 0 4px 12px rgba(0,0,0,0.08));
-	}
-
-	.btn-like-idea.liked {
-		background: var(--color-solar-yellow, #ffd166);
-		color: var(--color-solar-green-dark, #1e4533);
-		border-color: var(--color-solar-yellow, #ffd166);
-		box-shadow: 0 4px 12px rgba(255, 209, 102, 0.4);
-		animation: idea-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-	}
-
-	@keyframes idea-pop {
-		0% { transform: scale(1); }
-		50% { transform: scale(1.1); }
-		100% { transform: scale(1); }
-	}
-
-	.mentor-portrait {
-		width: 48px;
-		height: 48px;
-		border-radius: 50%;
-		border: 2px solid var(--color-solar-green-medium, #3d8f68);
-		background-color: #ffffff;
-		flex-shrink: 0;
-		object-fit: cover;
-	}
-
-	.feedback-badge-premium {
-		font-family: var(--font-solar-header, sans-serif);
-		font-size: 0.75rem;
-		font-weight: 850;
+		font-size: 0.65rem;
+		font-weight: 900;
 		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 0.35rem 0.85rem;
-		border-radius: 10px;
+		letter-spacing: 0.08em;
+		padding: 0.25rem 0.75rem;
+		border-radius: var(--radius-solar-xs, 6px);
 	}
 
 	.correct-badge {
@@ -545,6 +465,128 @@
 	.incorrect-badge {
 		background: #fee2e2;
 		color: #991b1b;
+	}
+
+	/* ESCENARIO DESTACADO */
+	.scenario-highlight-card {
+		background: white;
+		border: 1px solid var(--color-solar-card-border, rgba(0,0,0,0.06));
+		padding: 1.25rem;
+		border-radius: 18px;
+		box-shadow: var(--shadow-solar-sm);
+	}
+
+	.scenario-highlight-card .sub-title {
+		font-size: 0.6rem;
+		font-weight: 800;
+		color: var(--color-solar-text-muted);
+		letter-spacing: 0.08em;
+		display: block;
+		margin-bottom: 0.35rem;
+	}
+
+	.scenario-quote {
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--color-solar-green-dark);
+		line-height: 1.5;
+		margin: 0;
+		font-style: italic;
+	}
+
+	/* COMPARADOR DE RESPUESTAS */
+	.comparison-grid {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.response-pill {
+		padding: 1rem 1.25rem;
+		border-radius: 16px;
+		border: 1.5px solid transparent;
+	}
+
+	.response-pill .pill-label {
+		font-size: 0.6rem;
+		font-weight: 800;
+		letter-spacing: 0.05em;
+		display: block;
+		margin-bottom: 0.25rem;
+	}
+
+	.response-pill .pill-text {
+		font-size: 0.85rem;
+		margin: 0;
+		line-height: 1.4;
+	}
+
+	.user-correct {
+		background: hsla(142, 70%, 90%, 0.4);
+		border-color: hsla(142, 70%, 45%, 0.25);
+		color: var(--color-solar-green-dark);
+	}
+
+	.user-wrong {
+		background: hsla(0, 80%, 93%, 0.4);
+		border-color: hsla(0, 80%, 60%, 0.25);
+		color: #991b1b;
+	}
+
+	.giochi-correct {
+		background: hsla(196, 70%, 93%, 0.4);
+		border-color: hsla(196, 70%, 50%, 0.25);
+		color: hsl(196, 75%, 25%);
+	}
+
+	/* MENTOR SPEECH CARD */
+	.mentor-speech-card {
+		background: white;
+		border: 1px solid var(--color-solar-card-border, rgba(0,0,0,0.06));
+		padding: 1.25rem;
+		border-radius: 20px;
+		box-sizing: border-box;
+		box-shadow: var(--shadow-solar-sm);
+	}
+
+	.mentor-portrait-circle {
+		width: 52px;
+		height: 52px;
+		border-radius: 50%;
+		border: 2.5px solid var(--color-solar-green-medium);
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+
+	.speech-bubble-body {
+		text-align: left;
+	}
+
+	.mentor-name-tag {
+		font-family: var(--font-solar-header);
+		font-size: 0.75rem;
+		font-weight: 800;
+		color: var(--color-solar-green-medium);
+		display: block;
+		margin-bottom: 0.25rem;
+	}
+
+	.speech-bubble-body .speech-text {
+		font-size: 0.82rem;
+		line-height: 1.55;
+		color: var(--color-solar-text);
+		margin: 0;
+		font-style: italic;
+	}
+
+	.feedback-badge-premium {
+		font-family: var(--font-solar-header, sans-serif);
+		font-size: 0.75rem;
+		font-weight: 850;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding: 0.35rem 0.85rem;
+		border-radius: 10px;
 	}
 
 	.response-pill-premium {
@@ -668,5 +710,82 @@
 		color: var(--color-solar-green-dark);
 		padding: 0.1rem 0.4rem;
 		border-radius: 4px;
+	}
+
+	.action-row-feedback {
+		margin-top: 2rem !important;
+	}
+
+	.w-full { width: 100%; }
+	.justify-between { justify-content: space-between; }
+	.flex { display: flex; }
+	.gap-4 { gap: 1rem; }
+	.mb-5 { margin-bottom: 1.25rem; }
+	.mb-6 { margin-bottom: 1.5rem; }
+	.mt-6 { margin-top: 1.5rem; }
+
+	.btn-solar-primary {
+		font-family: var(--font-solar-header, sans-serif);
+		font-weight: 700;
+		font-size: 1rem;
+		color: #ffffff;
+		background: linear-gradient(135deg, var(--color-solar-green-medium, #3d8f68), var(--color-solar-green-dark, #1e4533));
+		border: none;
+		border-radius: 12px;
+		padding: 0.9rem 2rem;
+		box-shadow: 0 4px 15px rgba(61, 143, 104, 0.25);
+		cursor: pointer;
+		transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		text-align: center;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+
+	/* LIKE IDEA BUTTON STYLES */
+	.idea-btn-container {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 1.25rem;
+		width: 100%;
+	}
+
+	.btn-like-idea {
+		background: #ffffff;
+		border: 2px solid var(--color-solar-card-border, rgba(0, 0, 0, 0.08));
+		color: var(--color-solar-green-dark, #1e4533);
+		cursor: pointer;
+		padding: 0.5rem 1rem;
+		border-radius: 12px;
+		font-weight: 750;
+		font-size: 0.8rem;
+		font-family: var(--font-solar-body, sans-serif), sans-serif;
+		box-shadow: var(--shadow-solar-sm, 0 2px 8px rgba(0,0,0,0.04));
+		transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		outline: none;
+	}
+
+	.btn-like-idea:hover {
+		transform: translateY(-2px);
+		border-color: var(--color-solar-yellow, #ffd166);
+		background: #FFFDF4;
+		box-shadow: var(--shadow-solar-md, 0 4px 12px rgba(0,0,0,0.08));
+	}
+
+	.btn-like-idea.liked {
+		background: var(--color-solar-yellow, #ffd166);
+		color: var(--color-solar-green-dark, #1e4533);
+		border-color: var(--color-solar-yellow, #ffd166);
+		box-shadow: 0 4px 12px rgba(255, 209, 102, 0.4);
+		animation: idea-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	}
+
+	@keyframes idea-pop {
+		0% { transform: scale(1); }
+		50% { transform: scale(1.1); }
+		100% { transform: scale(1); }
 	}
 </style>

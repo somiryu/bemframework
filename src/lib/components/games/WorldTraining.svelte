@@ -9,6 +9,7 @@
 	import World2Training from './World2Training.svelte';
 	import World3Training from './World3Training.svelte';
 	import World4Training from './World4Training.svelte';
+	import World5Training from './World5Training.svelte';
 
 	let { 
 		world, 
@@ -33,7 +34,7 @@
 		1: {
 			title: 'Entrenamiento de Reconocimiento BEM',
 			mentorName: 'Sara',
-			mentorAvatar: '/learn_resoruces/characters/char_sara_animated.gif',
+			mentorAvatar: '/learn_resources/characters/char_sara_animated.gif',
 			tip: '¡Bienvenido de nuevo, Agente en entrenamiento! Los mentores han preparado un desafío riguroso para calibrar tus instintos de diseño motivacional:',
 			instructions: [
 				'<strong>21 Escenarios Aleatorios:</strong> Responderás un flujo dinámico de casos seleccionados al azar (3 por cada uno de los 7 drivers).',
@@ -45,7 +46,7 @@
 		2: {
 			title: 'Entrenamiento de Clasificación GFR',
 			mentorName: 'Kira',
-			mentorAvatar: '/learn_resoruces/characters/char_kira.png',
+			mentorAvatar: '/learn_resources/characters/char_kira.png',
 			tip: '¡Bienvenido, Agente! Este módulo calibrará tus habilidades para distinguir los componentes del diseño gamificado bajo el modelo GFR (Goal, Feedback, Reward) y la Teoría de la Autodeterminación (RII):',
 			instructions: [
 				'<strong>10 Casos de Estudio:</strong> Clasificarás 10 tarjetas aleatorias en la cuadrícula de 3x3.',
@@ -57,7 +58,7 @@
 		3: {
 			title: 'Relojería de la Interactividad',
 			mentorName: 'John Wilkins',
-			mentorAvatar: '/learn_resoruces/characters/char_wilkins_animated.gif',
+			mentorAvatar: '/learn_resources/characters/char_wilkins_animated.gif',
 			tip: 'Para construir un aprendizaje lúdico y fluido, la meta, la acción del estudiante y el feedback de retorno deben encajar con la precisión de un cronógrafo. Calibremos tu exactitud con 10 escenarios reales de clase:',
 			instructions: [
 				'<strong>Clasifica el tamaño del ciclo:</strong> Determina si el bucle es <strong>Corto</strong> (segundos a minutos), <strong>Medio</strong> (1-3 días), o <strong>Largo</strong> (1 semana o más).',
@@ -68,7 +69,7 @@
 		4: {
 			title: 'Arquitectura de Metas y Expectativas',
 			mentorName: 'Kira Yamada',
-			mentorAvatar: '/learn_resoruces/characters/char_kira.png',
+			mentorAvatar: '/learn_resources/characters/char_kira.png',
 			tip: 'Bienvenido de nuevo, Agente. Kira ha diseñado una simulación con 21 escenarios para evaluar cómo calibras la matriz de expectativas y estructuras las metas principales y secundarias:',
 			instructions: [
 				'<strong>21 Preguntas de Calibración:</strong> Resolverás los 3 bloques temáticos de 7 preguntas cada uno.',
@@ -76,13 +77,25 @@
 				'<strong>Tabla de Conversión:</strong> 18+ netos = 5 estrellas, 12+ netos = 4 estrellas, 6+ netos = 3 estrellas, 1+ netos = 2 estrellas, -5+ netos = 1 estrella.',
 				'<strong>Monedas BEM:</strong> Cada estrella obtenida te otorga <strong>+5 BEM Coins</strong>, acumulando hasta un máximo de 50 de por vida en este entrenamiento.'
 			]
+		},
+		5: {
+			title: 'Llamados a la Acción y Capturadores de Atención',
+			mentorName: 'Sara Arbeláez',
+			mentorAvatar: '/learn_resources/characters/char_sara_animated.gif',
+			tip: 'Bienvenido, Agente. Sara ha diseñado una simulación con 21 escenarios de la vida real para calibrar tus instintos sobre cómo capturar la atención de tus estudiantes mediante llamados conductuales correctos:',
+			instructions: [
+				'<strong>3 Bloques de Atención (21 preguntas):</strong> Evaluarás casos sobre Hábitos (Bloque A), Timing y Ritmo (Bloque B) e Impacto Emocional y Ansiedad (Bloque C).',
+				'<strong>Calibración de Calidad:</strong> El sistema calculará tu puntuación neta (Aciertos menos Errores) para determinar tus estrellas de calibración.',
+				'<strong>Conversión de Estrellas:</strong> 18+ netos = 5 estrellas, 12+ netos = 4 estrellas, 6+ netos = 3 estrellas, 1+ netos = 2 estrellas, -5+ netos = 1 estrella.',
+				'<strong>Monedas BEM:</strong> Obtén hasta 5 estrellas. Cada una te otorga <strong>+5 BEM Coins</strong> (máximo 50 de por vida en este entrenamiento).'
+			]
 		}
 	};
 
 	const config = $derived(trainingConfigs[world.id] || {
 		title: 'Entrenamiento del Simulador',
 		mentorName: 'Mentor',
-		mentorAvatar: '/learn_resoruces/characters/char_sara.png',
+		mentorAvatar: '/learn_resources/characters/char_sara.png',
 		tip: 'Calibra tus instintos completando este simulador interactivo.',
 		instructions: []
 	});
@@ -101,6 +114,7 @@
 
 	// World 1 specific karma tracking
 	let driverStats = $state<any>(null);
+	let blockCorrect = $state<any>(null);
 
 	// Lifetime Cap progress tracking
 	const lifetimeCoinsEarned = $derived(player.game_state?.[world.id]?.training_coins_gained || 0);
@@ -110,6 +124,75 @@
 		return Math.min(remainingToCap, coinsEarned);
 	});
 
+	const scoreScales: Record<number, (results: any, correct: number, incorrect: number) => {
+		netScore: number;
+		starsCount: number;
+		customStats: any[];
+		driverStats?: any;
+		blockCorrect?: any;
+	}> = {
+		1: (results, correct, incorrect) => {
+			const net = correct - incorrect;
+			return {
+				netScore: net,
+				starsCount: net >= 18 ? 5 : (net >= 12 ? 4 : (net >= 6 ? 3 : (net >= 1 ? 2 : (net >= -5 ? 1 : 0)))),
+				driverStats: results.driverStats,
+				customStats: []
+			};
+		},
+		2: (results, correct, incorrect) => {
+			const net = results.personalScore || 0;
+			return {
+				netScore: net,
+				starsCount: net >= 18 ? 5 : (net >= 14 ? 4 : (net >= 10 ? 3 : (net >= 6 ? 2 : (net >= 1 ? 1 : 0)))),
+				customStats: [
+					{ label: 'Aciertos de Categoría (Goal, Feedback, Reward)', value: `${results.totalCorrectCols || 0} / 10` },
+					{ label: 'Aciertos de Regulación (Teoría RII)', value: `${results.totalCorrectRows || 0} / 10` },
+					{ label: 'Ubicaciones Perfectas (Matriz 3x3)', value: `${results.totalPerfectRounds || 0} / 10`, highlight: true },
+					{ label: 'Puntaje Final', value: `${results.personalScore || 0} / 20 pts`, highlight: true }
+				]
+			};
+		},
+		3: (results, correct, incorrect) => {
+			const net = correct - incorrect;
+			return {
+				netScore: net,
+				starsCount: net >= 9 ? 5 : (net >= 6 ? 4 : (net >= 3 ? 3 : (net >= 1 ? 2 : (net >= -2 ? 1 : 0)))),
+				customStats: [
+					{ label: 'Aciertos:', value: correct },
+					{ label: 'Errores:', value: incorrect },
+					{ label: 'Puntaje Neto Final', value: `${net} pts`, highlight: true }
+				]
+			};
+		},
+		4: (results, correct, incorrect) => {
+			const net = correct - incorrect;
+			return {
+				netScore: net,
+				starsCount: net >= 18 ? 5 : (net >= 12 ? 4 : (net >= 6 ? 3 : (net >= 1 ? 2 : (net >= -5 ? 1 : 0)))),
+				blockCorrect: results.blockCorrect,
+				customStats: [
+					{ label: 'Aciertos:', value: correct },
+					{ label: 'Errores:', value: incorrect },
+					{ label: 'Puntaje Neto Final', value: `${net} pts`, highlight: true }
+				]
+			};
+		},
+		5: (results, correct, incorrect) => {
+			const net = correct - incorrect;
+			return {
+				netScore: net,
+				starsCount: net >= 18 ? 5 : (net >= 12 ? 4 : (net >= 6 ? 3 : (net >= 1 ? 2 : (net >= -5 ? 1 : 0)))),
+				blockCorrect: results.blockCorrect,
+				customStats: [
+					{ label: 'Aciertos:', value: correct },
+					{ label: 'Errores:', value: incorrect },
+					{ label: 'Puntaje Neto Final', value: `${net} pts`, highlight: true }
+				]
+			};
+		}
+	};
+
 	function handleStartGame() {
 		gameStateStep = 'game';
 	}
@@ -118,36 +201,14 @@
 		totalCorrect = results.totalCorrect || 0;
 		totalIncorrect = results.totalIncorrect || 0;
 		
-		if (world.id === 1) {
-			netScore = totalCorrect - totalIncorrect;
-			starsCount = netScore >= 18 ? 5 : (netScore >= 12 ? 4 : (netScore >= 6 ? 3 : (netScore >= 1 ? 2 : (netScore >= -5 ? 1 : 0))));
-			driverStats = results.driverStats;
-			customStats = [];
-		} else if (world.id === 2) {
-			netScore = results.personalScore || 0;
-			starsCount = netScore >= 18 ? 5 : (netScore >= 14 ? 4 : (netScore >= 10 ? 3 : (netScore >= 6 ? 2 : (netScore >= 1 ? 1 : 0))));
-			customStats = [
-				{ label: 'Aciertos de Categoría (Goal, Feedback, Reward)', value: `${results.totalCorrectCols} / 10` },
-				{ label: 'Aciertos de Regulación (Teoría RII)', value: `${results.totalCorrectRows} / 10` },
-				{ label: 'Ubicaciones Perfectas (Matriz 3x3)', value: `${results.totalPerfectRounds} / 10`, highlight: true },
-				{ label: 'Puntaje Final', value: `${results.personalScore} / 20 pts`, highlight: true }
-			];
-		} else if (world.id === 3) {
-			netScore = totalCorrect - totalIncorrect;
-			starsCount = netScore >= 9 ? 5 : (netScore >= 6 ? 4 : (netScore >= 3 ? 3 : (netScore >= 1 ? 2 : (netScore >= -2 ? 1 : 0))));
-			customStats = [
-				{ label: 'Aciertos:', value: totalCorrect },
-				{ label: 'Errores:', value: totalIncorrect },
-				{ label: 'Puntaje Neto Final', value: `${netScore} pts`, highlight: true }
-			];
-		} else if (world.id === 4) {
-			netScore = totalCorrect - totalIncorrect;
-			starsCount = netScore >= 18 ? 5 : (netScore >= 12 ? 4 : (netScore >= 6 ? 3 : (netScore >= 1 ? 2 : (netScore >= -5 ? 1 : 0))));
-			customStats = [
-				{ label: 'Aciertos:', value: totalCorrect },
-				{ label: 'Errores:', value: totalIncorrect },
-				{ label: 'Puntaje Neto Final', value: `${netScore} pts`, highlight: true }
-			];
+		const scorer = scoreScales[world.id];
+		if (scorer) {
+			const scoreRes = scorer(results, totalCorrect, totalIncorrect);
+			netScore = scoreRes.netScore;
+			starsCount = scoreRes.starsCount;
+			customStats = scoreRes.customStats;
+			driverStats = scoreRes.driverStats || null;
+			blockCorrect = scoreRes.blockCorrect || null;
 		}
 
 		gameStateStep = 'summary';
@@ -220,6 +281,13 @@
 						onGameComplete={handleGameComplete} 
 						onUpdateCoins={onUpdateCoins} 
 					/>
+				{:else if world.id === 5}
+					<World5Training 
+						world={world} 
+						player={player} 
+						onGameComplete={handleGameComplete} 
+						onUpdateCoins={onUpdateCoins} 
+					/>
 				{/if}
 			{/key}
 		{/if}
@@ -240,6 +308,11 @@
 					};
 				}}
 			>
+				{#if blockCorrect}
+					<input type="hidden" name="block_correct_a" value={blockCorrect.A} />
+					<input type="hidden" name="block_correct_b" value={blockCorrect.B} />
+					<input type="hidden" name="block_correct_c" value={blockCorrect.C} />
+				{/if}
 				<TrainingSummary 
 					worldId={world.id}
 					totalCorrect={totalCorrect}

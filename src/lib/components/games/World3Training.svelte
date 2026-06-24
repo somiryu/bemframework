@@ -192,7 +192,7 @@
 					<!-- Mentor Mini Portrait -->
 					<div class="mentor-feedback-row flex gap-4 items-center my-4">
 						<img 
-							src="/learn_resoruces/characters/char_wilkins.png" 
+							src="/learn_resources/characters/char_wilkins.png" 
 							alt="Wilkins" 
 							class="w-12 h-12 rounded-full border-2 border-solar-green-medium bg-white"
 						/>

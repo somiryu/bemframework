@@ -3,6 +3,7 @@
 	import World2Design from './World2Design.svelte';
 	import World3Design from './World3Design.svelte';
 	import World4Design from './World4Design.svelte';
+	import World5Design from './World5Design.svelte';
 
 	let { 
 		world, 
@@ -22,6 +23,8 @@
 		<World3Design bind:canvasAnswers />
 	{:else if world.id === 4}
 		<World4Design bind:canvasAnswers />
+	{:else if world.id === 5}
+		<World5Design bind:canvasAnswers />
 	{/if}
 </div>
 

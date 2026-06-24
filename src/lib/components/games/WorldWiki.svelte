@@ -45,6 +45,12 @@
 			badge: 'RECURSOS DE METAS',
 			description: 'Desbloquea documentos de arquitectura de metas y guías teóricas.',
 			tip: '¡Saludos, agente! En esta sección de la biblioteca puedes canjear tus BEM Coins por recursos avanzados y detallados sobre el diseño y la estructuración de metas de aprendizaje. Al desbloquearlos, quedarán archivados para siempre en tu Bitácora.'
+		},
+		5: {
+			title: 'Bóveda de Disparadores y Atención',
+			badge: 'RECURSOS DE ATENCIÓN',
+			description: 'Desbloquea guías de diseño de notificaciones, videos e investigaciones sobre atención.',
+			tip: '¡Saludos, agente! En esta sección de la biblioteca de la OMIE puedes canjear tus BEM Coins por recursos avanzados sobre llamados a la acción, timing, condicionamiento y el impacto atencional en el cerebro del estudiante.'
 		}
 	};
 
@@ -67,7 +73,7 @@
 	<!-- Reusable MentorExplain component with GIOCHI bot -->
 	<MentorExplain 
 		mentorName="GIOCHI" 
-		mentorAvatar="/learn_resoruces/characters/char_giochi.gif" 
+		mentorAvatar="/learn_resources/characters/char_giochi.gif" 
 		instructions={config.tip} 
 		titlePrefix="Biblioteca" 
 	/>

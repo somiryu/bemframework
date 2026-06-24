@@ -32,7 +32,7 @@
 			description: 'Define para cada uno de los 7 Drivers una actividad seria aplicable en tu clase.',
 			badge: 'CANVAS DE DISEÑO BEM',
 			mentorName: 'Sara',
-			mentorAvatar: '/learn_resoruces/characters/char_sara.png',
+			mentorAvatar: '/learn_resources/characters/char_sara.png',
 			instructions: '¡Atención, Agente en entrenamiento! En el modelo BEM <strong>no diseñamos juegos</strong> superficiales. En su lugar, pensamos como diseñadores de juegos para crear <strong>sistemas serios de aprendizaje</strong>. Completa una propuesta seria para cada driver para archivar tu bitácora de viaje.'
 		},
 		2: {
@@ -40,7 +40,7 @@
 			description: 'Alinea la Meta (Goal), Retroalimentación (Feedback) y Recompensa (Reward) en un ciclo motivacional continuo.',
 			badge: 'CANVAS DE DISEÑO GFR',
 			mentorName: 'Kira',
-			mentorAvatar: '/learn_resoruces/characters/char_kira.png',
+			mentorAvatar: '/learn_resources/characters/char_kira.png',
 			instructions: 'Para cada fila, describe una <strong>Meta</strong>, su <strong>Retroalimentación</strong> correspondiente y la <strong>Recompensa</strong> esperada. Las tres deben estar <strong>integradas y alinedas</strong> con la actividad principal (sin recurrir a sobornos extrínsecos). Escríbelas en formato de condicional: <code class="code-highlight">"Si [acción/condición], entonces [consecuencia/estado]"</code> (Mínimo 15 caracteres por celda).'
 		},
 		3: {
@@ -48,7 +48,7 @@
 			description: 'Diseña un ciclo interactivo completo de 6 etapas para tus clases.',
 			badge: 'CANVAS DE INTERACTIVIDAD',
 			mentorName: 'John Wilkins',
-			mentorAvatar: '/learn_resoruces/characters/char_wilkins.png',
+			mentorAvatar: '/learn_resources/characters/char_wilkins.png',
 			instructions: 'Para que una interactividad funcione con precisión, conecta las 6 piezas de la relojería. Cada casilla representa un engranaje y requiere al menos <strong>15 caracteres</strong> de descripción detallada. No dejes engranajes sueltos.'
 		},
 		4: {
@@ -56,8 +56,16 @@
 			description: 'Diseña metas de aprendizaje aplicando las 7 variables de expectativa, la Matriz Quiero/Tengo y los tipos de objetivos.',
 			badge: 'CANVAS DE METAS',
 			mentorName: 'Kira Yamada',
-			mentorAvatar: '/learn_resoruces/characters/char_kira.png',
+			mentorAvatar: '/learn_resources/characters/char_kira.png',
 			instructions: 'Para cada meta de aprendizaje que diseñes, debes completar 4 dimensiones: <strong>la meta en sí</strong>, <strong>su tipo de objetivo</strong> (Narrativa, Principal o Secundaria), <strong>el perfil de expectativas</strong> (Deseabilidad, Progreso, Dificultad, Plazo, Medición, Agencia y Esfuerzo) y <strong>su cuadrante en la Matriz Quiero/Tengo</strong> (Adquisición, Mantenimiento, Eliminación o Prevención). Cada campo requiere al menos <strong>15 caracteres</strong>.'
+		},
+		5: {
+			title: 'Canvas de Notificadores Educativos BEM',
+			description: 'Diseña llamados a la acción para mejorar las rutinas de tus estudiantes y califica sus parámetros.',
+			badge: 'CANVAS DE ATENCIÓN',
+			mentorName: 'Sara Arbeláez',
+			mentorAvatar: '/learn_resources/characters/char_sara_animated.gif',
+			instructions: 'Como diseñador de motivación, debes estructurar llamados a la acción precisos. Describe la <strong>Acción/Comportamiento</strong> deseado en el estudiante y define el <strong>Diseño de la Alerta/Señal</strong> (mínimo 15 caracteres cada uno). Luego, califica con los sliders su <strong>Intensidad</strong>, <strong>Coherencia</strong> y <strong>Timing</strong> (escala 1 a 5).'
 		}
 	};
 
@@ -66,7 +74,7 @@
 		description: 'Completa tu propuesta seria para archivar tu bitácora de viaje.',
 		badge: 'CANVAS DE DISEÑO',
 		mentorName: 'Mentor',
-		mentorAvatar: '/learn_resoruces/characters/char_sara.png',
+		mentorAvatar: '/learn_resources/characters/char_sara.png',
 		instructions: 'Por favor completa los campos indicados.'
 	});
 
@@ -142,6 +150,26 @@
 					cuadrante: '' 
 				}];
 			}
+		} else if (world.id === 5) {
+			if (existingCanvas && Array.isArray(existingCanvas)) {
+				canvasAnswers = existingCanvas.map((n: any, idx: number) => ({
+					id: n.id ?? idx,
+					accion: n.accion || '',
+					senal: n.senal || '',
+					intensidad: n.intensidad ?? 3,
+					coherencia: n.coherencia ?? 3,
+					timing: n.timing ?? 3
+				}));
+			} else {
+				canvasAnswers = [{ 
+					id: Date.now(), 
+					accion: '', 
+					senal: '', 
+					intensidad: 3, 
+					coherencia: 3, 
+					timing: 3 
+				}];
+			}
 		}
 	});
 
@@ -190,6 +218,15 @@
 					   g.expectativa.trim().length >= 15 &&
 					   g.cuadrante.trim().length >= 15;
 			});
+		} else if (world.id === 5) {
+			if (!Array.isArray(canvasAnswers) || canvasAnswers.length === 0) return false;
+			return canvasAnswers.every(n => {
+				return n.accion.trim().length >= 15 &&
+					   n.senal.trim().length >= 15 &&
+					   n.intensidad >= 1 && n.intensidad <= 5 &&
+					   n.coherencia >= 1 && n.coherencia <= 5 &&
+					   n.timing >= 1 && n.timing <= 5;
+			});
 		}
 		return false;
 	});
@@ -204,6 +241,8 @@
 			return 'Asegúrate de que todas las casillas de cada ciclo tengan al menos 15 caracteres.';
 		} else if (world.id === 4) {
 			return 'Asegúrate de que los 4 campos de cada meta (Meta, Tipo, Expectativa, Cuadrante) tengan al menos 15 caracteres.';
+		} else if (world.id === 5) {
+			return 'Asegúrate de describir la acción y el diseño de la señal (mínimo 15 caracteres) y ajustar los sliders.';
 		}
 		return 'Completa todos los campos.';
 	});
