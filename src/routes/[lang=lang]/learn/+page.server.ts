@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 	return {
 		player,
 		instance,
-		worlds: (worlds || []).filter(w => w.id !== 6 || instanceCode === 'DEMO-2026'),
+		worlds: worlds || [],
 		classmates: classmates || []
 	};
 };

@@ -44,11 +44,6 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		throw redirect(303, `/${lang}/learn`);
 	}
 
-	// Restrict World 6 to the DEMO-2026 instance only, and verify player instance matches
-	if (worldId === 6 && (instanceCode !== 'DEMO-2026' || player.instance_code !== 'DEMO-2026')) {
-		throw redirect(303, `/${lang}/learn`);
-	}
-
 	// Verify that the requested world is unlocked in this instance
 	if (!instance.unlocked_worlds?.includes(worldId)) {
 		throw redirect(303, `/${lang}/learn`);
