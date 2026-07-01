@@ -276,6 +276,12 @@
 				<button type="button" class="btn-solar-primary" onclick={() => showJournal = true}>
 					📔 {t.journalBtn}
 				</button>
+
+				<form method="POST" action="?/logout" class="inline-form">
+					<button type="submit" class="btn-solar-secondary btn-logout" aria-label="Cerrar Sesión">
+						🚪 {lang === 'es' ? 'Salir' : 'Log Out'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</header>
@@ -518,6 +524,23 @@
 	.coin-balance-pill:hover {
 		transform: translateY(-2px);
 		box-shadow: var(--shadow-solar-md);
+	}
+
+	.btn-logout {
+		color: #b91c1c !important;
+		border-color: rgba(185, 28, 28, 0.15) !important;
+		background: transparent !important;
+		padding: 0.4rem 0.75rem !important;
+		font-size: 0.75rem !important;
+		height: auto !important;
+		display: inline-flex !important;
+		align-items: center !important;
+		gap: 0.25rem;
+		border-radius: 8px !important;
+	}
+	.btn-logout:hover {
+		background: #fee2e2 !important;
+		border-color: #b91c1c !important;
 	}
 
 	.learn-body {

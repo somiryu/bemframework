@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 	return {
 		player,
 		instance,
-		worlds: worlds || [],
+		worlds: (worlds || []).filter(w => w.id !== 6 || instanceCode === 'DEMO-2026'),
 		classmates: classmates || []
 	};
 };
@@ -164,7 +164,11 @@ export const actions: Actions = {
 			worldState.design_canvas = canvasData;
 
 			let newCoins = player.coins || 0;
-			if (worldId === 5 && Array.isArray(canvasData) && canvasData.length >= 3 && !worldState.design_coins_awarded) {
+			if (
+				((worldId === 5 && Array.isArray(canvasData) && canvasData.length >= 3) ||
+				 (worldId === 6 && Array.isArray(canvasData) && canvasData.length >= 1)) &&
+				!worldState.design_coins_awarded
+			) {
 				newCoins += 15;
 				worldState.design_coins_awarded = true;
 			}
@@ -351,5 +355,12 @@ export const actions: Actions = {
 		}
 
 		return { success: true, game_state: state };
+	},
+
+	logout: async ({ cookies, params }) => {
+		const lang = params.lang || 'es';
+		cookies.delete('player_id', { path: '/' });
+		cookies.delete('player_instance_code', { path: '/' });
+		throw redirect(303, `/${lang}`);
 	}
 };

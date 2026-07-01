@@ -10,6 +10,7 @@
 	import World3Training from './World3Training.svelte';
 	import World4Training from './World4Training.svelte';
 	import World5Training from './World5Training.svelte';
+	import World6Training from './World6Training.svelte';
 
 	let { 
 		world, 
@@ -89,6 +90,18 @@
 				'<strong>Conversión de Estrellas:</strong> 18+ netos = 5 estrellas, 12+ netos = 4 estrellas, 6+ netos = 3 estrellas, 1+ netos = 2 estrellas, -5+ netos = 1 estrella.',
 				'<strong>Monedas BEM:</strong> Obtén hasta 5 estrellas. Cada una te otorga <strong>+5 BEM Coins</strong> (máximo 50 de por vida en este entrenamiento).'
 			]
+		},
+		6: {
+			title: 'Entrenamiento de Decisiones e Incertidumbre',
+			mentorName: 'Sara Arbeláez',
+			mentorAvatar: '/learn_resources/characters/char_sara.png',
+			tip: '¡Bienvenido, Agente! Este módulo calibrará tus habilidades para distinguir sesgos cognitivos, heurísticas conductuales y estrategias lúdicas de decisión:',
+			instructions: [
+				'<strong>15 Preguntas de Calibración:</strong> Resolverás un flujo dinámico de casos (5 por bloque: Economía Conductual, Decisiones en Juegos y Autonomía en Educación).',
+				'<strong>Criterio de Estrellas:</strong> Se evaluará tu desempeño neto (Aciertos menos Errores) en una escala de 5 estrellas.',
+				'<strong>Tabla de Conversión:</strong> 14+ netos = 5 estrellas, 11+ netos = 4 estrellas, 8+ netos = 3 estrellas, 4+ netos = 2 estrellas, 1+ netos = 1 estrella.',
+				'<strong>Monedas BEM:</strong> Cada estrella te otorga <strong>+3 BEM Coins</strong> (acumulando hasta 15 monedas máximo de por vida en este entrenamiento).'
+			]
 		}
 	};
 
@@ -120,7 +133,8 @@
 	const lifetimeCoinsEarned = $derived(player.game_state?.[world.id]?.training_coins_gained || 0);
 	const remainingToCap = $derived(Math.max(0, 50 - lifetimeCoinsEarned));
 	const actualCoinsAwarded = $derived.by(() => {
-		const coinsEarned = starsCount * 5;
+		const multiplier = world.id === 6 ? 3 : 5;
+		const coinsEarned = starsCount * multiplier;
 		return Math.min(remainingToCap, coinsEarned);
 	});
 
@@ -183,6 +197,19 @@
 			return {
 				netScore: net,
 				starsCount: net >= 18 ? 5 : (net >= 12 ? 4 : (net >= 6 ? 3 : (net >= 1 ? 2 : (net >= -5 ? 1 : 0)))),
+				blockCorrect: results.blockCorrect,
+				customStats: [
+					{ label: 'Aciertos:', value: correct },
+					{ label: 'Errores:', value: incorrect },
+					{ label: 'Puntaje Neto Final', value: `${net} pts`, highlight: true }
+				]
+			};
+		},
+		6: (results, correct, incorrect) => {
+			const net = correct - incorrect;
+			return {
+				netScore: net,
+				starsCount: net >= 14 ? 5 : (net >= 11 ? 4 : (net >= 8 ? 3 : (net >= 4 ? 2 : (net >= 1 ? 1 : 0)))),
 				blockCorrect: results.blockCorrect,
 				customStats: [
 					{ label: 'Aciertos:', value: correct },
@@ -283,6 +310,13 @@
 					/>
 				{:else if world.id === 5}
 					<World5Training 
+						world={world} 
+						player={player} 
+						onGameComplete={handleGameComplete} 
+						onUpdateCoins={onUpdateCoins} 
+					/>
+				{:else if world.id === 6}
+					<World6Training 
 						world={world} 
 						player={player} 
 						onGameComplete={handleGameComplete} 

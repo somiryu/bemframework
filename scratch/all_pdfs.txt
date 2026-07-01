@@ -1,0 +1,133 @@
+../bem-brain/raw_sources/bibliografia/19_Social_Engineer/CrowdStrike - CrowdStrike 2026 Global Threat Report (2026).pdf
+../bem-brain/raw_sources/bibliografia/19_Social_Engineer/Bhardwaj, Yogesh Kumar - The Evolution of Social Engineering: New Threats in the Age of Generative AI (2025).pdf
+../bem-brain/raw_sources/bibliografia/19_Social_Engineer/Saleh, Mohammad A. - Social Engineering in the Age of AI (2026).pdf
+../bem-brain/raw_sources/bibliografia/19_Social_Engineer/Jabir, Raja, Le, John & Nguyen, Chau - Phishing Attacks in the Age of Generative Artificial Intelligence: A Systematic Review of Human Factors (2025).pdf
+../bem-brain/raw_sources/bibliografia/19_Social_Engineer/Shepherd, Nicki James - The Role of Generative AI in Social Engineering and Phishing: Implications for Security Education (2024).pdf
+../bem-brain/raw_sources/bibliografia/19_Social_Engineer/Jadala, Santosh Kumar - AI-Enabled Phishing, Deepfakes, and Social Engineering: Emerging Threats and Countermeasure Strategies (2026).pdf
+../bem-brain/raw_sources/bibliografia/12_Feedback_and_Assessment/Johnson, Cheryl, Bailey, Shannon K. T. & Van Buskirk, Wendi - Designing effective feedback messages in serious games and simulations (2017).pdf
+../bem-brain/raw_sources/bibliografia/12_Feedback_and_Assessment/Lang, Yue, Xie, Kui & Gong, Shaoying - The Impact of Emotional Feedback and Elaborated Feedback of a Pedagogical Agent on Multimedia Learning (2022).pdf
+../bem-brain/raw_sources/bibliografia/12_Feedback_and_Assessment/Cardina, N., Robbin, T. & Everitt, J. - Choosing Delayed Feedback (2002).pdf
+../bem-brain/raw_sources/bibliografia/12_Feedback_and_Assessment/Almeida, Luis Camillo - The Effects of Audio Narration and Feedback used in a Video Game Environment for the Acquisition of Conceptual Knowledge (2023).pdf
+../bem-brain/raw_sources/bibliografia/12_Feedback_and_Assessment/Schunk, Dale H. & Rice, Jo Mary - Learning Goals and Progress Feedback during Reading Comprehension Instruction (1991).pdf
+../bem-brain/raw_sources/bibliografia/12_Feedback_and_Assessment/Ramaprasad, Arkalgud - On the definition of feedback (1983).pdf
+../bem-brain/raw_sources/bibliografia/12_Feedback_and_Assessment/Lipnevich, Anastasiya A. & Panadero, Ernesto - A Review of Feedback Models and Theories: Descriptions, Definitions, and Conclusions (2021).pdf
+../bem-brain/raw_sources/bibliografia/16_Gaming_Psyc_Effects/Hu, Yunhao et al. - Game Design and Toxicity: A Topic Modeling Study of Player Reports on Reddit (2026).pdf
+../bem-brain/raw_sources/bibliografia/16_Gaming_Psyc_Effects/Simons, Alexander et al. - Good gamers, good managers: A proof-of-concept study with Sid Meier’s Civilization (2020).pdf
+../bem-brain/raw_sources/bibliografia/16_Gaming_Psyc_Effects/Prot, Sara et al. - The Positive and Negative Effects of Video Game Play (2014).pdf
+../bem-brain/raw_sources/bibliografia/16_Gaming_Psyc_Effects/Bavelier, Daphne & Green, C. Shawn - Enhancing Attentional Control: Lessons from Action Video Games (2019).pdf
+../bem-brain/raw_sources/bibliografia/16_Gaming_Psyc_Effects/Atkinson, Rowland & Rodgers, Thomas - Pleasure Zones and Murder Boxes: Online Pornography and Violent Video Games as Cultural Zones of Exception (2015).pdf
+../bem-brain/raw_sources/bibliografia/04_Gamification_Theory/Velasquez, Javier - The Book of BEM: Gamification beyond gamification (sin fecha).pdf
+../bem-brain/raw_sources/bibliografia/04_Gamification_Theory/Nacke, Lennart E. & Deterding, Sebastian - The maturing of gamification research (2017).pdf
+../bem-brain/raw_sources/bibliografia/04_Gamification_Theory/Albertazzi, Daniele et al. - A Wide View On Gamification (2019).pdf
+../bem-brain/raw_sources/bibliografia/04_Gamification_Theory/Mora, Alberto, Riera, Daniel, Gonzalez, Carina & Arnedo-Moreno, Joan - Gamification: A systematic review of design frameworks (2017).pdf
+../bem-brain/raw_sources/bibliografia/04_Gamification_Theory/Deterding, Sebastian, Dixon, Dan, Khaled, Rilla & Nacke, Lennart - From Game Design Elements to Gamefulness: Defining Gamification (2011).pdf
+../bem-brain/raw_sources/bibliografia/04_Gamification_Theory/Deterding, Sebastian - Gamification: Designing for motivation (2012).pdf
+../bem-brain/raw_sources/bibliografia/04_Gamification_Theory/Bozkurt, Alphan - A systematic review of gamification research (2018).pdf
+../bem-brain/raw_sources/bibliografia/14_Gaming_Social_Capital/Ringland, Jerry et al. - Autism and Social games (2017).pdf
+../bem-brain/raw_sources/bibliografia/14_Gaming_Social_Capital/Cole, Helena & Griffiths, Mark D. - Social Interactions in Massively Multiplayer Online Role-Playing Gamers (2007).pdf
+../bem-brain/raw_sources/bibliografia/14_Gaming_Social_Capital/Griffiths, Mark D., Davies, Mark N. O. & Chappell, Darren - Demographic Factors and Playing Variables in Online Computer Gaming (2004).pdf
+../bem-brain/raw_sources/bibliografia/14_Gaming_Social_Capital/Zhong, Zhijin - The Effects of MMORPG Play on Online and Offline Social Capital (2009).pdf
+../bem-brain/raw_sources/bibliografia/17_Research_Methods/Johnson, Burke & Christensen, Larry - Questionnaires (2008).pdf
+../bem-brain/raw_sources/bibliografia/17_Research_Methods/Hernandez Sampieri, Roberto - Recoleccion de datos cuantitativos (2010).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Grey, Simon, Parker, David & Gordon, Neil - Constraints and autonomy for creativity in extracurricular gamejams and curricular assessment (2018).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Barata, Gabriel et al. - Studying student differentiation in gamified education: A long-term study (2017).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Grey, S. - Constraints and autonomy for creativity in extracurricular gamejams and curricular assessment (2018).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Maehr, Martin L. & Zusho, Akane - Achievement Goal Theory: The Past, Present, and Future (2009).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Tecnologico de Monterrey - Edu Trends Gamificacion (2016).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Hanson-Smith, Elizabeth - Games, Gaming, and Gamification: Some Aspects of Motivation (2016).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Kober, Silvia Erika, Wood, Guilherme, Kiili, Kristian, Moeller, Korbinian & Ninaus, Manuel - Game-based learning environments affect frontal brain activity (2020).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Hamari, Juho et al. - Challenging games help students learn: An empirical study on engagement, flow and immersion in game-based learning (2016).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Shell, Duane F. & Flowerday, Terri - Affordances and Attention (2019).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Figueroa Flores, Jorge Francisco - Using Gamification to Enhance Second Language Learning (2015).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Landers, Richard N. - Enhancing instructional outcomes with gamification (2017).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Howard-Jones, Paul A. & Demetriou, S. - The effect of uncertainty on learning in a game (2009).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Dayan, Peter & Yu, Angela J. - Uncertainty and Learning (2002).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Velasquez, Javier - Fail Smart: Lose to learn the gamified way (2025).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Oberprieler, Kerstin, Leonard, Simon & Fitzgerald, Robert - Gamifying design education (2017).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Gilliam, Melissa et al. - Alternate Reality Games as an Informal Learning Tool for Generating STEM Engagement (2017).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Khaitova, Nazokat Fayzullayevna - History of Gamification and Its Role in the Educational Process (2021).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Toda, Armando M. et al. - How to Gamify Learning Systems? An Experience Report using the Design Sprint Method and a Taxonomy for Gamification Elements in Education (2020).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Ang, Chee Siang & Rao, Radha Krishna - Theories of Learning: A Computer Game Perspective (2003).pdf
+../bem-brain/raw_sources/bibliografia/13_Education_and_Pedagogy/Hakulinen, Lasse & Auvinen, Tapio - The Effect of Gamification on Students with Different Achievement Goal Orientations (2014).pdf
+../bem-brain/raw_sources/bibliografia/07_Gamification_Applied/Wong, Joshua - Public Gamification: A Quest to Implement Digital Public Sector Innovation (2016).pdf
+../bem-brain/raw_sources/bibliografia/07_Gamification_Applied/Zichermann, Gabe & Linder, Joselin - Game-Based Marketing: Inspire Customer Loyalty Through Rewards, Challenges, and Contests (2010).pdf
+../bem-brain/raw_sources/bibliografia/07_Gamification_Applied/Chou, Tommy, Bry, Laura J. & Comer, Jonathan S. - Multimedia Field Test: Evaluating the Creative Ambitions of SuperBetter and Its Quest to Gamify Mental Health (2017).pdf
+../bem-brain/raw_sources/bibliografia/07_Gamification_Applied/Zichermann, Gabe & Cunningham, Christopher - Gamification by Design: Implementing Game Mechanics in Web and Mobile Apps (2011).pdf
+../bem-brain/raw_sources/bibliografia/07_Gamification_Applied/Handler, Reinhard A. & Conill, Raul Ferrer - Open Data, Crowdsourcing and Game Mechanics: A case study on civic participation in the digital age (2016).pdf
+../bem-brain/raw_sources/bibliografia/02_Motivation_Flow/Cowley, Ben et al. - Toward an Understanding of Flow in Video Games (2008).pdf
+../bem-brain/raw_sources/bibliografia/02_Motivation_Flow/Engeser, Stefan & Rheinberg, Falko - Flow, performance and moderators of challenge-skill balance (2008).pdf
+../bem-brain/raw_sources/bibliografia/09_Game_Mechanics_Loops/Vidaković, Milan et al. - Two-part onboarding for game-based learning environments (2023).pdf
+../bem-brain/raw_sources/bibliografia/09_Game_Mechanics_Loops/Malone, Thomas W. - Heuristics for Designing Enjoyable User Interfaces: Lessons from Computer Games (1982).pdf
+../bem-brain/raw_sources/bibliografia/09_Game_Mechanics_Loops/Bizzocchi, Jim - Games and Narrative: An Analytical Framework (2007).pdf
+../bem-brain/raw_sources/bibliografia/09_Game_Mechanics_Loops/Campos Llopart, Ferran - Evaluation of Scaffolding Information Complexity as a Valid Onboarding Alternative for Strategy Video Games (2020).pdf
+../bem-brain/raw_sources/bibliografia/09_Game_Mechanics_Loops/Power, Christopher et al. - Measuring Uncertainty in Games: Design and Preliminary Validation (2017).pdf
+../bem-brain/raw_sources/bibliografia/09_Game_Mechanics_Loops/Vredenberg, Bjorn - Signposting, Mise-en-Scene, and Environmental Storytelling (2016).pdf
+../bem-brain/raw_sources/bibliografia/09_Game_Mechanics_Loops/Sicart, Miguel - Loops and Metagames: Understanding Game Design Structures (2007).pdf
+../bem-brain/raw_sources/bibliografia/09_Game_Mechanics_Loops/Power, Christopher et al. - Lost at the Edge of Uncertainty: Measuring Player Uncertainty in Digital Games (2019).pdf
+../bem-brain/raw_sources/bibliografia/05_Gamification_Meaningful/Nicholson, Scott - A meaningful framework for gamification (2012).pdf
+../bem-brain/raw_sources/bibliografia/05_Gamification_Meaningful/Nicholson, Scott - A RECIPE for Meaningful Gamification (2015).pdf
+../bem-brain/raw_sources/bibliografia/05_Gamification_Meaningful/Mullins, Jeffrey K. & Sabherwal, Rajiv - Beyond Enjoyment: A Cognitive-Emotional Perspective of Gamification (2018).pdf
+../bem-brain/raw_sources/bibliografia/05_Gamification_Meaningful/Mekler, Elisa D. et al. - Towards understanding the effects of individual gamification elements on intrinsic motivation and performance (2017).pdf
+../bem-brain/raw_sources/bibliografia/05_Gamification_Meaningful/Deterding, Sebastian - Situated motivational affordances of game elements: A conceptual model (2011).pdf
+../bem-brain/raw_sources/bibliografia/08_Game_Design_Fundamentals/Schell, Jesse - The Art of Game Design: A Book of Lenses (2008).pdf
+../bem-brain/raw_sources/bibliografia/08_Game_Design_Fundamentals/Adams, Ernest & Dormans, Joris - Game Mechanics: Advanced Game Design (2012).pdf
+../bem-brain/raw_sources/bibliografia/08_Game_Design_Fundamentals/Wright, Will - MasterClass: The Fundamentals of Game Design Workbook (2018).pdf
+../bem-brain/raw_sources/bibliografia/08_Game_Design_Fundamentals/Salen, Katie & Zimmerman, Eric - Rules of Play: Game Design Fundamentals (2004).pdf
+../bem-brain/raw_sources/bibliografia/08_Game_Design_Fundamentals/Solano, Edgar Guillermo - GameCraft 100 (sin fecha).pdf
+../bem-brain/raw_sources/bibliografia/10_Player_Modeling/Yannakakis, Georgios N. et al. - Player Modeling (2013).pdf
+../bem-brain/raw_sources/bibliografia/10_Player_Modeling/Guardiola, Valérie & Natkin, Stéphane - Game design method psychological profile (2015).pdf
+../bem-brain/raw_sources/bibliografia/15_Gaming_Addiction/Hsu, Shang Hwa, Wen, Ming-Hui & Wu, Muh-Cherng - Exploring user experiences as predictors of MMORPG addiction (2009).pdf
+../bem-brain/raw_sources/bibliografia/15_Gaming_Addiction/Castro-Calvo, Jesús et al. - Does forced abstinence from gaming lead to pornography use (2018).pdf
+../bem-brain/raw_sources/bibliografia/15_Gaming_Addiction/Ng, Brian D. & Wiemer-Hastings, Peter - Addiction to the Internet and Online Gaming (2005).pdf
+../bem-brain/raw_sources/bibliografia/15_Gaming_Addiction/King, Daniel L. & Delfabbro, Paul H. - The cognitive psychology of Internet gaming disorder (2018).pdf
+../bem-brain/raw_sources/bibliografia/15_Gaming_Addiction/Yee, Nick - Understanding MMORPG addiction (2002).pdf
+../bem-brain/raw_sources/bibliografia/15_Gaming_Addiction/Chen, Yi-Sheng & Lin, Chao-Feng - Game Addiction is Included in Mental Illness and Medical Care is A Challenge (2008).pdf
+../bem-brain/raw_sources/bibliografia/11_Serious_Games/van Delden, Robby et al. - How Serious is Serious Game Design (2017).pdf
+../bem-brain/raw_sources/bibliografia/11_Serious_Games/Hall, Joshua, Wyeth, Peta & Johnson, Daniel - Instructional Objectives to Core-Gameplay: A Serious Game Design Technique (2014).pdf
+../bem-brain/raw_sources/bibliografia/11_Serious_Games/Beatty, Ian D. - Gaming the System: Video Games as a Theoretical Framework for Instructional Design (2014).pdf
+../bem-brain/raw_sources/bibliografia/11_Serious_Games/Shelton, Brett E. & Scoresby, Jon - Aligning Game Activity with Educational Goals: Following a Constrained Design Approach to Instructional Computer Games (2011).pdf
+../bem-brain/raw_sources/bibliografia/06_Gamification_Workplace/Oberprieler, Kerstin & Leonard, Simon - A model for using activity theory in educational design: a gamification example (2015).pdf
+../bem-brain/raw_sources/bibliografia/06_Gamification_Workplace/Oberprieler, Kerstin - The design of meaningful workplace environments through gamification (poster) (sin fecha).pdf
+../bem-brain/raw_sources/bibliografia/06_Gamification_Workplace/Oberprieler, Kerstin - The design of meaningful workplace environments through gamification (sin fecha).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Sansone, Carol & Harackiewicz, Judith M. - Intrinsic and Extrinsic Motivation: The Search for Optimal Motivation and Performance (2000).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Master, Allison, Cheryan, Sapna & Meltzoff, Andrew N. - Motivation and Identity (2016).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Deci, Edward L. & Ryan, Richard M. - The What and Why of Goal Pursuits: Human Needs and the Self-Determination of Behavior (2000).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Klimmt, Christoph et al. - Player Performance, Satisfaction, and Video Game Enjoyment (2009).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Prentice, Mike, Jayawickreme, Eranda & Fleeson, William - Integrating whole trait theory and self-determination theory (2019).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Ryan, Richard M. & Deci, Edward L. - Self-Determination Theory and the Facilitation of Intrinsic Motivation, Social Development, and Well-Being (2000).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Koestner, Richard et al. - Setting limits on childrens behavior: The differential effects of controlling vs. informational styles on intrinsic motivation and creativity (1984).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Bostan, Barbaros - Player Motivations: A Psychological Perspective (2008).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Safavian, Nayssan & Conley, AnneMarie - Expectancy-Value Beliefs of Early-Adolescent Hispanic and Non-Hispanic Youth (2016).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Ryan, Richard M. & Deci, Edward L. - Brick by Brick: The origins development and future of SDT (2019).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Harackiewicz, Judith M. - The Effects of Reward Contingency and Performance Feedback on Intrinsic Motivation (1979).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Deci, Edward L. & Ryan, Richard M. - Self-Determination Theory in the Classroom (sin fecha).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Pink, Daniel H. - Drive: The Surprising Truth About What Motivates Us (2009).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Ryan, Richard M. & Deci, Edward L. - La Teoría de la Autodeterminación y la Facilitación de la Motivación Intrínseca, el Desarrollo Social, y el Bienestar (2000).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Reeve, Johnmarshall - Understanding Motivation and Emotion (2009).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Ryan, Richard M. - Reflections on self-determination theory as an organizing framework for personality psychology (2018).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Wigfield, Allan & Eccles, Jacquelynne S. - Expectancy-Value Theory of Achievement Motivation (2000).pdf
+../bem-brain/raw_sources/bibliografia/01_Motivation_SDT/Fleeson, William - Whole Trait Theory (2014).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Frank, Dominic - Understanding Resistance to Organizational AI Adoption (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Sabado, Joe - Reinforce, Not Replace: Humanizing AI Adoption Through Appreciative Inquiry (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Perlampura, Yuliantinus Gibrani Anandera et al. - Artificial Intelligence Adoption and Psychological Factors Shaping Employee Mental Well-Being (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Yong Varela, Luis Antonio, Rivas Tovar, Luis Arturo & Chaparro Peláez, José Julián - Modelo de aceptación tecnológica (TAM): un estudio de la influencia de la cultura nacional y del perfil del usuario en el uso de las TIC (2010).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Narayandas, Das & Zhang, Shunyuan - Selling Self-Disruptive Technologies: Identity-Compatible Advantage and the Role-Level Microfoundations of Automation Adoption (2026).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Kober, Gregg - AI-First Leadership: Embracing the Future of Work (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Kemp, Andy - AI in the Workplace: What Separates Adopters and Holdouts (2026).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Stryker, Cole - Los cinco mayores desafíos de adopción de la IA para 2025 (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Liu, Qi, Tian, Qing, Li, Xin & Tan, Hongjuan - How does organizational AI adoption affect employees' job crafting behaviors? An approach-avoidance perspective (2026).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Turing Intelligence - The State of AI Adoption 2025 (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Li, Yang & Leong, Wai Yie - The Impact of Organizational Inertia on AI Implementation (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/EmergentMind - Unified Theory of Acceptance and Use of Technology (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Maiti, Moinak, Kayal, Parthajit & Vujko, Aleksandra - A study on ethical implications of artificial intelligence adoption in business: challenges and best practices (2025).pdf
+../bem-brain/raw_sources/bibliografia/20_IA_Adopcion/Schweitzer, Shane, Narayan, Devesh, McGuire, Jack & De Cremer, David - Leading AI adoption in organizations: Introducing a behavioral human-centered approach (2025).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Stojanovic, Marco, Fries, Stefan & Grund, Axel - Self-Efficacy in Habit Building: How General and Habit-Specific Self-Efficacy Influence Behavioral Automatization and Motivational Interference (2021).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Hertel, Paula T. & Mathews, Andrew - Cognitive Bias Modification: Past Perspectives, Current Findings, and Future Applications (2011).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Sharot, Tali - The Optimism Bias (2011).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Guzman Botero, Alejandro - Is it possible to achieve significant energy consumption reduction in households using behavioural modification techniques (2017).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Cialdini, Robert B. & Goldstein, Noah J. - Social Influence: Compliance and Conformity (2004).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Lally, Phillippa, van Jaarsveld, Cornelia H. M., Potts, Henry W. W. & Wardle, Jane - How are habits formed: Modelling habit formation in the real world (2010).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Gerber, Alan S. & Rogers, Todd - Descriptive Social Norms and Motivation to Vote: Everybody's Voting and so Should You (2009).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Lapsley, Daniel K. & Hill, Patrick L. - Subjective Invulnerability and Optimism Bias (2010).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Renner, Elke - Applied Behavioural Economics Lecture 2 and 3: Heuristics and Biases in Judgement and Decision making (2015).pdf
+../bem-brain/raw_sources/bibliografia/03_Behavioral_Psychology/Cialdini, Robert B., Reno, Raymond R. & Kallgren, Carl A. - A Focus Theory of Normative Conduct: Recycling the Concept of Norms to Reduce Littering in Public Places (1990).pdf

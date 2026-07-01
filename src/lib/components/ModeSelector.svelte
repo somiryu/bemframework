@@ -32,14 +32,14 @@
 
 	// Get mentor bio details based on world mentor
 	const mentorDetails = $derived.by(() => {
-		if (world.narrative_mentor === 'Sara Arbelaez') {
+		if (world.narrative_mentor?.includes('Sara')) {
 			return {
 				avatar: '✿',
 				colorClass: 'sara',
 				role: 'Psicóloga & Antropóloga OMIE',
 				bio: 'Sara se especializa en la motivación intrínseca de los estudiantes, comprendiendo sus impulsos internos y el Hedonismo, Relación y Propósito de BEM.'
 			};
-		} else if (world.narrative_mentor === 'John Wilkins') {
+		} else if (world.narrative_mentor?.includes('Wilkins') || world.narrative_mentor?.includes('John')) {
 			return {
 				avatar: '⚙️',
 				colorClass: 'john',

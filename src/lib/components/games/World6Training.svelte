@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { attentionTriviaQuestions, type AttentionTriviaQuestion } from '$lib/content/attentionTrivia';
+	import { decisionsTriviaQuestions, type DecisionsTriviaQuestion } from '$lib/content/decisionsTrivia';
 	import { supabase } from '$lib/supabase';
 
 	let { 
@@ -16,13 +16,13 @@
 		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
 	} = $props();
 
-	// Shuffle the 21 questions on load
-	const shuffled = [...attentionTriviaQuestions];
+	// Shuffle the 15 questions on load
+	const shuffled = [...decisionsTriviaQuestions];
 	for (let i = shuffled.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
 		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
 	}
-	let activeQuestions = $state<AttentionTriviaQuestion[]>(shuffled);
+	let activeQuestions = $state<DecisionsTriviaQuestion[]>(shuffled);
 
 	// Local gameplay states
 	let currentQuestionIndex = $state(0);
@@ -41,7 +41,7 @@
 		return likedIdeas.includes(id);
 	}
 
-	async function toggleIdea(question: AttentionTriviaQuestion) {
+	async function toggleIdea(question: DecisionsTriviaQuestion) {
 		let currentLiked = [...likedIdeas];
 		
 		const state = { ...player.game_state };
@@ -56,7 +56,7 @@
 			currentLiked.push(question.id);
 			state.ideas.push({
 				id: question.id,
-				driver: `Mundo 5: ${question.blockName}`,
+				driver: `Mundo 6: ${question.blockName}`,
 				scenario: question.scenario,
 				explanation: question.explanation,
 				likedAt: new Date().toISOString()
@@ -201,7 +201,7 @@
 					<!-- Top header -->
 					<div class="flex justify-between items-center border-b border-black/[0.08] pb-3 mb-5">
 						<div class="flex flex-col gap-0.5">
-							<span class="q-label text-[10px] tracking-widest opacity-80">CATEGORÍA DE ATENCIÓN</span>
+							<span class="q-label text-[10px] tracking-widest opacity-80">CATEGORÍA DE DECISIÓN</span>
 							<span class="block-name-highlight text-sm font-extrabold text-solar-green-dark">{currentQ.blockName}</span>
 						</div>
 						<span class="feedback-badge-premium shadow-sm" class:correct-badge={isCorrect} class:incorrect-badge={!isCorrect}>
@@ -241,7 +241,7 @@
 								<div class="pill-body flex items-start gap-2">
 									<span class="letter-badge giochi-letter">{currentQ.correct}</span>
 									<p class="pill-text font-semibold">
-										{currentQ.correctText}
+										{currentQ.options[['A', 'B', 'C', 'D'].indexOf(currentQ.correct)]}
 									</p>
 								</div>
 							</div>
@@ -252,18 +252,18 @@
 					<div class="mentor-speech-card-premium flex gap-4 items-start mb-6 shadow-sm">
 						<div class="mentor-avatar-container">
 							<img 
-								src="/learn_resources/characters/char_sara_animated.gif" 
+								src="/learn_resources/characters/char_sara.png" 
 								alt="Sara" 
-								class="mentor-portrait-circle-premium"
+								class="mentor-portrait-circle-premium w-12 h-12 rounded-full border bg-white"
 							/>
 							<div class="mentor-avatar-glow"></div>
 						</div>
 						<div class="speech-bubble-body">
 							<div class="flex items-center gap-2 mb-1">
-								<span class="mentor-name-tag">Sara Arbeláez</span>
-								<span class="mentor-role-tag">Mentora de Atención</span>
+								<span class="mentor-name-tag text-xs font-bold text-solar-green-dark">Sara Arbeláez</span>
+								<span class="mentor-role-tag text-[9px] bg-sky-100 text-sky-700 px-1 rounded font-bold uppercase">Mentora de Decisiones</span>
 							</div>
-							<p class="speech-text">
+							<p class="speech-text text-xs leading-relaxed text-solar-green-dark">
 								"{currentQ.explanation}"
 							</p>
 						</div>
@@ -273,7 +273,7 @@
 					<div class="idea-btn-container border-t pt-4 border-dashed border-black/[0.08]">
 						<button 
 							type="button" 
-							class="btn-like-idea" 
+							class="btn-like-idea text-xs font-bold flex items-center gap-1 text-sky-700 hover:text-sky-800" 
 							class:liked={isIdeaLiked(currentQ.id)}
 							onclick={() => toggleIdea(currentQ)}
 						>
@@ -282,7 +282,7 @@
 					</div>
 
 					<div class="action-row-feedback mt-6">
-						<button type="button" class="btn-solar-primary w-full justify-center shadow-md" onclick={nextQuestion}>
+						<button type="button" class="btn-solar-primary w-full justify-center shadow-md font-bold py-2.5 rounded-lg" onclick={nextQuestion}>
 							{currentQuestionIndex < activeQuestions.length - 1 ? 'Siguiente Pregunta 🧭' : 'Finalizar Entrenamiento 🏆'}
 						</button>
 					</div>
@@ -352,17 +352,12 @@
 	}
 
 	.scenario-text {
-		font-family: var(--font-solar-header, sans-serif);
+		font-family: var(--font-solar-header), sans-serif;
 		font-size: 1.25rem;
 		font-weight: 800;
 		color: var(--color-solar-green-dark, #1e4533);
-		margin: 0.5rem 0 0 0;
-		line-height: 1.5;
-	}
-
-	.question-text-prompt {
-		font-size: 1rem;
 		line-height: 1.4;
+		margin-top: 0.5rem;
 	}
 
 	.choices-grid {
@@ -372,424 +367,228 @@
 	}
 
 	.choice-btn {
-		width: 100%;
-		text-align: left;
-		background: rgba(255, 255, 255, 0.8);
-		backdrop-filter: blur(10px);
-		border: 2px solid var(--color-solar-card-border, rgba(0, 0, 0, 0.08));
-		padding: 1rem 1.25rem;
-		border-radius: 16px;
-		cursor: pointer;
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-		outline: none;
+		width: 100%;
+		padding: 0.85rem 1.25rem;
+		border: 1.5px solid var(--color-solar-card-border, rgba(0,0,0,0.08));
+		border-radius: 12px;
+		background: #ffffff;
+		cursor: pointer;
+		text-align: left;
+		transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.1);
 	}
 
-	.choice-btn:hover:not(:disabled) {
-		transform: translateY(-2px);
+	.choice-btn:hover {
 		border-color: var(--color-solar-green-medium, #3d8f68);
-		box-shadow: var(--shadow-solar-sm, 0 2px 8px rgba(0,0,0,0.04));
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(61,143,104,0.08);
 	}
 
 	.choice-btn.selected {
 		border-color: var(--color-solar-green-medium, #3d8f68);
-		background: var(--color-solar-green-light, #d2f5e3);
+		background: var(--color-solar-green-light, #e8fbf1);
+		box-shadow: 0 4px 12px rgba(61,143,104,0.12);
 	}
 
 	.choice-indicator {
-		width: 28px;
-		height: 28px;
-		border-radius: 50%;
-		background: var(--color-solar-bg, #FAF9F6);
-		border: 1.5px solid var(--color-solar-card-border, rgba(0, 0, 0, 0.08));
+		font-family: var(--font-solar-header), sans-serif;
+		font-weight: 850;
+		font-size: 0.85rem;
+		width: 24px;
+		height: 24px;
+		border-radius: 6px;
+		background: var(--color-solar-green-medium, #3d8f68);
+		color: #ffffff;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.95rem;
-		font-weight: 800;
 	}
 
 	.choice-btn.selected .choice-indicator {
-		background: var(--color-solar-green-medium, #3d8f68);
-		color: white;
-		border-color: var(--color-solar-green-medium, #3d8f68);
+		background: var(--color-solar-green-dark, #1e4533);
 	}
 
 	.choice-text {
-		font-weight: 800;
-		font-size: 0.95rem;
-		color: var(--color-solar-text, #333333);
+		font-size: 0.85rem;
+		font-weight: 700;
+		color: var(--color-solar-green-dark, #1e4533);
+		flex: 1;
 	}
 
-	/* FEEDBACK EXPLANATION BOX */
+	/* Feedback Screen styles */
 	.feedback-response-box {
-		padding: 2rem;
-		border-radius: 28px;
-		border: 1px solid rgba(255, 255, 255, 0.5);
-		backdrop-filter: blur(16px);
-		-webkit-backdrop-filter: blur(16px);
-		position: relative;
-		overflow: hidden;
-		box-shadow: 
-			0 10px 30px rgba(30, 69, 51, 0.05),
-			var(--shadow-solar-md);
+		padding: 2rem 1.5rem;
+		border-radius: 24px;
+		background: #ffffff;
+		border: 1px solid var(--color-solar-card-border, rgba(0,0,0,0.05));
+		box-shadow: var(--shadow-solar-md);
 	}
 
-	.feedback-response-box.correct {
-		background: rgba(240, 253, 244, 0.85);
-		border-left: 5px solid var(--color-solar-green-medium, #3d8f68);
-	}
-
-	.feedback-response-box.incorrect {
-		background: rgba(254, 242, 242, 0.85);
-		border-left: 5px solid var(--color-solar-terracotta, #e11d48);
-	}
-
-	.feedback-badge {
-		font-family: var(--font-solar-header, sans-serif);
-		font-size: 0.65rem;
+	.feedback-badge-premium {
+		font-family: var(--font-solar-header), sans-serif;
 		font-weight: 900;
+		font-size: 0.65rem;
+		padding: 0.35rem 0.75rem;
+		border-radius: 9999px;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		padding: 0.25rem 0.75rem;
-		border-radius: var(--radius-solar-xs, 6px);
+		letter-spacing: 0.05em;
 	}
 
-	.correct-badge {
-		background: var(--color-solar-green-light);
-		color: var(--color-solar-green-dark);
+	.feedback-badge-premium.correct-badge {
+		background: #d1f5e3;
+		color: #166534;
 	}
 
-	.incorrect-badge {
+	.feedback-badge-premium.incorrect-badge {
 		background: #fee2e2;
-		color: #991b1b;
+		color: #b91c1c;
 	}
 
-	/* ESCENARIO DESTACADO */
 	.scenario-highlight-card {
-		background: white;
-		border: 1px solid var(--color-solar-card-border, rgba(0,0,0,0.06));
 		padding: 1.25rem;
-		border-radius: 18px;
-		box-shadow: var(--shadow-solar-sm);
+		border-radius: 16px;
+		background: var(--color-solar-bg, #FAF9F6);
+		border-left: 4px solid var(--color-solar-green-medium, #3d8f68);
 		margin-bottom: 1.25rem !important;
 	}
 
 	.scenario-highlight-card .sub-title {
 		font-size: 0.6rem;
-		font-weight: 800;
-		color: var(--color-solar-text-muted);
-		letter-spacing: 0.08em;
+		font-weight: 850;
+		color: var(--color-solar-text-muted, #7c8b82);
+		letter-spacing: 0.05em;
 		display: block;
 		margin-bottom: 0.35rem;
 	}
 
 	.scenario-quote {
+		font-family: var(--font-solar-header), sans-serif;
 		font-size: 0.95rem;
-		font-weight: 700;
-		color: var(--color-solar-green-dark);
-		line-height: 1.5;
+		font-weight: 800;
+		color: var(--color-solar-green-dark, #1e4533);
+		line-height: 1.45;
 		margin: 0;
-		font-style: italic;
 	}
 
-	/* COMPARADOR DE RESPUESTAS */
 	.comparison-grid {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1rem;
 		margin-bottom: 1.25rem !important;
 	}
-
-	.response-pill {
-		padding: 1rem 1.25rem;
-		border-radius: 16px;
-		border: 1.5px solid transparent;
-	}
-
-	.response-pill .pill-label {
-		font-size: 0.6rem;
-		font-weight: 800;
-		letter-spacing: 0.05em;
-		display: block;
-		margin-bottom: 0.25rem;
-	}
-
-	.response-pill .pill-text {
-		font-size: 0.85rem;
-		margin: 0;
-		line-height: 1.4;
-	}
-
-	.user-correct {
-		background: hsla(142, 70%, 90%, 0.4);
-		border-color: hsla(142, 70%, 45%, 0.25);
-		color: var(--color-solar-green-dark);
-	}
-
-	.user-wrong {
-		background: hsla(0, 80%, 93%, 0.4);
-		border-color: hsla(0, 80%, 60%, 0.25);
-		color: #991b1b;
-	}
-
-	.giochi-correct {
-		background: hsla(196, 70%, 93%, 0.4);
-		border-color: hsla(196, 70%, 50%, 0.25);
-		color: hsl(196, 75%, 25%);
-	}
-
-	/* MENTOR SPEECH CARD */
-	.mentor-speech-card {
-		background: white;
-		border: 1px solid var(--color-solar-card-border, rgba(0,0,0,0.06));
-		padding: 1.25rem;
-		border-radius: 20px;
-		box-sizing: border-box;
-		box-shadow: var(--shadow-solar-sm);
-	}
-
-	.mentor-portrait-circle {
-		width: 52px;
-		height: 52px;
-		border-radius: 50%;
-		border: 2.5px solid var(--color-solar-green-medium);
-		object-fit: cover;
-		flex-shrink: 0;
-	}
-
-	.speech-bubble-body {
-		text-align: left;
-	}
-
-	.mentor-name-tag {
-		font-family: var(--font-solar-header);
-		font-size: 0.75rem;
-		font-weight: 800;
-		color: var(--color-solar-green-medium);
-		display: block;
-		margin-bottom: 0.25rem;
-	}
-
-	.speech-bubble-body .speech-text {
-		font-size: 0.82rem;
-		line-height: 1.55;
-		color: var(--color-solar-text);
-		margin: 0;
-		font-style: italic;
-	}
-
-	.feedback-badge-premium {
-		font-family: var(--font-solar-header, sans-serif);
-		font-size: 0.75rem;
-		font-weight: 850;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 0.35rem 0.85rem;
-		border-radius: 10px;
+	@media (min-width: 600px) {
+		.comparison-grid {
+			grid-template-columns: 1fr 1fr;
+		}
 	}
 
 	.response-pill-premium {
-		padding: 1.25rem;
-		border-radius: 20px;
-		border: 1px solid transparent;
-		background: var(--color-solar-card, #ffffff);
+		padding: 1rem;
+		border-radius: 16px;
+		background: #ffffff;
+		border: 1.5px solid #f3f4f6;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.response-pill-premium.user-correct {
-		background: linear-gradient(135deg, rgba(240, 253, 244, 0.9), rgba(255, 255, 255, 0.95));
-		border: 1.5px solid var(--color-solar-green-medium, #3d8f68);
+		border-color: #10b981;
+		background: #f0fdf4;
 	}
 
 	.response-pill-premium.user-wrong {
-		background: linear-gradient(135deg, rgba(254, 242, 242, 0.9), rgba(255, 255, 255, 0.95));
-		border: 1.5px solid var(--color-solar-terracotta, #e11d48);
+		border-color: #ef4444;
+		background: #fdf2f2;
 	}
 
 	.response-pill-premium.giochi-correct {
-		background: linear-gradient(135deg, rgba(224, 242, 254, 0.9), rgba(255, 255, 255, 0.95));
-		border: 1.5px solid var(--color-solar-sky, #188db5);
+		border-color: var(--color-solar-green-medium, #3d8f68);
+		background: var(--color-solar-green-light, #e8fbf1);
 	}
 
 	.pill-badge {
-		font-size: 0.65rem;
-		font-weight: 850;
-		padding: 0.15rem 0.5rem;
-		border-radius: 6px;
-		letter-spacing: 0.03em;
+		font-size: 0.55rem;
+		font-weight: 900;
+		padding: 0.15rem 0.45rem;
+		border-radius: 4px;
+		letter-spacing: 0.05em;
 	}
 
-	.user-correct-badge {
-		background: rgba(74, 222, 128, 0.2);
-		color: #166534;
-	}
-
-	.user-wrong-badge {
-		background: rgba(248, 113, 113, 0.2);
-		color: #991b1b;
-	}
-
-	.giochi-correct-badge {
-		background: rgba(56, 189, 248, 0.25);
-		color: #0369a1;
-	}
+	.pill-badge.user-correct-badge { background: #d1f5e3; color: #166534; }
+	.pill-badge.user-wrong-badge { background: #fca5a5; color: #991b1b; }
+	.pill-badge.giochi-correct-badge { background: #d2f5e3; color: var(--color-solar-green-dark, #1e4533); }
 
 	.letter-badge {
-		display: inline-flex;
+		width: 20px;
+		height: 20px;
+		border-radius: 4px;
+		background: #e5e7eb;
+		color: #374151;
+		font-family: var(--font-solar-header), sans-serif;
+		font-weight: 900;
+		font-size: 0.75rem;
+		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		font-weight: 800;
-		font-size: 0.85rem;
 		flex-shrink: 0;
-		background: var(--color-solar-bg);
-		border: 1px solid var(--color-solar-card-border);
-		color: var(--color-solar-text);
+		margin-top: 0.15rem;
 	}
 
-	.user-wrong .letter-badge {
-		background: #fee2e2;
-		color: #b91c1c;
-		border-color: rgba(185, 28, 28, 0.2);
-	}
+	.user-correct .letter-badge { background: #10b981; color: #ffffff; }
+	.user-wrong .letter-badge { background: #ef4444; color: #ffffff; }
+	.giochi-letter { background: var(--color-solar-green-medium, #3d8f68); color: #ffffff; }
 
-	.user-correct .letter-badge {
-		background: #d1f5e3;
-		color: #1e4533;
-		border-color: rgba(30, 69, 51, 0.2);
-	}
-
-	.giochi-letter {
-		background: #e0f2fe;
-		color: #0369a1;
-		border-color: rgba(3, 105, 161, 0.2);
+	.pill-text {
+		font-size: 0.8rem;
+		color: var(--color-solar-green-dark, #1e4533);
+		margin: 0;
+		text-align: left;
+		line-height: 1.4;
 	}
 
 	.mentor-speech-card-premium {
-		background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(249, 250, 251, 0.85));
-		border: 1px solid rgba(0, 0, 0, 0.05);
-		padding: 1.5rem;
-		border-radius: 24px;
-		box-sizing: border-box;
+		background: radial-gradient(120% 120% at 50% 0%, #ffffff 0%, var(--color-solar-bg, #FAF9F6) 100%);
+		border: 1px solid var(--color-solar-card-border, rgba(0,0,0,0.06));
+		padding: 1.25rem;
+		border-radius: 20px;
 		margin-bottom: 1.5rem !important;
 	}
 
-	.mentor-portrait-circle-premium {
-		width: 58px;
-		height: 58px;
-		border-radius: 50%;
-		border: 3px solid var(--color-solar-green-medium);
-		object-fit: cover;
-		z-index: 2;
-		position: relative;
-	}
-
-	.mentor-avatar-container {
-		position: relative;
-		flex-shrink: 0;
-	}
-
-	.mentor-avatar-glow {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		border-radius: 50%;
-		background: var(--color-solar-green-medium);
-		opacity: 0.15;
-		filter: blur(8px);
-		z-index: 1;
+	.mentor-name-tag {
+		font-size: 0.75rem;
+		font-weight: 850;
+		color: var(--color-solar-green-dark, #1e4533);
 	}
 
 	.mentor-role-tag {
-		font-size: 0.65rem;
-		font-weight: 700;
-		background: var(--color-solar-green-light);
-		color: var(--color-solar-green-dark);
-		padding: 0.1rem 0.4rem;
+		font-size: 0.55rem;
+		font-weight: 900;
+		color: #1e3a8a;
+		background: #dbeafe;
+		padding: 0.15rem 0.45rem;
 		border-radius: 4px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
 	}
 
-	.action-row-feedback {
-		margin-top: 2rem !important;
-	}
-
-	.w-full { width: 100%; }
-	.justify-between { justify-content: space-between; }
-	.flex { display: flex; }
-	.gap-4 { gap: 1rem; }
-	.mb-5 { margin-bottom: 1.25rem; }
-	.mb-6 { margin-bottom: 1.5rem; }
-	.mt-6 { margin-top: 1.5rem; }
-
-	.btn-solar-primary {
-		font-family: var(--font-solar-header, sans-serif);
-		font-weight: 700;
-		font-size: 1rem;
-		color: #ffffff;
-		background: linear-gradient(135deg, var(--color-solar-green-medium, #3d8f68), var(--color-solar-green-dark, #1e4533));
-		border: none;
-		border-radius: 12px;
-		padding: 0.9rem 2rem;
-		box-shadow: 0 4px 15px rgba(61, 143, 104, 0.25);
-		cursor: pointer;
-		transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-		text-align: center;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-	}
-
-	/* LIKE IDEA BUTTON STYLES */
-	.idea-btn-container {
-		display: flex;
-		justify-content: flex-end;
-		margin-top: 1.25rem;
-		width: 100%;
+	.speech-text {
+		font-size: 0.75rem;
+		color: var(--color-solar-text, #3a4b40);
+		line-height: 1.5;
+		margin: 0;
 	}
 
 	.btn-like-idea {
-		background: #ffffff;
-		border: 2px solid var(--color-solar-card-border, rgba(0, 0, 0, 0.08));
-		color: var(--color-solar-green-dark, #1e4533);
+		background: none;
+		border: none;
 		cursor: pointer;
-		padding: 0.5rem 1rem;
-		border-radius: 12px;
-		font-weight: 750;
-		font-size: 0.8rem;
-		font-family: var(--font-solar-body, sans-serif), sans-serif;
-		box-shadow: var(--shadow-solar-sm, 0 2px 8px rgba(0,0,0,0.04));
-		transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		outline: none;
+		font-family: var(--font-solar-body), sans-serif;
+		transition: all 0.2s ease;
 	}
-
 	.btn-like-idea:hover {
-		transform: translateY(-2px);
-		border-color: var(--color-solar-yellow, #ffd166);
-		background: #FFFDF4;
-		box-shadow: var(--shadow-solar-md, 0 4px 12px rgba(0,0,0,0.08));
-	}
-
-	.btn-like-idea.liked {
-		background: var(--color-solar-yellow, #ffd166);
-		color: var(--color-solar-green-dark, #1e4533);
-		border-color: var(--color-solar-yellow, #ffd166);
-		box-shadow: 0 4px 12px rgba(255, 209, 102, 0.4);
-		animation: idea-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-	}
-
-	@keyframes idea-pop {
-		0% { transform: scale(1); }
-		50% { transform: scale(1.1); }
-		100% { transform: scale(1); }
+		transform: scale(1.03);
 	}
 
 	.board-footer {

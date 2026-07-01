@@ -12,16 +12,28 @@ export function createWorkshopSession(
 	let allClassPlayers = $state<any[]>([]);
 	let channel = $state<any>(null);
 
-	const isHost = $derived(player.email === 'javier@f2p.co');
+	const isHost = $derived(player.email === 'javier@f2p.co' || player.role === 'facilitator' || player.is_facilitator === true || player.game_state?.is_facilitator === true);
 
 	async function loadAllClassPlayers() {
 		if (!supabase) return;
 		const { data: players } = await supabase
 			.from('course_players')
-			.select('id, alias, game_state')
+			.select('id, alias, email, game_state')
 			.eq('instance_code', instance.code);
 		if (players) {
 			allClassPlayers = players;
+		}
+	}
+
+	function safeSend(event: string, payload: any) {
+		if (channel) {
+			channel.send({
+				type: 'broadcast',
+				event,
+				payload
+			});
+		} else {
+			console.warn(`[Supabase Realtime] Canal no listo. Ignorando envío de evento: ${event}`);
 		}
 	}
 
@@ -51,6 +63,12 @@ export function createWorkshopSession(
 				if (user) list.push(user);
 			});
 			onlinePlayers = list;
+
+			// If a new player joined who is not in our allClassPlayers list, reload it!
+			const hasNewPlayer = list.some(op => op.playerId && !allClassPlayers.some(ap => ap.id === op.playerId));
+			if (hasNewPlayer) {
+				loadAllClassPlayers();
+			}
 		});
 
 		channel.on('presence', { event: 'leave' }, ({ key }: any) => {
@@ -72,21 +90,26 @@ export function createWorkshopSession(
 	async function updatePlayerGameState(newState: any, additionalFields = {}) {
 		player.game_state = newState;
 		if (supabase && player.id) {
-			await supabase
+			const { error } = await supabase
 				.from('course_players')
 				.update({
 					game_state: newState,
 					...additionalFields
 				})
 				.eq('id', player.id);
+			if (error) {
+				console.error('Supabase updatePlayerGameState error:', error);
+				throw error;
+			}
 		}
 	}
 
-	onDestroy(() => {
+	function cleanup() {
 		if (channel) {
 			channel.unsubscribe();
+			channel = null;
 		}
-	});
+	}
 
 	return {
 		get player() { return player; },
@@ -99,6 +122,8 @@ export function createWorkshopSession(
 		get isHost() { return isHost; },
 		loadAllClassPlayers,
 		initConnection,
-		updatePlayerGameState
+		updatePlayerGameState,
+		safeSend,
+		cleanup
 	};
 }

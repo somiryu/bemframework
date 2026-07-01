@@ -580,7 +580,7 @@
 														{#each canvas as row, index}
 															<div class="canvas-row-saved-container">
 																<h5 class="canvas-row-title">
-																	{w.id === 4 ? `Meta de Aprendizaje #${index + 1}` : (w.id === 5 ? `Diseño de Señal #${index + 1}` : `Fila de Diseño #${index + 1}`)}
+																	{w.id === 4 ? `Meta de Aprendizaje #${index + 1}` : (w.id === 5 ? `Diseño de Señal #${index + 1}` : (w.id === 6 ? `Calibración #${index + 1}` : `Fila de Diseño #${index + 1}`))}
 																</h5>
 																<div class="canvas-row-items">
 																	{#if w.id === 3}
@@ -647,6 +647,21 @@
 																				<span class="d-label text-[10px] opacity-75">⏱️ TIMING</span>
 																				<p class="d-answer font-bold" style="margin-top: 0.15rem;">{row.timing || 3} / 5</p>
 																			</div>
+																		</div>
+																	{:else if w.id === 6}
+																		<div class="driver-item-saved">
+																			<span class="d-label">🧠 SESGO / HEURÍSTICA CONDUCTUAL</span>
+																			<p class="d-answer font-bold" style="text-transform: capitalize; color: var(--color-solar-green-medium); margin-bottom: 0.25rem;">
+																				{row.heuristicId ? row.heuristicId.replace('_', ' ') : ''}
+																			</p>
+																			<p class="d-answer">"{row.heuristicIdea || ''}"</p>
+																		</div>
+																		<div class="driver-item-saved">
+																			<span class="d-label">🎮 ESTRATEGIA DE DISEÑO DE JUEGO</span>
+																			<p class="d-answer font-bold" style="text-transform: capitalize; color: var(--color-solar-green-medium); margin-bottom: 0.25rem;">
+																				{row.strategyId ? row.strategyId.replace('_', ' ') : ''}
+																			</p>
+																			<p class="d-answer">"{row.strategyIdea || ''}"</p>
 																		</div>
 																	{:else}
 																		<div class="driver-item-saved">

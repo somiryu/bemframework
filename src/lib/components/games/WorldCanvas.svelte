@@ -4,6 +4,7 @@
 	import World3Design from './World3Design.svelte';
 	import World4Design from './World4Design.svelte';
 	import World5Design from './World5Design.svelte';
+	import World6Design from './World6Design.svelte';
 
 	let { 
 		world, 
@@ -25,6 +26,8 @@
 		<World4Design bind:canvasAnswers />
 	{:else if world.id === 5}
 		<World5Design bind:canvasAnswers />
+	{:else if world.id === 6}
+		<World6Design bind:canvasAnswers />
 	{/if}
 </div>
 
@@ -59,7 +62,7 @@
 		border-radius: 24px;
 	}
 
-	.world-4-canvas {
+	.world-4-canvas, .world-6-canvas {
 		background: radial-gradient(120% 120% at 50% 0%, #ffffff 0%, var(--color-solar-bg, #FAF9F6) 100%);
 		padding: 2rem 2.5rem;
 		border: 1px solid var(--color-solar-card-border, rgba(0, 0, 0, 0.05));
@@ -67,7 +70,7 @@
 	}
 
 	@media (max-width: 768px) {
-		.world-1-canvas, .world-2-canvas, .world-3-canvas, .world-4-canvas {
+		.world-1-canvas, .world-2-canvas, .world-3-canvas, .world-4-canvas, .world-6-canvas {
 			padding: 1rem;
 		}
 	}

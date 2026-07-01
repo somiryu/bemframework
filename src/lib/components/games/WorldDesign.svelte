@@ -66,6 +66,14 @@
 			mentorName: 'Sara Arbeláez',
 			mentorAvatar: '/learn_resources/characters/char_sara_animated.gif',
 			instructions: 'Como diseñador de motivación, debes estructurar llamados a la acción precisos. Describe la <strong>Acción/Comportamiento</strong> deseado en el estudiante y define el <strong>Diseño de la Alerta/Señal</strong> (mínimo 15 caracteres cada uno). Luego, califica con los sliders su <strong>Intensidad</strong>, <strong>Coherencia</strong> y <strong>Timing</strong> (escala 1 a 5).'
+		},
+		6: {
+			title: 'Canvas de Heurísticas y Decisiones Lúdicas',
+			description: 'Diseña y mapea heurísticas conductuales junto a estrategias de toma de decisiones en el aula.',
+			badge: 'CANVAS DE DECISIONES BEM',
+			mentorName: 'Sara Arbeláez',
+			mentorAvatar: '/learn_resources/characters/char_sara.png',
+			instructions: 'Como diseñador de incentivos, debes alinear el comportamiento del estudiante con las dinámicas de juego. Por cada fila, selecciona una <strong>Heurística o Sesgo Conductual</strong> y define su idea de aplicación. Luego, selecciona una <strong>Estrategia de Diseño de Juego</strong> correspondiente y detalla su implementación lúdica (Mínimo 15 caracteres por descripción).'
 		}
 	};
 
@@ -170,6 +178,24 @@
 					timing: 3 
 				}];
 			}
+		} else if (world.id === 6) {
+			if (existingCanvas && Array.isArray(existingCanvas)) {
+				canvasAnswers = existingCanvas.map((r: any, idx: number) => ({
+					id: r.id ?? idx,
+					heuristicId: r.heuristicId || 'disponibilidad',
+					heuristicIdea: r.heuristicIdea || '',
+					strategyId: r.strategyId || 'blind_choice',
+					strategyIdea: r.strategyIdea || ''
+				}));
+			} else {
+				canvasAnswers = [{ 
+					id: Date.now(),
+					heuristicId: 'disponibilidad',
+					heuristicIdea: '',
+					strategyId: 'blind_choice',
+					strategyIdea: ''
+				}];
+			}
 		}
 	});
 
@@ -227,6 +253,12 @@
 					   n.coherencia >= 1 && n.coherencia <= 5 &&
 					   n.timing >= 1 && n.timing <= 5;
 			});
+		} else if (world.id === 6) {
+			if (!Array.isArray(canvasAnswers) || canvasAnswers.length === 0) return false;
+			return canvasAnswers.every(r => {
+				return r.heuristicId && r.heuristicIdea.trim().length >= 15 &&
+					   r.strategyId && r.strategyIdea.trim().length >= 15;
+			});
 		}
 		return false;
 	});
@@ -243,6 +275,8 @@
 			return 'Asegúrate de que los 4 campos de cada meta (Meta, Tipo, Expectativa, Cuadrante) tengan al menos 15 caracteres.';
 		} else if (world.id === 5) {
 			return 'Asegúrate de describir la acción y el diseño de la señal (mínimo 15 caracteres) y ajustar los sliders.';
+		} else if (world.id === 6) {
+			return 'Asegúrate de describir tu idea para la heurística y la estrategia de juego (mínimo 15 caracteres cada una).';
 		}
 		return 'Completa todos los campos.';
 	});

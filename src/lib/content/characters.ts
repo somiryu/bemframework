@@ -48,6 +48,12 @@ export const locationRegistry: Record<string, { name: string; images: { base: st
 		images: {
 			base: '/learn_resources/locations/guidance_lighthouse.png'
 		}
+	},
+	maze: {
+		name: 'El Laberinto Cognitivo',
+		images: {
+			base: '/learn_resources/locations/maze.png'
+		}
 	}
 };
 

@@ -53,6 +53,14 @@
 }
 
 /* Buttons - Premium Solarpunk */
+.btn-solar-primary,
+.btn-solar-secondary,
+.btn-solar-accent,
+.btn-solar-danger {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .btn-solar-primary {
   font-family: var(--font-solar-header);
   font-weight: 600;
@@ -119,6 +127,49 @@
 .btn-solar-accent:hover {
   transform: translateY(-3px) rotate(1deg);
   box-shadow: var(--shadow-solar-glow);
+}
+
+.btn-solar-danger {
+  font-family: var(--font-solar-header);
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border: none;
+  border-radius: var(--radius-solar-md);
+  padding: 0.75rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-solar-danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+.btn-solar-danger:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Button size modifiers */
+.btn-sm {
+  padding: 0.3rem 0.75rem !important;
+  font-size: 0.75rem !important;
+  border-radius: 8px !important;
+  min-height: unset !important;
+  height: auto !important;
+}
+
+.btn-xs {
+  padding: 0.2rem 0.5rem !important;
+  font-size: 0.7rem !important;
+  border-radius: 6px !important;
+  min-height: unset !important;
+  height: auto !important;
 }
 
 /* Animations */
