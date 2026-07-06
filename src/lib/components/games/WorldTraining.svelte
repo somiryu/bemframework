@@ -11,6 +11,7 @@
 	import World4Training from './World4Training.svelte';
 	import World5Training from './World5Training.svelte';
 	import World6Training from './World6Training.svelte';
+import World7Training from './World7Training.svelte';
 
 	let { 
 		world, 
@@ -101,6 +102,18 @@
 				'<strong>Criterio de Estrellas:</strong> Se evaluará tu desempeño neto (Aciertos menos Errores) en una escala de 5 estrellas.',
 				'<strong>Tabla de Conversión:</strong> 14+ netos = 5 estrellas, 11+ netos = 4 estrellas, 8+ netos = 3 estrellas, 4+ netos = 2 estrellas, 1+ netos = 1 estrella.',
 				'<strong>Monedas BEM:</strong> Cada estrella te otorga <strong>+3 BEM Coins</strong> (acumulando hasta 15 monedas máximo de por vida en este entrenamiento).'
+			]
+		},
+		7: {
+			title: 'Entrenamiento de Sistemas de Evaluación',
+			mentorName: 'Emma Wagner',
+			mentorAvatar: '/learn_resources/characters/char_kira.png',
+			tip: '¡Bienvenido, Agente! Emma Wagner te desafía a identificar sistemas de evaluación, tipos de disparador y detectar incentivos perversos en 21 escenarios de gamificación educativa:',
+			instructions: [
+				'<strong>21 Preguntas de Calibración:</strong> Resolverás 3 bloques de 7 preguntas cada uno.',
+				'<strong>Sistema de Puntuación:</strong> Se evaluará tu desempeño neto (Aciertos menos Errores) en una escala de 5 estrellas.',
+				'<strong>Tabla de Conversión:</strong> 18+ netos = 5 estrellas, 12+ netos = 4 estrellas, 6+ netos = 3 estrellas, 1+ netos = 2 estrellas, -5+ netos = 1 estrella.',
+				'<strong>Monedas BEM:</strong> Cada estrella te otorga <strong>+5 BEM Coins</strong> (acumulando hasta 50 de por vida en este entrenamiento).'
 			]
 		}
 	};
@@ -217,6 +230,19 @@
 					{ label: 'Puntaje Neto Final', value: `${net} pts`, highlight: true }
 				]
 			};
+		},
+		7: (results, correct, incorrect) => {
+			const net = correct - incorrect;
+			return {
+				netScore: net,
+				starsCount: net >= 18 ? 5 : (net >= 12 ? 4 : (net >= 6 ? 3 : (net >= 1 ? 2 : (net >= -5 ? 1 : 0)))),
+				blockCorrect: results.blockCorrect,
+				customStats: [
+					{ label: 'Aciertos:', value: correct },
+					{ label: 'Errores:', value: incorrect },
+					{ label: 'Puntaje Neto Final', value: `${net} pts`, highlight: true }
+				]
+			};
 		}
 	};
 
@@ -317,6 +343,13 @@
 					/>
 				{:else if world.id === 6}
 					<World6Training 
+						world={world} 
+						player={player} 
+						onGameComplete={handleGameComplete} 
+						onUpdateCoins={onUpdateCoins} 
+					/>
+				{:else if world.id === 7}
+					<World7Training 
 						world={world} 
 						player={player} 
 						onGameComplete={handleGameComplete} 

@@ -33,6 +33,13 @@ export const characterRegistry: Record<string, Character> = {
 		images: {
 			base: '/learn_resources/characters/char_giochi.gif'
 		}
+	},
+	emma: {
+		name: 'Emma Wagner',
+		images: {
+			base: '/learn_resources/characters/char_emma.png',
+			animated: '/learn_resources/characters/char_emma_animated.gif'
+		}
 	}
 };
 
@@ -65,5 +72,6 @@ export function resolveCharacterByName(name: string): Character | null {
 	if (lower.includes('kira')) return characterRegistry.kira;
 	if (lower.includes('john') || lower.includes('wilkins')) return characterRegistry.wilkins;
 	if (lower.includes('giochi')) return characterRegistry.giochi;
+	if (lower.includes('emma') || lower.includes('wagner')) return characterRegistry.emma;
 	return null;
 }

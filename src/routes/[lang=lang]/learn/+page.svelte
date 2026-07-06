@@ -114,7 +114,8 @@
 				charName.includes('Sara') ||
 				charName.includes('Wilkins') ||
 				charName.includes('John') ||
-				charName.includes('Kira')
+				charName.includes('Kira') ||
+				charName.includes('Emma')
 			) {
 				return { ...step, imageType: 'animated' };
 			}

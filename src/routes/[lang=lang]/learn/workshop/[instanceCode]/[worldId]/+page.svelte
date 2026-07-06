@@ -6,8 +6,9 @@
 	import World3Workshop from '$lib/components/games/World3Workshop.svelte';
 	import World4Workshop from '$lib/components/games/World4Workshop.svelte';
 	import World5Workshop from '$lib/components/games/World5Workshop.svelte';
-	import World6Workshop from '$lib/components/games/World6Workshop.svelte';
-	import WorkshopHeader from '$lib/components/workshop/WorkshopHeader.svelte';
+import World6Workshop from '$lib/components/games/World6Workshop.svelte';
+import World7Workshop from '$lib/components/games/World7Workshop.svelte';
+import WorkshopHeader from '$lib/components/workshop/WorkshopHeader.svelte';
 	import { page } from '$app/state';
 	import { learnTranslations } from '$lib/content/learn';
 
@@ -62,6 +63,12 @@
 			/>
 		{:else if data.world.id === 6}
 			<World6Workshop 
+				player={data.player} 
+				instance={data.instance}
+				onComplete={handleBackToMap}
+			/>
+		{:else if data.world.id === 7}
+			<World7Workshop 
 				player={data.player} 
 				instance={data.instance}
 				onComplete={handleBackToMap}

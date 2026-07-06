@@ -57,7 +57,7 @@
 					◀ Anterior
 				</button>
 
-				{#if activeMode === 'actividad'}
+				{#if activeMode === 'actividad' || activeMode === 'rating'}
 					<button 
 						type="button" 
 						class="btn-solar-accent btn-sm font-bold animate-solar-pulse"
