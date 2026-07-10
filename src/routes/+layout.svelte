@@ -66,8 +66,12 @@
 	]);
 
 	const isGamifiedRoute = $derived(
-		page.url.pathname.includes('/learn') || 
-		page.url.pathname.includes('/login')
+		page.url.pathname.includes('/login') || (
+			!page.url.pathname.includes('/learning') && (
+				page.url.pathname.includes('/learn/') || 
+				page.url.pathname.endsWith('/learn')
+			)
+		)
 	);
 </script>
 
