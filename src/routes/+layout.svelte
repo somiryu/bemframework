@@ -34,14 +34,7 @@
 		},
 		{ 
 			label: lang === 'en' ? 'Learning' : 'Aprendizaje',
-			href: `/${lang}/learning`,
-			submenu: [
-				{ label: lang === 'en' ? 'Overview' : 'Visión General', href: `/${lang}/learning` },
-				{ label: lang === 'en' ? 'Learning as Interaction' : 'Aprendizaje como Interacción', href: `/${lang}/learning/interaction` },
-				{ label: lang === 'en' ? 'Learning Cycles' : 'Ciclos de Aprendizaje', href: `/${lang}/learning/cycles` },
-				{ label: lang === 'en' ? 'Designing Objectives' : 'Diseño de Objetivos', href: `/${lang}/learning/objectives` },
-				{ label: lang === 'en' ? 'Interfaces & Points' : 'Interfaces y Puntos', href: `/${lang}/learning/feedback` }
-			]
+			href: `/${lang}/learning`
 		},
 		{ 
 			label: lang === 'en' ? 'Resources' : 'Recursos',
