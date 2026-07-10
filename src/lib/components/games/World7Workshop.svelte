@@ -11,10 +11,11 @@
 		getWorld7SpeedScore,
 		getWorld7TotalPV,
 		getWorld7Stars,
-		type WorkshopSlide7
+		evaluationSystemLabels
 	} from '$lib/content/world7WorkshopData';
 	import confetti from 'canvas-confetti';
 	import FacilitatorControlPanel from '$lib/components/workshop/FacilitatorControlPanel.svelte';
+	import MentorExplain from './MentorExplain.svelte';
 
 	let {
 		player: initialPlayer,
@@ -76,6 +77,23 @@
 
 	const totalSlides = $derived(world7WorkshopSlides.length);
 	const isLastSlide = $derived(currentSlideId === world7WorkshopSlides[world7WorkshopSlides.length - 1].id);
+
+	const allKeyConcepts = $derived.by(() => {
+		const seen = new Set<string>();
+		const concepts: { triggerTypeLabel: string; evalSystemLabel: string; slides: string[] }[] = [];
+		world7WorkshopSlides.forEach(s => {
+			const triggerLabel = s.triggerType === 'accion' ? 'Acción' : s.triggerType === 'meta' ? 'Meta' : 'Farmeable';
+			const evalLabel = evaluationSystemLabels[s.evaluationSystem];
+			const key = `${triggerLabel}|${evalLabel}`;
+			const existing = concepts.find(c => `${c.triggerTypeLabel}|${c.evalSystemLabel}` === key);
+			if (existing) {
+				existing.slides.push(s.title);
+			} else {
+				concepts.push({ triggerTypeLabel: triggerLabel, evalSystemLabel: evalLabel, slides: [s.title] });
+			}
+		});
+		return concepts;
+	});
 
 	const groupAverages = $derived.by(() => {
 		const sums: Record<string, number> = {};
@@ -455,6 +473,22 @@
 		session.safeSend('slide-sync', { slideId: currentSlideId, mode: targetMode, activeCriteriaIds, isSubmissionEnabled, visitedSlideIds });
 	}
 
+	async function handleActivateFinalFeedback() {
+		if (!session.isHost) return;
+		activeMode = 'final_feedback';
+		const newState = {
+			world_id: 7,
+			slide_index: currentSlideId,
+			mode: 'final_feedback' as const,
+			visitedSlideIds,
+			isPaused,
+			activeCriteriaIds,
+			isSubmissionEnabled
+		};
+		await writeToDatabaseState(newState);
+		session.safeSend('slide-sync', { slideId: currentSlideId, mode: 'final_feedback', activeCriteriaIds, isSubmissionEnabled, visitedSlideIds });
+	}
+
 	async function handleCompleteWorkshop() {
 		if (!session.isHost) return;
 		if (!confirm('¿Estás seguro de que deseas finalizar la sesión del taller? Esto dará por terminada la actividad y otorgará las monedas correspondientes.')) return;
@@ -550,10 +584,13 @@
 				}
 			} else if (event === 'workshop-complete') {
 				if (!session.isHost) {
+					const position = leaderboard.findIndex(r => r.id === session.player.id) + 1;
+					const coinsFromPosition = 25 + (10 - position);
+					const coinsAward = Math.max(25, Math.min(35, coinsFromPosition));
 					const state = JSON.parse(JSON.stringify(session.player.game_state || {}));
 					if (!state[7]) state[7] = {};
 					state[7].workshop_completed = true;
-					await session.updatePlayerGameState(state, { coins: session.player.coins + 25 });
+					await session.updatePlayerGameState(state, { coins: session.player.coins + coinsAward });
 				}
 				onComplete();
 			} else if (event === 'workshop-reset') {
@@ -661,22 +698,36 @@
 	</div>
 {/snippet}
 
+{#snippet activateFinalFeedbackBtn()}
+	{#if activeMode !== 'final_feedback'}
+		<button
+			type="button"
+			class="btn-solar-accent btn-sm font-bold"
+			onclick={handleActivateFinalFeedback}
+		>
+			🏁 Activar Feedback Final
+		</button>
+	{/if}
+{/snippet}
+
 <div class="workshop-wrapper" in:fade>
 	<FacilitatorControlPanel
 		isHost={session.isHost}
 		onlineCount={session.onlinePlayers.length}
 		submittedCount={submittedCount}
 		isFirstStep={currentSlideId === 1}
-		isLastStep={isLastSlide}
+		isLastStep={isLastSlide || activeMode === 'final_feedback'}
 		activeMode={activeMode}
 		onReset={handleResetWorkshop}
 		onPrev={handlePrevSlide}
 		onNext={handleNextSlide}
 		onToggleMode={handleToggleMode}
 		onComplete={handleCompleteWorkshop}
-		coinsLabel="+25 BEM Coins"
+		coinsLabel="25-35 BEM Coins"
 		stepLabel="Slide"
-	/>
+	>
+		{@render activateFinalFeedbackBtn()}
+	</FacilitatorControlPanel>
 
 	<main class="workshop-body">
 		<div class="slide-header">
@@ -834,6 +885,91 @@
 					</div>
 
 					<!-- Tabla de Líderes -->
+					<div class="leaderboard-card glass-card flex-1" style="flex: 1; padding: 1.5rem; border-left: 4px solid var(--color-solar-sky, #0369a1);">
+						<div class="leaderboard-header" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+							<span class="leaderboard-icon" style="font-size: 1.5rem;">🏆</span>
+							<h4 style="margin: 0; font-size: 1rem; font-weight: 800; color: #1e4533; text-transform: uppercase;">Tabla de Líderes del Taller</h4>
+						</div>
+						<div class="leaderboard-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto;">
+							{#if leaderboard.length === 0}
+								<p style="font-size: 0.8rem; color: #9ca3af; text-align: center; margin: 1rem 0;">Esperando respuestas de los participantes...</p>
+							{:else}
+								{#each leaderboard as row, idx}
+									<div class="leaderboard-row" class:self-row={row.id === session.player.id} style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem; background: rgba(0,0,0,0.02);" class:self-row-bg={row.id === session.player.id}>
+										<div style="display: flex; align-items: center; gap: 0.5rem;">
+											<span style="font-weight: 800; min-width: 1.5rem; color: #6b7280;">#{idx + 1}</span>
+											<span style="font-weight: 700; color: #374151;" class:self-bold={row.id === session.player.id}>{row.name}</span>
+										</div>
+										<div style="display: flex; align-items: center; gap: 1rem;">
+											<span style="font-size: 0.7rem; color: #9ca3af;">{row.slideCount} slides</span>
+											<span style="font-weight: 800; color: #0369a1;">{row.totalPV} PV</span>
+										</div>
+									</div>
+								{/each}
+							{/if}
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		{#if activeMode === 'final_feedback'}
+			<div class="final-feedback-mode" in:fade>
+				<MentorExplain
+					mentorName="Emma Wagner"
+					mentorAvatar="/learn_resources/characters/char_emma_wagner_animated.gif"
+					titlePrefix="Feedback Final del Taller"
+					instructions="<strong>¡Taller completado, Agente!</strong><br/><br/>Has analizado <strong>{totalSlides} casos</strong> de sistemas de evaluación en juego. A continuación encontrarás un resumen de los conceptos clave que exploramos, organizados por tipo de disparador y sistema de evaluación. Revisa esta guía para consolidar lo aprendido antes de cerrar la sesión."
+				/>
+
+				<!-- Conceptos Clave -->
+				<div class="key-concepts-card glass-card">
+					<h3>📚 Conceptos Clave del Taller</h3>
+					<div class="concepts-grid">
+						{#each allKeyConcepts as concept}
+							<div class="concept-item">
+								<div class="concept-badges">
+									<span class="trigger-badge" class:accion={concept.triggerTypeLabel === 'Acción'} class:meta={concept.triggerTypeLabel === 'Meta'} class:farmeable={concept.triggerTypeLabel === 'Farmeable'}>
+										{concept.triggerTypeLabel === 'Acción' ? '⚡' : concept.triggerTypeLabel === 'Meta' ? '🎯' : '🔁'} {concept.triggerTypeLabel}
+									</span>
+									<span class="eval-badge">{concept.evalSystemLabel}</span>
+								</div>
+								<ul class="slide-list">
+									{#each concept.slides as slide}
+										<li>{slide}</li>
+									{/each}
+								</ul>
+							</div>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Scoreboard & Leaderboard (reused) -->
+				<div class="scoreboard-leaderboard-layout flex flex-col md:flex-row gap-6 mt-8" style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem;">
+					<div class="group-scoreboard-card glass-card flex-1" style="flex: 1; padding: 1.5rem; border-left: 4px solid var(--color-solar-yellow, #eab308);">
+						<div class="scoreboard-header" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+							<span class="scoreboard-icon" style="font-size: 1.5rem;">🎯</span>
+							<h4 style="margin: 0; font-size: 1rem; font-weight: 800; color: #1e4533; text-transform: uppercase;">Desempeño Colectivo</h4>
+						</div>
+						<div class="scoreboard-body">
+							<div class="pv-stat" style="margin-bottom: 0.75rem;">
+								<span class="pv-value" style="font-size: 2rem; font-weight: 850; color: #0369a1;">{currentRoundGroupPV} PV</span>
+								<span class="pv-label" style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600;">Puntos Colectivos de esta ronda</span>
+							</div>
+							{#if currentSlideId > 1 && prevRoundGroupPV > 0}
+								<div class="trend-indicator" class:up={pvTrend === 'up'} class:down={pvTrend === 'down'} style="font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 0.25rem;">
+									{#if pvTrend === 'up'}
+										<span style="color: #10b981;">▲</span> <span style="color: #065f46;">Más preciso que la ronda anterior ({prevRoundGroupPV} PV)</span>
+									{:else if pvTrend === 'down'}
+										<span style="color: #ef4444;">▼</span> <span style="color: #b91c1c;">Menos preciso que la ronda anterior ({prevRoundGroupPV} PV)</span>
+									{:else}
+										<span style="color: #6b7280;">●</span> <span style="color: #374151;">Igual precisión que la ronda anterior ({prevRoundGroupPV} PV)</span>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					</div>
+
 					<div class="leaderboard-card glass-card flex-1" style="flex: 1; padding: 1.5rem; border-left: 4px solid var(--color-solar-sky, #0369a1);">
 						<div class="leaderboard-header" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
 							<span class="leaderboard-icon" style="font-size: 1.5rem;">🏆</span>

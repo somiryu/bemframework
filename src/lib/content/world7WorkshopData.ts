@@ -1,5 +1,5 @@
 export type TriggerType7 = 'accion' | 'meta' | 'farmeable';
-export type EvaluationSystem7 = 'criterios_dinamicos' | 'rubrica_multicanal' | 'calificacion_directa' | 'efecto_sistemico' | 'algoritmo_matematico' | 'dashboard';
+export type EvaluationSystem7 = 'criterios_dinamicos' | 'rubrica_monocal' | 'rubrica_multicanal' | 'calificacion_directa' | 'efecto_sistemico' | 'algoritmo_matematico' | 'dashboard';
 
 export interface Criterion7 {
 	id: string;
@@ -83,8 +83,8 @@ export const world7WorkshopSlides: WorkshopSlide7[] = [
 		title: 'Caso A2: Rúbrica de Foro Semanal',
 		scenario: 'Cada vez que un estudiante publica un mensaje en el foro de discusión semanal, el sistema lo evalúa automáticamente contra una rúbrica de 4 criterios: profundidad analítica (0-4), referencia a lecturas (0-2), claridad argumentativa (0-2) y respuesta a compañeros (0-2). La nota máxima por publicación es 10. El estudiante puede ver su puntuación desglosada inmediatamente después de publicar.',
 		triggerType: 'accion',
-		evaluationSystem: 'rubrica_multicanal',
-		giochiFeedback: 'La rúbrica multicanal ofrece claridad y transparencia total: el estudiante sabe exactamente qué se evalúa. El disparador por acción (publicar) es inmediato y predecible. Sin embargo, la rigidez de la rúbrica puede no capturar contribuciones valiosas pero atípicas, y algunos estudiantes podrían optimizar sus publicaciones solo para cumplir la rúbrica en lugar de participar genuinamente.'
+		evaluationSystem: 'rubrica_monocal',
+		giochiFeedback: 'La rúbrica monocal ofrece claridad en los criterios listados, pero al combinar 4 criterios en una sola nota se genera un gap evaluativo: el estudiante sabe que obtuvo 6/10 pero no si falló en profundidad, en referencias o en claridad. El disparador por acción es inmediato y predecible, pero la rigidez puede no capturar contribuciones valiosas pero atípicas.'
 	},
 	{
 		id: 3,
@@ -224,8 +224,8 @@ export const world7WorkshopSlides: WorkshopSlide7[] = [
 		title: 'Caso M7: Evaluación 360° al Completar Proyecto',
 		scenario: 'Al finalizar un proyecto grupal, cada estudiante recibe una evaluación compuesta por: autoevaluación (20%), evaluación del docente (40%), evaluación de pares (30%) y evaluación del cliente simulado (10%). Cada evaluador usa una rúbrica de 5 criterios con escala 1-5. El sistema promedia las puntuaciones y muestra un radar de competencias con el desglose completo.',
 		triggerType: 'meta',
-		evaluationSystem: 'rubrica_multicanal',
-		giochiFeedback: 'La rúbrica multicanal con 4 fuentes de evaluación ofrece una visión integral del desempeño. La transparencia es alta porque cada criterio y fuente está desglosada. Sin embargo, la evaluación de pares puede verse afectada por sesgos personales o acuerdos tácitos entre compañeros. El peso del 30% en pares es significativo y requiere entrenamiento previo en evaluación objetiva.'
+		evaluationSystem: 'rubrica_monocal',
+		giochiFeedback: 'Aunque hay múltiples fuentes (auto, docente, pares, cliente), al promediarse en una sola nota se pierde información diagnóstica. Un estudiante puede tener buena autoevaluación pero mala evaluación de pares, y la nota única no revela esa brecha. Es un gap evaluativo por rúbrica monocal. La evaluación de pares puede verse afectada por sesgos personales o acuerdos tácitos.'
 	},
 	{
 		id: 17,
@@ -285,8 +285,8 @@ export const world7WorkshopSlides: WorkshopSlide7[] = [
 		title: 'Caso F5: Bitácora Semanal con Rúbrica',
 		scenario: 'Cada viernes, el sistema revisa automáticamente la bitácora semanal del estudiante y evalúa 3 criterios: cantidad de entradas (0-4), profundidad reflexiva (0-4 medido por análisis de texto), y conexión con conceptos del curso (0-4 medido por coincidencia de keywords). La suma da un puntaje de 0-12 que se convierte a nota sobre 5.0. El estudiante puede ver el desglose y las palabras clave detectadas.',
 		triggerType: 'farmeable',
-		evaluationSystem: 'rubrica_multicanal',
-		giochiFeedback: 'La rúbrica multicanal automatizada ofrece consistencia y la transparencia del desglose ayuda al estudiante a entender su evaluación. Sin embargo, el análisis por keywords puede ser engañoso: un estudiante puede escribir "motivación, autonomía, competencia, relación" sin realmente reflexionar. La cantidad de entradas también puede incentivar escribir entradas superficiales solo para cumplir.'
+		evaluationSystem: 'rubrica_monocal',
+		giochiFeedback: 'La rúbrica monocal automatizada ofrece consistencia, pero al sumar 3 parámetros distintos (cantidad, profundidad, keywords) en una sola nota se pierde información. Un estudiante con muchas entradas superficiales puede obtener la misma nota que uno con pocas reflexiones profundas. El análisis por keywords puede ser engañoso: un estudiante puede escribir términos clave sin realmente reflexionar.'
 	},
 	{
 		id: 23,
@@ -319,6 +319,16 @@ export const world7WorkshopSlides: WorkshopSlide7[] = [
 		giochiFeedback: 'La calificación directa con tope diario es simple y el indicador de barra de energía es claro. El tope limita el farming excesivo y distribuye la práctica en el tiempo. Sin embargo, el tope fijo de 20 monedas puede ser alcanzado en 10 minutos (10 ejercicios), después de lo cual el estudiante no tiene incentivo económico para seguir practicando. El tope debería calibrarse al volumen real de ejercicios necesarios.'
 	}
 ];
+
+export const evaluationSystemLabels: Record<EvaluationSystem7, string> = {
+	criterios_dinamicos: 'Criterios Dinámicos',
+	rubrica_monocal: 'Rúbrica Monocal',
+	rubrica_multicanal: 'Rúbrica Multicanal',
+	calificacion_directa: 'Calificación Directa',
+	efecto_sistemico: 'Efecto Sistémico',
+	algoritmo_matematico: 'Algoritmo Matemático',
+	dashboard: 'Dashboard de Información'
+};
 
 export function getWorld7ProximityScore(studentRating: number, groupAverage: number): number {
 	const distance = Math.abs(studentRating - groupAverage);
