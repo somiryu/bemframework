@@ -33,8 +33,20 @@
 			]
 		},
 		{ 
-			label: lang === 'en' ? 'Learning' : 'Aprendizaje',
-			href: `/${lang}/learning`
+			label: lang === 'en' ? 'BEM Brain' : 'BEM Brain',
+			href: `/${lang}/brain`
+		},
+		{ 
+			label: lang === 'en' ? 'Academy' : 'Academia',
+			href: `/${lang}/learning`,
+			submenu: [
+				{ label: lang === 'en' ? 'Pedagogical Architecture' : 'Arquitectura Pedagógica', href: `/${lang}/learning` },
+				{ label: lang === 'en' ? 'Gamified Portal' : 'Portal Gamificado', href: `/${lang}/academy/portal` }
+			]
+		},
+		{ 
+			label: lang === 'en' ? 'Blog' : 'Blog',
+			href: `/${lang}/blog`
 		},
 		{ 
 			label: lang === 'en' ? 'Resources' : 'Recursos',
@@ -42,17 +54,7 @@
 			submenu: [
 				{ label: lang === 'en' ? 'Tools' : 'Herramientas', href: `/${lang}/resources/tools` },
 				{ label: lang === 'en' ? 'Play & Learn' : 'Jugar y Aprender', href: `/${lang}/resources/play-and-learn` },
-				{ label: lang === 'en' ? 'Blog' : 'Blog', href: `/${lang}/blog` },
 				{ label: lang === 'en' ? 'Books' : 'Libros', href: `/${lang}/book` }
-			]
-		},
-		{ 
-			label: lang === 'en' ? 'Services' : 'Servicios',
-			href: `/${lang}/services/consulting`,
-			submenu: [
-				{ label: lang === 'en' ? 'Consulting' : 'Consultoría', href: `/${lang}/services/consulting` },
-				{ label: lang === 'en' ? 'Engagement' : 'Director de Compromiso', href: `/${lang}/services/engagement` },
-				{ label: lang === 'en' ? 'Quote' : 'Cotización', href: `/${lang}/services/quote` }
 			]
 		},
 		{ 
@@ -69,7 +71,8 @@
 		page.url.pathname.includes('/login') || (
 			!page.url.pathname.includes('/learning') && (
 				page.url.pathname.includes('/learn/') || 
-				page.url.pathname.endsWith('/learn')
+				page.url.pathname.endsWith('/learn') ||
+				page.url.pathname.includes('/academy/portal')
 			)
 		)
 	);
