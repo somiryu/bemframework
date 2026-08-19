@@ -324,37 +324,18 @@
 		});
 
 		// Fetch initial instance state
-		if (supabase) {
-			supabase
-				.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(({ data: inst }) => {
-					const instState = inst?.current_workshop_state;
-					if (instState && instState.world_id === 6) {
-						syncFromDatabaseState(instState);
-					} else if (session.isHost) {
-						handleResetWorkshop();
-					}
-				});
+		session.fetchInitialWorkshopState().then((instState) => {
+			if (instState && instState.world_id === 6) {
+				syncFromDatabaseState(instState);
+			} else if (session.isHost) {
+				handleResetWorkshop();
+			}
+		});
 
-			// Subscribe to database instance updates
-			supabase
-				.channel(`course_instance_sync_w6_${instance.code}`)
-				.on('postgres_changes', {
-					event: 'UPDATE',
-					schema: 'public',
-					table: 'course_instances',
-					filter: `code=eq.${instance.code}`
-				}, (payload: any) => {
-					const instState = payload.new?.current_workshop_state;
-					if (instState && instState.world_id === 6) {
-						syncFromDatabaseState(instState);
-					}
-				})
-				.subscribe();
-		}
+		// Subscribe to database instance updates (fallback if broadcast is missed)
+		session.subscribeToInstanceState((instState) => {
+			syncFromDatabaseState(instState);
+		});
 	});
 
 	onDestroy(() => {

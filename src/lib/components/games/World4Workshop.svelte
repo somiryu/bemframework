@@ -149,16 +149,10 @@
 		});
 
 		// Fetch existing instance state if it exists on load
-		if (supabase) {
-			supabase
-				.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(({ data: inst }) => {
-					if (inst?.current_workshop_state && inst.current_workshop_state.world_id === 4) {
-						const state = inst.current_workshop_state;
-						currentSlideIndex = state.slide_index || 1;
+		session.fetchInitialWorkshopState().then((instState) => {
+			if (instState && instState.world_id === 4) {
+				const state = instState;
+				currentSlideIndex = state.slide_index || 1;
 						activeMode = state.mode || 'actividad';
 
 						const savedAnswer = session.player.game_state?.[4]?.workshop_answers?.[currentSlideIndex];
@@ -182,9 +176,8 @@
 							localVotes = {};
 							hasSubmittedLocalVote = false;
 						}
-					}
-				});
-		}
+			}
+		});
 	});
 
 	// Load class votes from database for a specific slide

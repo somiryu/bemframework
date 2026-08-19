@@ -358,13 +358,9 @@
 		});
 
 		if (supabase) {
-			supabase
-				.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(async ({ data: inst }) => {
-					let currentWorkshopState = inst?.current_workshop_state;
+			session.fetchInitialWorkshopState()
+				.then(async (instState) => {
+					let currentWorkshopState = instState;
 
 					// If state is not initialized for World 2, or card_order is missing, or it's sequential, the host creates/resets it!
 					if (session.isHost && (!currentWorkshopState || currentWorkshopState.world_id !== 2 || !currentWorkshopState.card_order || isSequential(currentWorkshopState.card_order))) {
@@ -433,41 +429,31 @@
 				})
 				.subscribe();
 
-			// Fallback: Sync and listen to course_instances changes (host round updates) in case WebSocket broadcast fails in production
-			const instancesChannel = supabase
-				.channel(`course_instances_sync_w2_${instance.code}`)
-				.on('postgres_changes', {
-					event: 'UPDATE',
-					schema: 'public',
-					table: 'course_instances',
-					filter: `code=eq.${instance.code}`
-				}, (payload: any) => {
-					const instState = payload.new?.current_workshop_state;
-					if (instState && instState.world_id === 2) {
-						currentRound = instState.round_index ?? 0;
-						activeMode = instState.mode ?? 'actividad';
-						if (instState.card_order) {
-							cardOrder = instState.card_order;
-						}
-						
-						const savedState = session.player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
-						if (savedState) {
-							selectedCol = savedState.col;
-							selectedRow = savedState.row;
-							hasVotedThisRound = true;
-						} else {
-							selectedCol = null;
-							selectedRow = null;
-							hasVotedThisRound = false;
-						}
-					}
-				})
-				.subscribe();
+			// Fallback: Sync and listen to course_instances changes (host round updates)
+			// in case WebSocket broadcast fails in production. session.cleanup() (see
+			// onDestroy above) closes this channel — it doesn't need removeChannel below.
+			session.subscribeToInstanceState((instState) => {
+				currentRound = instState.round_index ?? 0;
+				activeMode = instState.mode ?? 'actividad';
+				if (instState.card_order) {
+					cardOrder = instState.card_order;
+				}
+
+				const savedState = session.player.game_state?.[2]?.workshop_completed_rounds?.[currentRound];
+				if (savedState) {
+					selectedCol = savedState.col;
+					selectedRow = savedState.row;
+					hasVotedThisRound = true;
+				} else {
+					selectedCol = null;
+					selectedRow = null;
+					hasVotedThisRound = false;
+				}
+			});
 
 			return () => {
 				if (supabase) {
 					supabase.removeChannel(playersChannel);
-					supabase.removeChannel(instancesChannel);
 				}
 			};
 		}

@@ -154,38 +154,19 @@
 	onMount(() => {
 		session.loadAllClassPlayers();
 
-		if (supabase) {
-			// Query initial state
-			supabase
-				.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(({ data: inst }) => {
-					const instState = inst?.current_workshop_state;
-					if (instState && instState.world_id === 5) {
-						syncFromDatabaseState(instState);
-					} else if (session.isHost) {
-						handleResetWorkshop(); // Initialize fresh state for World 5
-					}
-				});
+		// Query initial state
+		session.fetchInitialWorkshopState().then((instState) => {
+			if (instState && instState.world_id === 5) {
+				syncFromDatabaseState(instState);
+			} else if (session.isHost) {
+				handleResetWorkshop(); // Initialize fresh state for World 5
+			}
+		});
 
-			// Subscribe to course_instances changes
-			const instanceChannel = supabase
-				.channel(`course_instance_sync_w5_${instance.code}`)
-				.on('postgres_changes', {
-					event: 'UPDATE',
-					schema: 'public',
-					table: 'course_instances',
-					filter: `code=eq.${instance.code}`
-				}, (payload: any) => {
-					const instState = payload.new?.current_workshop_state;
-					if (instState && instState.world_id === 5) {
-						syncFromDatabaseState(instState);
-					}
-				})
-				.subscribe();
-		}
+		// Subscribe to course_instances changes (fallback if broadcast is missed)
+		session.subscribeToInstanceState((instState) => {
+			syncFromDatabaseState(instState);
+		});
 
 		session.initConnection(async (event, payload) => {
 			if (event === 'state-sync') {

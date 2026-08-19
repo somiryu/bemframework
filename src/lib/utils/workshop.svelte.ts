@@ -11,6 +11,7 @@ export function createWorkshopSession(
 	let onlinePlayers = $state<any[]>([]);
 	let allClassPlayers = $state<any[]>([]);
 	let channel = $state<any>(null);
+	let instanceStateChannel = $state<any>(null);
 
 	// The admin panel marks the facilitator by writing game_state.is_super_user
 	// (see loginAsSuperUserPlayer in routes/admin/+page.server.ts) — that flag,
@@ -120,10 +121,53 @@ export function createWorkshopSession(
 		}
 	}
 
+	// One-time read of the persisted current_workshop_state on mount, so a
+	// late entrant or a page reload picks up wherever the class already is.
+	// This query was identical, byte for byte, in all 7 World*Workshop
+	// components — only what each one does with the result differs, and
+	// that per-world parsing stays exactly where it was.
+	async function fetchInitialWorkshopState(): Promise<any | null> {
+		if (!supabase) return null;
+		const { data: inst } = await supabase
+			.from('course_instances')
+			.select('current_workshop_state')
+			.eq('code', instance.code)
+			.single();
+		return inst?.current_workshop_state ?? null;
+	}
+
+	// Belt-and-suspenders resync: some worlds also listen for postgres_changes
+	// on course_instances directly, as a fallback in case the broadcast
+	// channel misses an update. This was duplicated (and in two of three
+	// worlds, never actually cleaned up on unmount — a real channel leak
+	// once navigation stopped doing a full page reload) — now it's one path,
+	// registered here so cleanup() always closes it.
+	function subscribeToInstanceState(onUpdate: (state: any) => void) {
+		if (!supabase) return;
+		instanceStateChannel = supabase
+			.channel(`course_instance_sync_w${worldId}_${instance.code}`)
+			.on('postgres_changes', {
+				event: 'UPDATE',
+				schema: 'public',
+				table: 'course_instances',
+				filter: `code=eq.${instance.code}`
+			}, (payload: any) => {
+				const instState = payload.new?.current_workshop_state;
+				if (instState && instState.world_id === worldId) {
+					onUpdate(instState);
+				}
+			})
+			.subscribe();
+	}
+
 	function cleanup() {
 		if (channel) {
 			channel.unsubscribe();
 			channel = null;
+		}
+		if (instanceStateChannel) {
+			supabase?.removeChannel(instanceStateChannel);
+			instanceStateChannel = null;
 		}
 	}
 
@@ -140,6 +184,8 @@ export function createWorkshopSession(
 		initConnection,
 		updatePlayerGameState,
 		syncWorkshopState,
+		fetchInitialWorkshopState,
+		subscribeToInstanceState,
 		safeSend,
 		cleanup
 	};

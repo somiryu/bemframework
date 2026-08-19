@@ -131,25 +131,17 @@
 		});
 
 		// Fetch existing instance state if it exists
-		if (supabase) {
-			supabase
-				.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(({ data: inst }) => {
-					if (inst?.current_workshop_state && inst.current_workshop_state.world_id === 3) {
-						const state = inst.current_workshop_state;
-						activePhase = state.phase || 1;
-						roundIndex = state.round || 1;
-						submittedIdeas = state.ideas || [];
-						studentVoteMap = state.votes || {};
-						mentorAssignments = state.mentorAssignments || {};
-						collectiveScore = state.score || 0;
-						roundHistory = state.rounds || [];
-					}
-				});
-		}
+		session.fetchInitialWorkshopState().then((instState) => {
+			if (instState && instState.world_id === 3) {
+				activePhase = instState.phase || 1;
+				roundIndex = instState.round || 1;
+				submittedIdeas = instState.ideas || [];
+				studentVoteMap = instState.votes || {};
+				mentorAssignments = instState.mentorAssignments || {};
+				collectiveScore = instState.score || 0;
+				roundHistory = instState.rounds || [];
+			}
+		});
 	});
 
 	onDestroy(() => {

@@ -616,15 +616,10 @@
 			}
 		});
 
-		if (supabase) {
-			supabase.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(async ({ data: inst }) => {
-					if (inst?.current_workshop_state && inst.current_workshop_state.world_id === 7) {
-						const wst = inst.current_workshop_state;
-						
+		session.fetchInitialWorkshopState().then(async (instState) => {
+				if (instState && instState.world_id === 7) {
+					const wst = instState;
+
 						// Auto-clean stale answers on initial load if workshop is reset
 						const isResetState = wst.slide_index === 1 && (wst.visitedSlideIds?.length === 1 && wst.visitedSlideIds[0] === 1);
 						const hasStaleAnswers = session.player.game_state?.[7]?.workshop_answers && Object.keys(session.player.game_state[7].workshop_answers).length > 1;
@@ -650,9 +645,8 @@
 							submissionTime = saved.time || 0;
 							hasSubmitted = true;
 						}
-					}
-				});
-		}
+				}
+		});
 	});
 
 	onDestroy(() => {

@@ -150,20 +150,13 @@
 			}
 		});
 
-		if (supabase) {
-			// Fetch latest workshop state stored in course instance to keep in sync
-			supabase
-				.from('course_instances')
-				.select('current_workshop_state')
-				.eq('code', instance.code)
-				.single()
-				.then(({ data: inst }) => {
-					if (inst?.current_workshop_state && inst.current_workshop_state.world_id === 1) {
-						currentSlide = inst.current_workshop_state.slide_index ?? 0;
-						activeSlideMode = inst.current_workshop_state.mode ?? 'actividad';
-					}
-				});
-		}
+		// Fetch latest workshop state stored in course instance to keep in sync
+		session.fetchInitialWorkshopState().then((instState) => {
+			if (instState && instState.world_id === 1) {
+				currentSlide = instState.slide_index ?? 0;
+				activeSlideMode = instState.mode ?? 'actividad';
+			}
+		});
 	});
 
 	// Host broadcast sync triggers
