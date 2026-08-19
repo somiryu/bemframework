@@ -4,14 +4,15 @@
 	import { supabase } from '$lib/supabase';
 	import { createWorkshopSession } from '$lib/utils/workshop.svelte';
 	import {
-		world7WorkshopSlides,
+		world7WorkshopSlides as staticWorld7WorkshopSlides,
 		world7Criteria,
 		world7PartNames,
 		getWorld7ProximityScore,
 		getWorld7SpeedScore,
 		getWorld7TotalPV,
 		getWorld7Stars,
-		evaluationSystemLabels
+		evaluationSystemLabels,
+		type WorkshopSlide7
 	} from '$lib/content/world7WorkshopData';
 	import confetti from 'canvas-confetti';
 	import FacilitatorControlPanel from '$lib/components/workshop/FacilitatorControlPanel.svelte';
@@ -20,12 +21,18 @@
 	let {
 		player: initialPlayer,
 		instance,
+		world = null,
 		onComplete
 	}: {
 		player: any;
 		instance: any;
+		world?: any;
 		onComplete: () => void;
 	} = $props();
+
+	// Content lives in course_worlds.workshop_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const world7WorkshopSlides: WorkshopSlide7[] = world?.workshop_modules?.slides?.length ? world.workshop_modules.slides : staticWorld7WorkshopSlides;
 
 	const session = createWorkshopSession(initialPlayer, instance, 7, onComplete);
 
@@ -371,11 +378,8 @@
 
 	// Host Operations
 	async function writeToDatabaseState(newState: any) {
-		if (!session.isHost || !supabase) return;
-		await supabase
-			.from('course_instances')
-			.update({ current_workshop_state: newState })
-			.eq('code', instance.code);
+		if (!session.isHost) return;
+		await session.syncWorkshopState(newState);
 	}
 
 	async function handleResetWorkshop() {
@@ -1147,7 +1151,6 @@
 	.comparison-table td { padding: 0.5rem; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
 	.my-val { font-weight: 700; color: #0369a1; }
 	.avg-val { font-weight: 600; color: #374151; }
-	.std-val { font-weight: 500; color: #6b7280; }
 
 	.feedback-mode { padding: 1.5rem; border-radius: 16px; }
 	.giochi-feedback { margin-bottom: 2rem; padding: 1.25rem; background: #f0fdf4; border-radius: 12px; border-left: 4px solid #3d8f68; }
@@ -1157,7 +1160,6 @@
 	.class-distribution h3 { font-size: 1rem; font-weight: 700; color: #1e4533; margin-bottom: 1.5rem; }
 	.distribution-grid { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
 	.dist-item { display: flex; align-items: center; gap: 1.5rem; width: 100%; }
-	.dist-label { font-size: 0.9rem; font-weight: 700; color: #1e4533; width: 160px; flex-shrink: 0; text-align: right; }
 	.dist-bar-wrapper { flex: 1; position: relative; padding-top: 1.25rem; max-width: 450px; width: 100%; }
 	.dist-bar { display: flex; align-items: flex-end; gap: 3px; height: 90px; background: #f9fafb; border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 12px; padding: 0.5rem; width: 100%; max-width: 450px; }
 	.dist-column { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }

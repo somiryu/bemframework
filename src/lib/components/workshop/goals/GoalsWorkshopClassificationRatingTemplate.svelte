@@ -768,9 +768,6 @@
 		color: var(--color-solar-green-medium, #3d8f68);
 	}
 
-	.rating-correct-val {
-		color: var(--color-solar-text-muted, #777777);
-	}
 
 	.preview-meta-text {
 		margin: 0;

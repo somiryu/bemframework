@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
 	import World1Workshop from '$lib/components/games/World1Workshop.svelte';
 	import World2Workshop from '$lib/components/games/World2Workshop.svelte';
@@ -17,60 +18,68 @@ import WorkshopHeader from '$lib/components/workshop/WorkshopHeader.svelte';
 	const lang = $derived((page.params.lang as 'es' | 'en') ?? 'es');
 	const t = $derived(learnTranslations[lang].dashboard);
 
-	function handleBackToMap() {
-		window.location.href = `/${lang}/learn`;
+	async function handleBackToMap() {
+		await goto(`/${lang}/learn`);
+		window.scrollTo({ top: 0, behavior: 'instant' });
 	}
 </script>
 
 <div class="fullscreen-workshop-layout" transition:fade>
-	<WorkshopHeader 
+	<WorkshopHeader
 		instanceCode={data.instance.code}
-		worldTitle={data.world.title}
+		worldTitle={data.world.displayTitle ?? data.world.title}
 		backLabel={t.backToMap}
 		onBack={handleBackToMap}
 	/>
 
 	<main class="workshop-body">
 		{#if data.world.id === 1}
-			<World1Workshop 
-				player={data.player} 
+			<World1Workshop
+				player={data.player}
 				instance={data.instance}
+				world={data.world}
 				onComplete={handleBackToMap}
 			/>
 		{:else if data.world.id === 2}
-			<World2Workshop 
-				player={data.player} 
+			<World2Workshop
+				player={data.player}
 				instance={data.instance}
+				world={data.world}
 				onComplete={handleBackToMap}
 			/>
 		{:else if data.world.id === 3}
-			<World3Workshop 
-				player={data.player} 
+			<World3Workshop
+				player={data.player}
 				instance={data.instance}
+				world={data.world}
 				onComplete={handleBackToMap}
 			/>
 		{:else if data.world.id === 4}
-			<World4Workshop 
-				player={data.player} 
+			<World4Workshop
+				player={data.player}
 				instance={data.instance}
+				world={data.world}
 				onComplete={handleBackToMap}
 			/>
 		{:else if data.world.id === 5}
-			<World5Workshop 
-				player={data.player} 
+			<World5Workshop
+				player={data.player}
 				instance={data.instance}
+				world={data.world}
 				onComplete={handleBackToMap}
 			/>
 		{:else if data.world.id === 6}
-			<World6Workshop 
-				player={data.player} 
+			<World6Workshop
+				player={data.player}
 				instance={data.instance}
+				world={data.world}
 				onComplete={handleBackToMap}
 			/>
 		{:else if data.world.id === 7}
-			<World7Workshop 
-				player={data.player} 
+			<World7Workshop
+				player={data.player}
 				instance={data.instance}
+				world={data.world}
 				onComplete={handleBackToMap}
 			/>
 		{:else}
@@ -94,50 +103,6 @@ import WorkshopHeader from '$lib/components/workshop/WorkshopHeader.svelte';
 		flex-direction: column;
 		padding: 1.5rem;
 		box-sizing: border-box;
-	}
-
-	.workshop-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 1.25rem 2rem;
-		border-radius: var(--radius-solar-md, 20px);
-		border: 1px solid var(--color-solar-card-border);
-		background: rgba(255, 255, 255, 0.9);
-		backdrop-filter: blur(12px);
-		box-shadow: var(--shadow-solar-sm);
-		margin-bottom: 1.5rem;
-	}
-
-	.header-left {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.25rem;
-		text-align: left;
-	}
-
-	.w-badge {
-		font-size: 0.65rem;
-		font-weight: 800;
-		color: var(--color-solar-green-medium);
-		background: var(--color-solar-green-light);
-		padding: 0.2rem 0.6rem;
-		border-radius: 6px;
-		letter-spacing: 0.05em;
-	}
-
-	.header-title {
-		font-family: var(--font-solar-header);
-		font-size: 1.4rem;
-		font-weight: 800;
-		color: var(--color-solar-green-dark);
-		margin: 0;
-	}
-
-	.header-right {
-		display: flex;
-		align-items: center;
 	}
 
 	.workshop-body {

@@ -536,19 +536,7 @@
 		margin-top: 1.5rem;
 	}
 
-	.waiting-box {
-		padding: 1.5rem;
-		text-align: center;
-		margin-top: 1.5rem;
-	}
 
-	.waiting-pulse-text {
-		margin: 0;
-		color: var(--color-solar-green-medium, #3d8f68);
-		font-weight: 600;
-		font-size: 0.9rem;
-		animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-	}
 
 	/* FEEDBACK / HOST VIEW STYLES */
 	.priority-feedback-layout {

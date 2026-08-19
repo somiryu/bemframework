@@ -4,18 +4,24 @@
 	import { supabase } from '$lib/supabase';
 	import { createWorkshopSession } from '$lib/utils/workshop.svelte';
 	import FacilitatorControlPanel from '$lib/components/workshop/FacilitatorControlPanel.svelte';
-	import { world5WorkshopSlides, type WorkshopSlide5 } from '$lib/content/world5WorkshopData';
+	import { world5WorkshopSlides as staticWorld5WorkshopSlides, type WorkshopSlide5 } from '$lib/content/world5WorkshopData';
 	import confetti from 'canvas-confetti';
 
 	let {
 		player: initialPlayer,
 		instance,
+		world = null,
 		onComplete
 	}: {
 		player: any;
 		instance: any;
+		world?: any;
 		onComplete: () => void;
 	} = $props();
+
+	// Content lives in course_worlds.workshop_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const world5WorkshopSlides: WorkshopSlide5[] = world?.workshop_modules?.slides?.length ? world.workshop_modules.slides : staticWorld5WorkshopSlides;
 
 	// Session management helper
 	const session = createWorkshopSession(initialPlayer, instance, 5, onComplete);
@@ -244,6 +250,9 @@
 	onDestroy(() => {
 		clearInterval(transitionInterval);
 		clearTimeout(dbWriteTimeout);
+		// Without this, navigating away with goto() (instead of a full page
+		// reload) would leave the realtime channel subscribed indefinitely.
+		session.cleanup();
 	});
 
 	function syncFromDatabaseState(state: any) {
@@ -290,14 +299,10 @@
 			});
 		}
 
-		if (session.isHost && supabase) {
+		if (session.isHost) {
 			clearTimeout(dbWriteTimeout);
 			dbWriteTimeout = setTimeout(() => {
-				supabase
-					.from('course_instances')
-					.update({ current_workshop_state: currentState })
-					.eq('code', instance.code)
-					.then(() => {});
+				session.syncWorkshopState(currentState);
 			}, 2000);
 		}
 	}
@@ -448,12 +453,7 @@
 	}
 
 	async function handleEndWorkshop() {
-		if (supabase) {
-			await supabase
-				.from('course_instances')
-				.update({ current_workshop_state: { world_id: 5, completed: true } })
-				.eq('code', instance.code);
-		}
+		await session.syncWorkshopState({ world_id: 5, completed: true });
 		if (session.channel) {
 			session.channel.send({
 				type: 'broadcast',
@@ -1504,11 +1504,6 @@
 	.w5-roster-badge.next { background: var(--color-solar-yellow-light); color: hsl(35, 60%, 30%); }
 	.w5-roster-badge.spectator { background: #eee; color: #666; }
 
-	.w5-cede-turn-section {
-		margin-top: 1rem;
-		padding-top: 0.5rem;
-		border-top: 1px dashed rgba(0,0,0,0.1);
-	}
 	.w5-cede-btn {
 		background: #f5f5f5;
 		border: 1px solid rgba(0,0,0,0.1);
@@ -1525,44 +1520,11 @@
 		border-color: rgba(0,0,0,0.15);
 	}
 
-	.w5-countdown-bar-container {
-		width: 100%;
-		padding: 1rem;
-		background: white;
-		border: 1px solid var(--color-solar-card-border);
-		border-radius: var(--radius-solar-md);
-		box-shadow: var(--shadow-solar-sm);
-	}
 
-	.w5-countdown-track {
-		width: 100%;
-		height: 8px;
-		border-radius: var(--radius-full);
-		background: var(--color-solar-green-light);
-		overflow: hidden;
-	}
 
-	.w5-countdown-fill {
-		height: 100%;
-		background: linear-gradient(90deg, var(--color-solar-green-medium), var(--color-solar-sky));
-		transition: width 1s linear;
-	}
 
-	.w5-countdown-fill.warning {
-		background: linear-gradient(90deg, var(--color-solar-yellow), var(--color-solar-terracotta));
-	}
 
-	.w5-countdown-text {
-		font-size: 1.8rem;
-		font-weight: 800;
-		color: var(--color-solar-green-dark);
-		margin-top: 0.5rem;
-	}
 
-	.w5-countdown-text.critical {
-		color: var(--color-solar-terracotta);
-		animation: countdown-heartbeat 0.6s ease-in-out infinite;
-	}
 
 	@keyframes countdown-heartbeat {
 		0%, 100% { transform: scale(1); }
@@ -1571,14 +1533,6 @@
 		75% { transform: scale(1.05); }
 	}
 
-	.w5-screen-glint {
-		position: fixed;
-		inset: 0;
-		pointer-events: none;
-		z-index: 100;
-		border: 4px solid transparent;
-		animation: glint-border 1.2s ease-in-out infinite;
-	}
 
 	@keyframes glint-border {
 		0%, 100% { border-color: transparent; }

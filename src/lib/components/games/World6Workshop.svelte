@@ -3,19 +3,25 @@
 	import { fade, slide } from 'svelte/transition';
 	import { supabase } from '$lib/supabase';
 	import { createWorkshopSession } from '$lib/utils/workshop.svelte';
-	import { world6WorkshopSlides, type WorkshopSlide6 } from '$lib/content/world6WorkshopData';
+	import { world6WorkshopSlides as staticWorld6WorkshopSlides, type WorkshopSlide6 } from '$lib/content/world6WorkshopData';
 	import confetti from 'canvas-confetti';
 	import MentorExplain from './MentorExplain.svelte';
 
 	let {
 		player: initialPlayer,
 		instance,
+		world = null,
 		onComplete
 	}: {
 		player: any;
 		instance: any;
+		world?: any;
 		onComplete: () => void;
 	} = $props();
+
+	// Content lives in course_worlds.workshop_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const world6WorkshopSlides: WorkshopSlide6[] = world?.workshop_modules?.slides?.length ? world.workshop_modules.slides : staticWorld6WorkshopSlides;
 
 	// Shared workshop session (World 6)
 	const session = createWorkshopSession(initialPlayer, instance, 6, onComplete);
@@ -162,7 +168,7 @@
 		// Calculate scores and slide deltas
 		const playersData = session.allClassPlayers
 			.filter(p => {
-				const isSuper = p.game_state?.is_super_user === true || p.game_state?.is_facilitator === true || p.email === 'javier@f2p.co';
+				const isSuper = p.game_state?.is_super_user === true;
 				return !isSuper;
 			})
 			.map(p => {
@@ -471,7 +477,7 @@
 		if (players) {
 			const votes: Record<string, any> = {};
 			players.forEach(p => {
-				const isSuper = p.game_state?.is_super_user === true || p.game_state?.is_facilitator === true || p.email === 'javier@f2p.co';
+				const isSuper = p.game_state?.is_super_user === true;
 				if (isSuper) return;
 
 				const ans = p.game_state?.[6]?.workshop_answers?.[slideId];
@@ -492,18 +498,10 @@
 		// Host should also reload players to recalculate the host-side leaderboard
 		session.loadAllClassPlayers();
 
-		if (supabase) {
-			clearTimeout(dbWriteTimeout);
-			dbWriteTimeout = setTimeout(() => {
-				if (supabase) {
-					supabase
-						.from('course_instances')
-						.update({ current_workshop_state: state })
-						.eq('code', instance.code)
-						.then(() => {});
-				}
-			}, 1000);
-		}
+		clearTimeout(dbWriteTimeout);
+		dbWriteTimeout = setTimeout(() => {
+			session.syncWorkshopState(state);
+		}, 1000);
 	}
 
 	// Local timer countdown
@@ -682,11 +680,8 @@
 	async function handleCompleteWorkshop() {
 		session.safeSend('workshop-complete', {});
 
-		if (supabase && session.isHost) {
-			await supabase
-				.from('course_instances')
-				.update({ current_workshop_state: { world_id: 6, completed: true } })
-				.eq('code', instance.code);
+		if (session.isHost) {
+			await session.syncWorkshopState({ world_id: 6, completed: true });
 		}
 		onComplete();
 	}
@@ -2423,32 +2418,9 @@
 		order: 3;
 	}
 
-	.podium-step .alias {
-		font-size: 0.8rem;
-		font-weight: 800;
-		color: var(--color-solar-green-dark, #1e4533);
-		margin-top: 0.25rem;
-		max-width: 90px;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
 
-	.podium-step.step-1 .alias {
-		font-size: 0.9rem;
-		color: #b45309;
-	}
 
-	.podium-step .score {
-		font-family: var(--font-solar-header, sans-serif);
-		font-size: 0.75rem;
-		font-weight: 900;
-		color: var(--color-solar-green-medium, #3d8f68);
-	}
 
-	.podium-step.step-1 .score {
-		font-size: 0.85rem;
-	}
 
 	.pillar {
 		width: 100%;

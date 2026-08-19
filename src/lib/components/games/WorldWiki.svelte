@@ -151,7 +151,7 @@
 									return async ({ result, update }) => {
 										isUnlockingId = null;
 										if (result.type === 'success' && result.data) {
-											onUpdateCoins(result.data.coins, result.data.game_state);
+											onUpdateCoins(result.data.coins as number, result.data.game_state);
 										}
 										await update();
 									};
@@ -159,7 +159,6 @@
 							>
 								<input type="hidden" name="world_id" value={world.id} />
 								<input type="hidden" name="resource_id" value={r.id} />
-								<input type="hidden" name="cost" value={r.cost} />
 
 								<button 
 									type="submit" 

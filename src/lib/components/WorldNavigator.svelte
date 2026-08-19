@@ -1,25 +1,15 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-
-	interface World {
-		id: number;
-		order_index: number;
-		title: string;
-		narrative_place: string;
-		narrative_mentor: string;
-		narrative_objective: string;
-	}
+	import type { DisplayWorld } from '$lib/utils/worldMapper';
 
 	let { 
 		worlds = [], 
-		unlockedWorldIds = [], 
 		playerGameState = {}, 
 		onSelectWorld 
 	}: { 
-		worlds: World[]; 
-		unlockedWorldIds: number[]; 
+		worlds: (DisplayWorld | any)[]; 
 		playerGameState: any; 
-		onSelectWorld: (world: World) => void 
+		onSelectWorld: (world: any) => void 
 	} = $props();
 </script>
 
@@ -29,9 +19,11 @@
 
 	<div class="worlds-trail">
 		{#each worlds as world, idx}
-			{@const isUnlocked = unlockedWorldIds.includes(world.id)}
 			{@const isCompleted = playerGameState[world.id]?.workshop_feedback_submitted && playerGameState[world.id]?.training_completed && playerGameState[world.id]?.design_completed}
 			{@const hasStarted = playerGameState[world.id]?.workshop_completed || playerGameState[world.id]?.training_completed}
+			{@const displayNumber = world.displayNumber ?? (idx + 1)}
+			{@const displayWorldLabel = world.displayWorldNumber ?? `MUNDO ${displayNumber}`}
+			{@const displayTitle = world.displayTitle ?? world.title}
 
 			<!-- Alternating offsets to make it a wavy trail (Duolingo style) -->
 			{@const offsetClass = idx % 2 === 0 ? 'offset-left' : 'offset-right'}
@@ -39,46 +31,39 @@
 			<div class="world-node-wrapper {offsetClass}" transition:fade>
 				<button
 					type="button"
-					class="world-pearl-btn"
-					class:locked={!isUnlocked}
-					class:unlocked={isUnlocked}
+					class="world-pearl-btn unlocked"
 					class:completed={isCompleted}
-					disabled={!isUnlocked}
 					onclick={() => onSelectWorld(world)}
 				>
 					<div class="pearl-content">
 						{#if isCompleted}
 							🌟
-						{:else if !isUnlocked}
-							🔒
 						{:else}
 							🌱
 						{/if}
 					</div>
 					
 					<!-- Ring spinner pulse for active unlocked but incomplete world -->
-					{#if isUnlocked && !isCompleted}
+					{#if !isCompleted}
 						<div class="pearl-ring-pulse animate-solar-pulse"></div>
 					{/if}
 				</button>
 
 				<!-- World Title and details box -->
-				<div class="world-info-card" class:locked-text={!isUnlocked} onclick={() => isUnlocked && onSelectWorld(world)}>
+				<button type="button" class="world-info-card" onclick={() => onSelectWorld(world)}>
 					<div class="node-header">
-						<span class="world-number">MUNDO {world.order_index}</span>
+						<span class="world-number">{displayWorldLabel}</span>
 						{#if isCompleted}
 							<span class="status-badge completed">Finalizado</span>
-						{:else if isUnlocked && hasStarted}
+						{:else if hasStarted}
 							<span class="status-badge in-progress">En Progreso</span>
-						{:else if isUnlocked}
-							<span class="status-badge unlocked">Disponible</span>
 						{:else}
-							<span class="status-badge locked">Bloqueado</span>
+							<span class="status-badge unlocked">Disponible</span>
 						{/if}
 					</div>
-					<h4 class="node-title">{world.title}</h4>
+					<h4 class="node-title">{displayTitle}</h4>
 					<p class="node-desc">📍 {world.narrative_place} • Mentor: {world.narrative_mentor}</p>
-				</div>
+				</button>
 			</div>
 		{/each}
 	</div>
@@ -207,7 +192,14 @@
 		flex-direction: column;
 		gap: 0.35rem;
 		cursor: pointer;
+		font: inherit;
+		text-align: left;
 		transition: all 0.25s ease;
+	}
+
+	.world-info-card:focus-visible {
+		outline: 2px solid var(--color-solar-green-medium);
+		outline-offset: 2px;
 	}
 
 	.world-info-card:hover:not(.locked-text) {

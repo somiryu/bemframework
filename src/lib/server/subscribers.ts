@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { db } from './db';
 import { supabase, isSupabaseConfigured } from '../supabase';
 
 export interface Subscriber {
@@ -54,26 +55,22 @@ export async function getSubscribers(): Promise<Subscriber[]> {
 	const localSubs = getLocalSubscribers();
 	let supabaseSubs: Subscriber[] = [];
 
-	if (isSupabaseConfigured && supabase) {
-		try {
-			const { data, error } = await supabase
-				.from('newsletter_subscribers')
-				.select('*')
-				.order('created_at', { ascending: false });
+	try {
+		const { data, error } = await db
+			.from('newsletter_subscribers')
+			.select('*')
+			.order('created_at', { ascending: false });
 
-			if (!error && data) {
-				supabaseSubs = data.map((sub: any) => ({
-					id: sub.id,
-					email: sub.email,
-					created_at: sub.created_at,
-					source: 'supabase' as const
-				}));
-			} else {
-				console.warn('Supabase subscribers fetch warning (falling back to local):', error?.message);
-			}
-		} catch (err) {
-			console.error('Supabase query error:', err);
+		if (!error && data && Array.isArray(data)) {
+			supabaseSubs = data.map((sub: any) => ({
+				id: sub.id,
+				email: sub.email,
+				created_at: sub.created_at,
+				source: 'supabase' as const
+			}));
 		}
+	} catch (err) {
+		console.error('Subscribers fetch error:', err);
 	}
 
 	// Merge lists, prioritizing Supabase if duplicates exist
@@ -115,44 +112,37 @@ export async function addSubscriber(email: string): Promise<{ success: boolean; 
 	};
 
 	// 1. Attempt to save to Supabase first
-	if (isSupabaseConfigured && supabase) {
-		try {
-			// Check if already exists in Supabase
-			const { data: existing, error: checkError } = await supabase
-				.from('newsletter_subscribers')
-				.select('email')
-				.eq('email', sanitizedEmail)
-				.maybeSingle();
+	// 1. Attempt to save to database first
+	try {
+		// Check if already exists
+		const { data: existing } = await db
+			.from('newsletter_subscribers')
+			.select('email')
+			.eq('email', sanitizedEmail)
+			.maybeSingle();
 
-			if (checkError) {
-				console.warn('Supabase duplicate check query failed, continuing:', checkError.message);
-			}
-
-			if (existing) {
-				return { success: true, message: 'Already subscribed' };
-			}
-
-			// Insert new row
-			const { data: inserted, error: insertError } = await supabase
-				.from('newsletter_subscribers')
-				.insert([{ email: sanitizedEmail }])
-				.select()
-				.single();
-
-			if (!insertError && inserted) {
-				savedInSupabase = true;
-				newSubscriber = {
-					id: inserted.id,
-					email: inserted.email,
-					created_at: inserted.created_at,
-					source: 'supabase'
-				};
-			} else {
-				console.warn('Supabase insert failed, falling back to local storage:', insertError?.message);
-			}
-		} catch (err) {
-			console.error('Supabase subscriber saving exception:', err);
+		if (existing) {
+			return { success: true, message: 'Already subscribed' };
 		}
+
+		// Insert new row
+		const { data: inserted, error: insertError } = await db
+			.from('newsletter_subscribers')
+			.insert([{ email: sanitizedEmail }])
+			.select()
+			.single();
+
+		if (!insertError && inserted) {
+			savedInSupabase = true;
+			newSubscriber = {
+				id: inserted.id,
+				email: inserted.email,
+				created_at: inserted.created_at,
+				source: 'supabase'
+			};
+		}
+	} catch (err) {
+		console.error('Subscriber saving exception:', err);
 	}
 
 	// 2. Always backup or fall back to local storage

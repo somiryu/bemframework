@@ -574,7 +574,7 @@
 										{#each canvasWorlds as w}
 											{@const canvas = gameState[w.id].design_canvas}
 											<div class="canvas-saved-block">
-												<h4 class="world-title-saved">Mundo {w.order_index}: {w.title}</h4>
+												<h4 class="world-title-saved">{w.title}</h4>
 												<div class="canvas-grid-display">
 													{#if Array.isArray(canvas)}
 														{#each canvas as row, index}
@@ -1222,13 +1222,6 @@
 		font-size: 2.5rem;
 	}
 
-	.empty-text h4 {
-		font-family: var(--font-solar-header);
-		font-size: 1rem;
-		font-weight: 800;
-		margin: 0 0 0.25rem;
-		color: var(--color-solar-green-dark);
-	}
 
 	.empty-text p {
 		margin: 0;

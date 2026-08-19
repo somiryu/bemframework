@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { world7TriviaQuestions, type World7TriviaQuestion } from '$lib/content/world7Trivia';
-	import { supabase } from '$lib/supabase';
+	import { world7TriviaQuestions as staticWorld7TriviaQuestions, type World7TriviaQuestion } from '$lib/content/world7Trivia';
 
-	let { 
-		world, 
-		player, 
-		onGameComplete, 
-		onUpdateCoins 
-	}: { 
-		world: any; 
-		player: any; 
-		onGameComplete: (results: any) => void; 
-		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
+	let {
+		world,
+		player,
+		onGameComplete,
+		onUpdateCoins
+	}: {
+		world: any;
+		player: any;
+		onGameComplete: (results: any) => void;
+		onUpdateCoins: (newCoinsCount: number, newState: any) => void
 	} = $props();
+
+	// Content lives in course_worlds.training_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const world7TriviaQuestions: World7TriviaQuestion[] = world.training_modules?.questions?.length
+		? world.training_modules.questions
+		: staticWorld7TriviaQuestions;
 
 	const shuffled = [...world7TriviaQuestions];
 	for (let i = shuffled.length - 1; i > 0; i--) {
@@ -62,8 +67,10 @@
 		player.game_state = state;
 		onUpdateCoins(player.coins, state);
 
-		if (supabase && player.id) {
-			await supabase.from('course_players').update({ game_state: state }).eq('id', player.id);
+		if (player.id) {
+			const formData = new FormData();
+			formData.append('game_state', JSON.stringify(state));
+			await fetch('?/syncPlayerState', { method: 'POST', body: formData });
 		}
 	}
 

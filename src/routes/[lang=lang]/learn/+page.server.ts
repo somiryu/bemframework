@@ -1,27 +1,23 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { supabase } from '$lib/supabase';
+import { db } from '$lib/server/db';
+import { syncPlayerState } from '$lib/server/gameActions';
 
 export const load: PageServerLoad = async ({ params, cookies }) => {
 	const playerId = cookies.get('player_id');
-	const instanceCode = cookies.get('player_instance_code');
 	const lang = params.lang || 'es';
 
-	if (!playerId || !instanceCode) {
+	if (!playerId) {
 		// Not authenticated, redirect to root landing or show error
 		throw redirect(303, `/${lang}`);
 	}
 
-	if (!supabase) {
-		return { valid: false, message: 'Supabase no está configurado.' };
-	}
-
 	// Fetch active player details
-	const { data: player, error: playerErr } = await supabase
+	const { data: player, error: playerErr } = await db
 		.from('course_players')
 		.select('*')
 		.eq('id', playerId)
-		.single();
+		.maybeSingle();
 
 	if (playerErr || !player) {
 		// Player session expired or invalid, clear cookies
@@ -30,25 +26,29 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		throw redirect(303, `/${lang}`);
 	}
 
+	// The player's own instance_code is the source of truth for which class
+	// they belong to — the cookie is only used to look up the player.
+	const instanceCode = player.instance_code;
+
 	// Fetch active class instance
-	const { data: instance, error: instErr } = await supabase
+	const { data: instance, error: instErr } = await db
 		.from('course_instances')
 		.select('*')
 		.eq('code', instanceCode)
-		.single();
+		.maybeSingle();
 
 	if (instErr || !instance) {
 		throw redirect(303, `/${lang}`);
 	}
 
 	// Fetch all worlds configured
-	const { data: worlds } = await supabase
+	const { data: worlds } = await db
 		.from('course_worlds')
 		.select('*')
 		.order('order_index', { ascending: true });
 
-	// Fetch classmates in the same class (excluding current player for roster browse)
-	const { data: classmates } = await supabase
+	// Fetch classmates in the same class (for roster browse)
+	const { data: classmates } = await db
 		.from('course_players')
 		.select('id, name, alias, avatar, coins, game_state')
 		.eq('instance_code', instanceCode);
@@ -62,9 +62,11 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 };
 
 export const actions: Actions = {
+	syncPlayerState,
+
 	completeTrainingTrivia: async ({ request, cookies }) => {
 		const playerId = cookies.get('player_id');
-		if (!playerId || !supabase) {
+		if (!playerId) {
 			return fail(401, { success: false, message: 'No autorizado.' });
 		}
 
@@ -77,19 +79,29 @@ export const actions: Actions = {
 		}
 
 		// Fetch player current data
-		const { data: player } = await supabase
+		const { data: player } = await db
 			.from('course_players')
 			.select('coins, game_state')
 			.eq('id', playerId)
-			.single();
+			.maybeSingle();
 
 		if (!player) return fail(404, { success: false, message: 'Jugador no encontrado.' });
+
+		// Each world's own training instructions promise a specific lifetime cap
+		// (course_worlds.training_modules.mentor.maxLifetimeCoins) — most worlds
+		// promise 50, but World 6 promises 15. Enforcing a flat 50 here let a
+		// completion silently exceed what World 6 told the player (SEC-08).
+		const { data: world } = await db
+			.from('course_worlds')
+			.select('training_modules')
+			.eq('id', worldId)
+			.maybeSingle();
 
 		const state = player.game_state || {};
 		const worldState = state[worldId] || {};
 
 		const alreadyEarned = worldState.training_coins_gained || 0;
-		const maxPossibleEarned = 50;
+		const maxPossibleEarned = world?.training_modules?.mentor?.maxLifetimeCoins ?? 50;
 		const remainingToEarn = Math.max(0, maxPossibleEarned - alreadyEarned);
 		const finalCoinsAwarded = Math.min(remainingToEarn, coinsAwarded);
 
@@ -110,7 +122,7 @@ export const actions: Actions = {
 
 		const newCoins = player.coins + finalCoinsAwarded;
 
-		const { error } = await supabase
+		const { error } = await db
 			.from('course_players')
 			.update({
 				coins: newCoins,
@@ -133,7 +145,7 @@ export const actions: Actions = {
 
 	submitDesignCanvas: async ({ request, cookies }) => {
 		const playerId = cookies.get('player_id');
-		if (!playerId || !supabase) {
+		if (!playerId) {
 			return fail(401, { success: false, message: 'No autorizado.' });
 		}
 
@@ -149,11 +161,11 @@ export const actions: Actions = {
 			const canvasData = JSON.parse(canvasDataStr);
 
 			// Fetch player current data
-			const { data: player } = await supabase
+			const { data: player } = await db
 				.from('course_players')
 				.select('coins, game_state')
 				.eq('id', playerId)
-				.single();
+				.maybeSingle();
 
 			if (!player) return fail(404, { success: false, message: 'Jugador no encontrado.' });
 
@@ -175,7 +187,7 @@ export const actions: Actions = {
 
 			state[worldId] = worldState;
 
-			const { error } = await supabase
+			const { error } = await db
 				.from('course_players')
 				.update({ 
 					coins: newCoins,
@@ -195,25 +207,39 @@ export const actions: Actions = {
 
 	unlockWikiResource: async ({ request, cookies }) => {
 		const playerId = cookies.get('player_id');
-		if (!playerId || !supabase) {
+		if (!playerId) {
 			return fail(401, { success: false, message: 'No autorizado.' });
 		}
 
 		const formData = await request.formData();
 		const worldId = parseInt(formData.get('world_id') as string, 10);
 		const resourceId = formData.get('resource_id') as string;
-		const cost = parseInt(formData.get('cost') as string, 10);
 
-		if (isNaN(worldId) || !resourceId || isNaN(cost)) {
+		if (isNaN(worldId) || !resourceId) {
 			return fail(400, { success: false, message: 'Parámetros inválidos.' });
 		}
 
+		// The cost is never trusted from the client — it is looked up from the
+		// world's own wiki catalog in the database.
+		const { data: world } = await db
+			.from('course_worlds')
+			.select('wiki_modules')
+			.eq('id', worldId)
+			.maybeSingle();
+
+		const resource = (world?.wiki_modules || []).find((r: any) => r.id === resourceId);
+		if (!resource) {
+			return fail(404, { success: false, message: 'Recurso no encontrado en la biblioteca de este mundo.' });
+		}
+
+		const cost = Number(resource.cost) || 0;
+
 		// Fetch player data
-		const { data: player } = await supabase
+		const { data: player } = await db
 			.from('course_players')
 			.select('coins, game_state')
 			.eq('id', playerId)
-			.single();
+			.maybeSingle();
 
 		if (!player) return fail(404, { success: false, message: 'Jugador no encontrado.' });
 
@@ -234,7 +260,7 @@ export const actions: Actions = {
 
 		const newCoins = player.coins - cost;
 
-		const { error } = await supabase
+		const { error } = await db
 			.from('course_players')
 			.update({
 				coins: newCoins,
@@ -253,7 +279,7 @@ export const actions: Actions = {
 		const playerId = cookies.get('player_id');
 		const instanceCode = cookies.get('player_instance_code');
 
-		if (!playerId || !instanceCode || !supabase) {
+		if (!playerId || !instanceCode) {
 			return fail(401, { success: false, message: 'No autorizado.' });
 		}
 
@@ -271,7 +297,7 @@ export const actions: Actions = {
 			return fail(400, { success: false, message: 'Métricas de evaluación incompletas.' });
 		}
 
-		const { error } = await supabase
+		const { error } = await db
 			.from('workshop_feedback')
 			.insert([{
 				instance_code: instanceCode,
@@ -290,11 +316,11 @@ export const actions: Actions = {
 		}
 
 		// Save feedback done in game_state
-		const { data: player } = await supabase
+		const { data: player } = await db
 			.from('course_players')
 			.select('game_state')
 			.eq('id', playerId)
-			.single();
+			.maybeSingle();
 
 		if (player) {
 			const state = player.game_state || {};
@@ -302,7 +328,7 @@ export const actions: Actions = {
 			worldState.workshop_feedback_submitted = true;
 			state[worldId] = worldState;
 
-			await supabase
+			await db
 				.from('course_players')
 				.update({ game_state: state })
 				.eq('id', playerId);
@@ -313,7 +339,7 @@ export const actions: Actions = {
 
 	setNarrativeViewed: async ({ request, cookies }) => {
 		const playerId = cookies.get('player_id');
-		if (!playerId || !supabase) {
+		if (!playerId) {
 			return fail(401, { success: false, message: 'No autorizado.' });
 		}
 
@@ -326,11 +352,11 @@ export const actions: Actions = {
 		}
 
 		// Fetch player current data
-		const { data: player } = await supabase
+		const { data: player } = await db
 			.from('course_players')
 			.select('game_state')
 			.eq('id', playerId)
-			.single();
+			.maybeSingle();
 
 		if (!player) return fail(404, { success: false, message: 'Jugador no encontrado.' });
 
@@ -345,7 +371,7 @@ export const actions: Actions = {
 
 		state[worldId] = worldState;
 
-		const { error } = await supabase
+		const { error } = await db
 			.from('course_players')
 			.update({ game_state: state })
 			.eq('id', playerId);

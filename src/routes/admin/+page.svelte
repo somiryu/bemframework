@@ -82,90 +82,17 @@
 		}
 	}
 
-	// --- 2. BEM WORLDS EDITOR STATE ---
-	let selectedWorld = $state<any>(null);
-	let worldIdStr = $state('new');
-	let worldOrderIndex = $state(1);
-	let worldTitle = $state('');
-	let worldNarrativePlace = $state('');
-	let worldNarrativeObjective = $state('');
-	let worldNarrativeMentor = $state('Sara Arbelaez');
-	
-	let worldNarrativeIntro = $state('[]');
-	let worldNarrativeOutro = $state('[]');
-	let worldWorkshopModules = $state('{}');
-	let worldTrainingModules = $state('{}');
-	let worldDesignModules = $state('{}');
-	let worldWikiModules = $state('[]');
+	// --- 2. BEM WORLDS VIEWER STATE ---
+	// Read-only: course content (narrative + workshop/training/design/wiki modules)
+	// is authored by AI agents directly against the database, not through this panel.
+	let selectedWorld = $state<any>(data.courseWorlds[0] ?? null);
 
-	function loadWorldForEdit(world: any) {
+	function viewWorld(world: any) {
 		selectedWorld = world;
-		worldIdStr = world.id.toString();
-		worldOrderIndex = world.order_index;
-		worldTitle = world.title;
-		worldNarrativePlace = world.narrative_place;
-		worldNarrativeObjective = world.narrative_objective;
-		worldNarrativeMentor = world.narrative_mentor;
-
-		worldNarrativeIntro = JSON.stringify(world.narrative_intro, null, 2);
-		worldNarrativeOutro = JSON.stringify(world.narrative_outro, null, 2);
-		worldWorkshopModules = JSON.stringify(world.workshop_modules, null, 2);
-		worldTrainingModules = JSON.stringify(world.training_modules, null, 2);
-		worldDesignModules = JSON.stringify(world.design_modules, null, 2);
-		worldWikiModules = JSON.stringify(world.wiki_modules, null, 2);
 	}
 
-	function clearWorldEditor() {
-		selectedWorld = null;
-		worldIdStr = 'new';
-		worldOrderIndex = data.courseWorlds.length + 1;
-		worldTitle = '';
-		worldNarrativePlace = '';
-		worldNarrativeObjective = '';
-		worldNarrativeMentor = 'Sara Arbelaez';
-
-		// Load clean Solarpunk templates!
-		worldNarrativeIntro = JSON.stringify([
-			{ "character": "GIOCHI", "text": "¡Bip-bup! Bienvenido al Mundo." },
-			{ "character": "Sara Arbelaez", "text": "Hola, agente. Hoy analizaremos nuevos perfiles." }
-		], null, 2);
-		
-		worldNarrativeOutro = JSON.stringify([
-			{ "character": "Kira Yamada", "text": "Buen trabajo. Has finalizado tu entrenamiento." }
-		], null, 2);
-
-		worldWorkshopModules = JSON.stringify({
-			"slides": [
-				{ "id": "welcome", "title": "Bienvenida", "type": "onboarding" },
-				{ "id": "roster", "title": "Dashboard", "type": "roster" }
-			]
-		}, null, 2);
-
-		worldTrainingModules = JSON.stringify({
-			"title": "Entrenamiento de Drivers",
-			"description": "Clasifica las metas.",
-			"questions": [
-				{
-					"id": "q1",
-					"scenario": "Ejemplo de escenario educativo...",
-					"options": ["Hedonismo", "Eficiencia", "Relación", "Maestría"],
-					"correct": "Hedonismo",
-					"explanation": "Detalle explicativo."
-				}
-			]
-		}, null, 2);
-
-		worldDesignModules = JSON.stringify({
-			"title": "Canvas de Diseño Serio BEM",
-			"description": "Completa el canvas.",
-			"fields": [
-				{ "driver": "Hedonismo", "label": "Hedonismo y Placer", "placeholder": "Meta..." }
-			]
-		}, null, 2);
-
-		worldWikiModules = JSON.stringify([
-			{ "id": "doc1", "title": "Recurso 1", "type": "pdf", "cost": 5, "url": "#", "desc": "Descripción..." }
-		], null, 2);
+	function prettyJson(value: any): string {
+		return JSON.stringify(value ?? null, null, 2);
 	}
 
 	// Filtered list of students by active class code
@@ -180,7 +107,7 @@
 	let copiedInstanceCode = $state<string | null>(null);
 	function copyLoginLink(code: string) {
 		if (typeof window !== 'undefined') {
-			const loginUrl = `${window.location.origin}/${code}/login`;
+			const loginUrl = `${window.location.origin}/es/${code}/login`;
 			navigator.clipboard.writeText(loginUrl);
 			copiedInstanceCode = code;
 			setTimeout(() => {
@@ -287,7 +214,7 @@
 				<button 
 					class="tab-btn" 
 					class:active={activeTab === 'worlds'} 
-					onclick={() => { activeTab = 'worlds'; clearWorldEditor(); }}
+					onclick={() => activeTab = 'worlds'}
 				>
 					🌱 Mundos BEM ({data.courseWorlds.length})
 				</button>
@@ -457,25 +384,25 @@
 			{/if}
 
 			<!-- ---------------------------------------------------- -->
-			<!-- TAB 2: COURSE WORLDS EDITOR                          -->
+			<!-- TAB 2: COURSE WORLDS VIEWER (read-only)              -->
+			<!-- Content is authored by AI agents directly against    -->
+			<!-- the database; this panel is for inspection only.     -->
 			<!-- ---------------------------------------------------- -->
 			{#if activeTab === 'worlds'}
 				<div class="admin-grid" in:fade>
 					<!-- LEFT COLUMN: WORLDS LIST -->
 					<section class="sidebar-subscribers glass-card">
-						<div class="card-header justify-between">
+						<div class="card-header">
 							<h2>🌱 Mundos del Curso</h2>
-							<button class="btn-solar-secondary btn-sm" onclick={clearWorldEditor}>
-								➕ Nuevo Mundo
-							</button>
+							<span class="sub-count">{data.courseWorlds.length} total</span>
 						</div>
 
 						<div class="worlds-vertical-list">
 							{#each data.courseWorlds as world}
-								<button 
-									class="world-list-item" 
+								<button
+									class="world-list-item"
 									class:selected={selectedWorld && selectedWorld.id === world.id}
-									onclick={() => loadWorldForEdit(world)}
+									onclick={() => viewWorld(world)}
 								>
 									<div class="world-index">Mundo {world.order_index}</div>
 									<div class="world-name">{world.title}</div>
@@ -485,137 +412,81 @@
 						</div>
 					</section>
 
-					<!-- RIGHT COLUMN: WORLD EDITOR FORM -->
+					<!-- RIGHT COLUMN: READ-ONLY WORLD DETAIL -->
 					<section class="editor-section glass-card">
-						<div class="card-header">
-							<h2>⚙️ {worldIdStr === 'new' ? 'Crear Nuevo Mundo BEM' : `Modificar Mundo ${worldOrderIndex}`}</h2>
-						</div>
+						{#if selectedWorld}
+							<div class="card-header">
+								<h2>🔎 Mundo {selectedWorld.order_index}: {selectedWorld.title}</h2>
+							</div>
 
-						<form 
-							method="POST" 
-							action="?/updateWorldContent" 
-							use:enhance 
-							class="newsletter-form"
-						>
-							<input type="hidden" name="world_id" bind:value={worldIdStr} />
+							<div class="viewer-readonly-banner">
+								Este contenido lo crean agentes de IA directamente en la base de datos. Aquí solo se visualiza — no se edita desde este panel.
+							</div>
 
 							<div class="editor-two-cols">
 								<div class="form-group">
-									<label for="order_index">Índice del Mundo (Orden lineal)</label>
-									<input
-										type="number"
-										id="order_index"
-										name="order_index"
-										bind:value={worldOrderIndex}
-										required
-										class="subject-input"
-									/>
+									<span class="readonly-label">Mentor Principal</span>
+									<div class="readonly-value">{selectedWorld.narrative_mentor}</div>
 								</div>
-
 								<div class="form-group">
-									<label for="narrative_mentor">Mentor Principal del Mundo</label>
-									<select
-										id="narrative_mentor"
-										name="narrative_mentor"
-										bind:value={worldNarrativeMentor}
-										class="subject-input"
-									>
-										<option value="Sara Arbelaez">Sara Arbelaez (Psicóloga/Antropóloga)</option>
-										<option value="John Wilkins">John Wilkins (Mecánicas/Sistemas)</option>
-										<option value="Kira Yamada">Kira Yamada (Diseño de Objetivos)</option>
-									</select>
+									<span class="readonly-label">Índice del Mundo</span>
+									<div class="readonly-value">{selectedWorld.order_index}</div>
 								</div>
 							</div>
 
 							<div class="form-group">
-								<label for="world_title">Título del Mundo</label>
-								<input
-									type="text"
-									id="world_title"
-									name="title"
-									bind:value={worldTitle}
-									required
-									placeholder="Ej: Misión 1: Iniciación en la OMIE y los 7 Drivers BEM"
-									class="subject-input"
-								/>
+								<span class="readonly-label">Lugar de Juego (Setting)</span>
+								<div class="readonly-value">{selectedWorld.narrative_place}</div>
 							</div>
 
-							<div class="editor-two-cols">
-								<div class="form-group">
-									<label for="narrative_place">Lugar de Juego (Setting)</label>
-									<input
-										type="text"
-										id="narrative_place"
-										name="narrative_place"
-										bind:value={worldNarrativePlace}
-										required
-										placeholder="Ej: Domo Solar de la OMIE"
-										class="subject-input"
-									/>
-								</div>
-
-								<div class="form-group">
-									<label for="narrative_objective">Objetivo del Mundo</label>
-									<input
-										type="text"
-										id="narrative_objective"
-										name="narrative_objective"
-										bind:value={worldNarrativeObjective}
-										required
-										placeholder="Ej: Configurar tu hoja de personaje RPG..."
-										class="subject-input"
-									/>
-								</div>
+							<div class="form-group">
+								<span class="readonly-label">Objetivo del Mundo</span>
+								<div class="readonly-value">{selectedWorld.narrative_objective}</div>
 							</div>
 
 							<hr class="form-separator" />
 
 							<div class="tabs-subsystems">
-								<h3>🛠️ Configuraciones de Módulos (JSON)</h3>
-								<p class="section-desc">Escribe o edita los contenidos en formato JSON. Se validará la sintaxis al guardar.</p>
+								<h3>🛠️ Módulos de Contenido</h3>
+								<p class="section-desc">Cada bloque indica si el juego lo consume hoy en vivo o si todavía es solo un borrador guardado.</p>
 							</div>
 
 							<div class="json-editors-grid">
 								<div class="form-group">
-									<label>Conversación de Introducción (Narrative Intro Array)</label>
-									<textarea name="narrative_intro" bind:value={worldNarrativeIntro} class="json-textarea" rows="4"></textarea>
+									<span class="module-label">Narrativa de Introducción <span class="usage-badge live">en uso</span></span>
+									<pre class="json-readonly">{prettyJson(selectedWorld.narrative_intro)}</pre>
 								</div>
 
 								<div class="form-group">
-									<label>Conversación de Finalización (Narrative Outro Array)</label>
-									<textarea name="narrative_outro" bind:value={worldNarrativeOutro} class="json-textarea" rows="4"></textarea>
+									<span class="module-label">Narrativa de Finalización <span class="usage-badge live">en uso</span></span>
+									<pre class="json-readonly">{prettyJson(selectedWorld.narrative_outro)}</pre>
 								</div>
 
 								<div class="form-group">
-									<label>Workshop Módulo Síncrono (Slides Array)</label>
-									<textarea name="workshop_modules" bind:value={worldWorkshopModules} class="json-textarea" rows="4"></textarea>
+									<span class="module-label">Workshop Módulo Síncrono <span class="usage-badge" class:live={selectedWorld.id !== 3} class:unused={selectedWorld.id === 3}>{selectedWorld.id !== 3 ? 'en uso' : 'sin usar'}</span></span>
+									<pre class="json-readonly">{prettyJson(selectedWorld.workshop_modules)}</pre>
 								</div>
 
 								<div class="form-group">
-									<label>Training Módulo Asíncrono (Trivia Quiz Dictionary)</label>
-									<textarea name="training_modules" bind:value={worldTrainingModules} class="json-textarea" rows="4"></textarea>
+									<span class="module-label">Training Módulo Asíncrono <span class="usage-badge live">en uso</span></span>
+									<pre class="json-readonly">{prettyJson(selectedWorld.training_modules)}</pre>
 								</div>
 
 								<div class="form-group">
-									<label>Módulo de Diseño (Canvas Dictionary)</label>
-									<textarea name="design_modules" bind:value={worldDesignModules} class="json-textarea" rows="4"></textarea>
+									<span class="module-label">Módulo de Diseño <span class="usage-badge" class:live={selectedWorld.id === 1} class:unused={selectedWorld.id !== 1}>{selectedWorld.id === 1 ? 'en uso' : 'sin usar'}</span></span>
+									<pre class="json-readonly">{prettyJson(selectedWorld.design_modules)}</pre>
 								</div>
 
 								<div class="form-group">
-									<label>Wiki Módulo (Resources Array)</label>
-									<textarea name="wiki_modules" bind:value={worldWikiModules} class="json-textarea" rows="4"></textarea>
+									<span class="module-label">Wiki Módulo <span class="usage-badge live">en uso</span></span>
+									<pre class="json-readonly">{prettyJson(selectedWorld.wiki_modules)}</pre>
 								</div>
 							</div>
-
-							<div class="submit-row justify-between items-center mt-6">
-								<button type="button" class="btn-solar-secondary" onclick={clearWorldEditor}>
-									🗑️ Descartar Cambios
-								</button>
-								<button type="submit" class="btn-solar-accent">
-									💾 Guardar Contenidos de Mundo
-								</button>
+						{:else}
+							<div class="empty-list">
+								<p>Selecciona un mundo de la lista para ver su contenido.</p>
 							</div>
-						</form>
+						{/if}
 					</section>
 				</div>
 			{/if}
@@ -1201,22 +1072,75 @@
 		gap: 1.5rem;
 	}
 
-	.json-textarea {
+	.json-readonly {
 		width: 100%;
+		max-height: 260px;
+		overflow: auto;
+		margin: 0;
 		font-family: 'Courier New', Courier, monospace;
-		font-size: 0.85rem;
+		font-size: 0.8rem;
 		padding: 0.75rem 1rem;
 		border: 1px solid #d1d5db;
 		border-radius: 12px;
 		background: #fafaf9;
 		color: #1f2937;
-		resize: vertical;
+		white-space: pre-wrap;
+		word-break: break-word;
 	}
 
-	.json-textarea:focus {
-		outline: none;
-		border-color: var(--color-solar-green-medium, #3D8F68);
-		background: white;
+	.module-label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.usage-badge {
+		font-size: 0.62rem;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		padding: 0.15rem 0.5rem;
+		border-radius: 9999px;
+	}
+
+	.usage-badge.live {
+		color: var(--color-solar-green-medium, #3D8F68);
+		background: var(--color-solar-green-light, #d2f5e3);
+	}
+
+	.usage-badge.unused {
+		color: #92400e;
+		background: #fef3c7;
+	}
+
+	.readonly-label {
+		display: block;
+		font-size: 0.72rem;
+		font-weight: 800;
+		letter-spacing: 0.03em;
+		color: var(--color-solar-text-muted, #6B7280);
+		margin-bottom: 0.3rem;
+	}
+
+	.readonly-value {
+		font-size: 0.95rem;
+		font-weight: 600;
+		color: var(--color-solar-text, #1E4533);
+		padding: 0.6rem 0.9rem;
+		background: #fafaf9;
+		border: 1px solid #E5E7EB;
+		border-radius: 10px;
+	}
+
+	.viewer-readonly-banner {
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: #92400e;
+		background: #fef3c7;
+		border: 1px solid #fde68a;
+		border-radius: 12px;
+		padding: 0.75rem 1rem;
+		margin-bottom: 1.5rem;
 	}
 
 	/* CLASSES SECTION LIST */
@@ -1908,7 +1832,6 @@
 
 	.w-full { width: 100%; }
 	.mt-4 { margin-top: 1rem; }
-	.mt-6 { margin-top: 1.5rem; }
 	.mb-6 { margin-bottom: 1.5rem; }
 	.mb-8 { margin-bottom: 2rem; }
 	.flex { display: flex; }

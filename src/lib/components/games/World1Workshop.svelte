@@ -1,23 +1,29 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { fade, fly, slide } from 'svelte/transition';
 	import { supabase } from '$lib/supabase';
 	import { createWorkshopSession } from '$lib/utils/workshop.svelte';
 	import FacilitatorControlPanel from '$lib/components/workshop/FacilitatorControlPanel.svelte';
 	import GameUIWrapper from '$lib/components/workshop/GameUIWrapper.svelte';
 
-	let { 
-		player, 
-		instance, 
-		onComplete 
-	}: { 
-		player: any; 
-		instance: any; 
-		onComplete: () => void 
+	let {
+		player,
+		instance,
+		world = null,
+		onComplete
+	}: {
+		player: any;
+		instance: any;
+		world?: any;
+		onComplete: () => void
 	} = $props();
 
 	// Initialize the shared workshop session
 	const session = createWorkshopSession(player, instance, 1, onComplete);
+
+	// Without this, navigating away with goto() (instead of a full page
+	// reload) would leave the realtime channel subscribed indefinitely.
+	onDestroy(() => session.cleanup());
 
 	// Slide navigation and synchronization
 	let currentSlide = $state(0); // 0 to 5 (6 slides total)
@@ -172,12 +178,7 @@
 			});
 
 			// Save to DB for persistent late entrants
-			await supabase
-				.from('course_instances')
-				.update({
-					current_workshop_state: { world_id: 1, slide_index: index, mode }
-				})
-				.eq('code', instance.code);
+			await session.syncWorkshopState({ world_id: 1, slide_index: index, mode });
 		}
 	}
 
@@ -262,7 +263,9 @@
 	}
 
 	// Slide 1 Content
-	const guilds = [
+	// Content lives in course_worlds.workshop_modules; these static arrays are
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const staticGuilds = [
 		{ id: 'gary', name: 'Gary Gygax', motive: 'Identidad / Inmersión', desc: 'Reconocido por D&D y ser el padre de los juegos de rol. Explora historias ricas e inmersión épica.', banner: '/learn_resources/banners/guild_gary_gigax_identity.png' },
 		{ id: 'uwe', name: 'Uwe Rosenberg', motive: 'Eficiencia / Placer (Hedonismo)', desc: 'Reconocido por juegos de mesa de motor económico, buenas gráficas y sistemas de optimización profunda.', banner: '/learn_resources/banners/guild_uwe_efficiency_hedonism.png' },
 		{ id: 'sid', name: 'Sid Meier', motive: 'Empoderamiento / Descubrimiento', desc: 'Reconocido por juegos legendarios de exploración, expansión y conquista como Civilization y Pirates.', banner: '/learn_resources/banners/guild_sid_meier_empowerment_discovery.png' },
@@ -270,7 +273,7 @@
 	];
 
 	// Slide 2 Content
-	const charProfiles = [
+	const staticCharProfiles = [
 		{ id: 'sensei', title: 'Agente Sensei', driver: 'Maestría 🏆', desc: 'Busca la excelencia total, retos de alta dificultad y perfeccionar metodologías.', icon: '🎓' },
 		{ id: 'explorador', title: 'Eco-Explorador', driver: 'Descubrimiento 🗺️', desc: 'Ama investigar, descifrar misterios, caminos libres y experimentar.', icon: '🧭' },
 		{ id: 'proposito', title: 'Arquitecto de Propósitos', driver: 'Propósito 🌱', desc: 'Conecta cada aprendizaje con un impacto real, causa ecológica o beneficio humano.', icon: '🌿' },
@@ -281,7 +284,7 @@
 	];
 
 	// Slide 5 Preferences
-	const preferences = [
+	const staticPreferences = [
 		{ id: 'misterio', label: 'Un juego de misterio y suspenso (Descubrimiento)', driver: 'Descubrimiento' },
 		{ id: 'roles', label: 'Un juego de roles o identidades secretas (Identidad)', driver: 'Identidad' },
 		{ id: 'conquista', label: 'Un juego de conquista y competencia (Empoderamiento)', driver: 'Empoderamiento' },
@@ -290,6 +293,10 @@
 		{ id: 'economico', label: 'Un juego económico y administrativo (Eficiencia)', driver: 'Eficiencia' },
 		{ id: 'dificil', label: 'Un juego difícil y retador (Maestría)', driver: 'Maestría' }
 	];
+
+	const guilds: typeof staticGuilds = world?.workshop_modules?.guilds?.length ? world.workshop_modules.guilds : staticGuilds;
+	const charProfiles: typeof staticCharProfiles = world?.workshop_modules?.characters?.length ? world.workshop_modules.characters : staticCharProfiles;
+	const preferences: typeof staticPreferences = world?.workshop_modules?.preferences?.length ? world.workshop_modules.preferences : staticPreferences;
 
 	const labelKeys = ['Descubrimiento', 'Identidad', 'Empoderamiento', 'Relacionamiento', 'Hedonismo', 'Eficiencia', 'Maestría'];
 
@@ -475,21 +482,14 @@
 
 	async function handleResetWorkshop() {
 		if (confirm('¿Estás seguro de que deseas reiniciar el taller al Slide 1? Se borrarán todas las respuestas de los estudiantes para permitirles volver a jugar.')) {
-			// 1. Fetch all players in this session/instance
-			const { data: players } = await supabase
-				.from('course_players')
-				.select('id, game_state')
-				.eq('instance_code', instance.code);
-
-			if (players) {
-				for (const p of players) {
-					const newState = p.game_state || {};
-					delete newState[1]; // Clear World 1 progress
-					await supabase
-						.from('course_players')
-						.update({ game_state: newState, avatar: null })
-						.eq('id', p.id);
-				}
+			// 1. Clear World 1 progress for every player in the class (host-only, server-enforced)
+			const formData = new FormData();
+			formData.append('world_id', '1');
+			formData.append('instance_code', instance.code);
+			formData.append('clear_avatar', 'true');
+			const res = await fetch('?/resetWorldProgress', { method: 'POST', body: formData });
+			if (!res.ok) {
+				console.error('resetWorldProgress error:', res.status, await res.text());
 			}
 
 			// 2. Broadcast reset event to all connected clients
@@ -1192,71 +1192,12 @@
 	}
 
 	/* HOST BANNER */
-	.host-controls-banner {
-		background: linear-gradient(135deg, hsl(150, 45%, 6%) 0%, hsl(152, 40%, 10%) 100%) !important;
-		border: 1.5px solid var(--color-solar-yellow) !important;
-		color: white !important;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.25rem 1rem !important;
-		border-radius: 10px !important;
-		gap: 1.5rem !important;
-		text-align: left;
-		margin-bottom: 0.75rem;
-		box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-		width: 100%;
-		box-sizing: border-box;
-	}
 
-	.host-title {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
 
-	.host-title span {
-		font-size: 0.65rem;
-		font-weight: 900;
-		color: var(--color-solar-yellow);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
 
-	.host-actions-row {
-		display: flex;
-		align-items: center;
-		gap: 1.5rem !important;
-	}
 
-	.host-buttons-group {
-		display: flex;
-		gap: 0.75rem !important;
-		align-items: center;
-	}
 
-	.host-controls-banner button {
-		padding: 0.25rem 0.65rem !important;
-		font-size: 0.75rem !important;
-		border-radius: 6px !important;
-		font-weight: 800 !important;
-		height: auto !important;
-		min-height: unset !important;
-		margin: 0 0.25rem !important; /* Explicit horizontal margin to guarantee gap spacing in all layouts */
-		border: 1px solid rgba(255, 255, 255, 0.15) !important;
-	}
 
-	.presence-tag {
-		font-size: 0.75rem;
-		font-weight: 700;
-		background: rgba(0, 0, 0, 0.5);
-		padding: 0.25rem 0.75rem;
-		border-radius: 6px;
-		color: #ffffff;
-		border: 1px solid rgba(255, 255, 255, 0.15);
-		display: inline-flex;
-		align-items: center;
-	}
 
 	/* SLIDE CARDS */
 	.slide-card {
@@ -2035,22 +1976,7 @@
 		font-weight: 550;
 	}
 
-	.online-players-grid {
-		display: flex;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-		justify-content: center;
-	}
 
-	.player-roster-pill {
-		background: white;
-		border: 1px solid #E5E7EB;
-		padding: 0.5rem 1rem;
-		border-radius: 9999px;
-		font-size: 0.85rem;
-		font-weight: 600;
-		box-shadow: var(--shadow-solar-sm);
-	}
 
 	.rpg-roster-split-layout {
 		display: grid;
@@ -2080,14 +2006,5 @@
 	.mb-4 { margin-bottom: 1rem; }
 	.mb-6 { margin-bottom: 1.5rem; }
 
-	.btn-solar-danger {
-		background: #ef4444 !important;
-		color: white !important;
-		border: 1px solid #dc2626 !important;
-	}
 
-	.btn-solar-danger:hover {
-		background: #dc2626 !important;
-		transform: translateY(-1px);
-	}
 </style>

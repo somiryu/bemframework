@@ -1,6 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { supabase } from '$lib/supabase';
+import type { Actions, PageServerLoad } from './$types';
+import { db } from '$lib/server/db';
+import { formatActiveWorlds } from '$lib/utils/worldMapper';
+import { syncPlayerState, resetWorldProgress, syncWorkshopState } from '$lib/server/gameActions';
 
 export const load: PageServerLoad = async ({ params, cookies }) => {
 	const playerId = cookies.get('player_id');
@@ -16,16 +18,12 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		throw redirect(303, `/${lang}`);
 	}
 
-	if (!supabase) {
-		return { valid: false, message: 'Supabase no está configurado.' };
-	}
-
 	// Fetch active player details
-	const { data: player, error: playerErr } = await supabase
+	const { data: player, error: playerErr } = await db
 		.from('course_players')
 		.select('*')
 		.eq('id', playerId)
-		.single();
+		.maybeSingle();
 
 	if (playerErr || !player) {
 		cookies.delete('player_id', { path: '/' });
@@ -33,12 +31,18 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		throw redirect(303, `/${lang}`);
 	}
 
+	// A player may only enter the workshop of the class they actually belong to,
+	// regardless of what instance code appears in the URL.
+	if (player.instance_code !== instanceCode) {
+		throw redirect(303, `/${lang}/learn`);
+	}
+
 	// Fetch active class instance
-	const { data: instance, error: instErr } = await supabase
+	const { data: instance, error: instErr } = await db
 		.from('course_instances')
 		.select('*')
 		.eq('code', instanceCode)
-		.single();
+		.maybeSingle();
 
 	if (instErr || !instance) {
 		throw redirect(303, `/${lang}/learn`);
@@ -49,19 +53,25 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		throw redirect(303, `/${lang}/learn`);
 	}
 
-	// Fetch specific world
-	const { data: world, error: worldErr } = await supabase
+	// Fetch every world and derive the same relative numbering the map uses,
+	// so a short course (e.g. unlocked_worlds: [1, 4, 6]) always reads as a
+	// clean 1, 2, 3 sequence here too — never the canonical order_index, and
+	// never skipping straight to "Misión 3" with no 1 or 2 in sight.
+	const { data: allWorlds } = await db
 		.from('course_worlds')
 		.select('*')
-		.eq('id', worldId)
-		.single();
+		.order('order_index', { ascending: true });
 
-	if (worldErr || !world) {
+	const formattedWorld = formatActiveWorlds(allWorlds || [], instance.unlocked_worlds).find(
+		(w) => w.id === worldId
+	);
+
+	if (!formattedWorld) {
 		throw redirect(303, `/${lang}/learn`);
 	}
 
 	// Fetch classmates in the same class
-	const { data: classmates } = await supabase
+	const { data: classmates } = await db
 		.from('course_players')
 		.select('id, name, alias, avatar, coins, game_state')
 		.eq('instance_code', instanceCode);
@@ -69,7 +79,13 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 	return {
 		player,
 		instance,
-		world,
+		world: formattedWorld,
 		classmates: classmates || []
 	};
+};
+
+export const actions: Actions = {
+	syncPlayerState,
+	resetWorldProgress,
+	syncWorkshopState
 };

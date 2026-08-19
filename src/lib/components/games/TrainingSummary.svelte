@@ -10,6 +10,7 @@
 		actualCoinsAwarded,
 		lifetimeCoinsEarned,
 		remainingToCap,
+		maxLifetimeCoins = 50,
 		isSubmitting,
 		onRetry,
 		children,
@@ -24,6 +25,7 @@
 		actualCoinsAwarded: number;
 		lifetimeCoinsEarned: number;
 		remainingToCap: number;
+		maxLifetimeCoins?: number;
 		isSubmitting: boolean;
 		onRetry: () => void;
 		children?: any;
@@ -82,21 +84,21 @@
 			<span class="coin-badge-label">Monedas obtenidas en este intento:</span>
 			<h2 class="coin-awarded-amount mt-1 text-solar-green-medium font-bold">🪙 +{actualCoinsAwarded} BEM Coins</h2>
 			
-			<!-- Progress meter toward 50 coin cap -->
+			<!-- Progress meter toward this world's coin cap -->
 			<div class="coin-cap-progress-container mt-3">
 				<div class="progress-labels flex justify-between text-xs text-solar-text-muted mb-1">
 					<span>Monedas acumuladas en este entrenamiento:</span>
-					<strong>{lifetimeCoinsEarned + actualCoinsAwarded} / 50</strong>
+					<strong>{lifetimeCoinsEarned + actualCoinsAwarded} / {maxLifetimeCoins}</strong>
 				</div>
 				<div class="coin-cap-bar-bg">
-					<div class="coin-cap-bar-fill" style="width: {Math.min(100, ((lifetimeCoinsEarned + actualCoinsAwarded) / 50) * 100)}%"></div>
+					<div class="coin-cap-bar-fill" style="width: {Math.min(100, ((lifetimeCoinsEarned + actualCoinsAwarded) / maxLifetimeCoins) * 100)}%"></div>
 				</div>
 			</div>
 		{:else}
 			<span class="coin-badge-label capped font-bold text-solar-terracotta">Entrenamiento al Máximo</span>
 			<h2 class="coin-awarded-amount capped mt-1 text-solar-green-medium font-bold">🪙 +0 BEM Coins</h2>
 			<div class="capped-alert-box mt-2 text-xs text-solar-terracotta font-semibold">
-				¡Ya has alcanzado el límite máximo de 50 monedas otorgadas por entrenamientos de este mundo! Aún puedes repetir para mejorar tu puntaje.
+				¡Ya has alcanzado el límite máximo de {maxLifetimeCoins} monedas otorgadas por entrenamientos de este mundo! Aún puedes repetir para mejorar tu puntaje.
 			</div>
 		{/if}
 	</div>
@@ -255,8 +257,6 @@
 	.mt-2 { margin-top: 0.5rem; }
 	.mt-3 { margin-top: 0.75rem; }
 	.w-full { width: 100%; }
-	.h-2 { height: 0.5rem; }
-	.overflow-hidden { overflow: hidden; }
 
 	@keyframes float {
 		0% { transform: translateY(0px); }

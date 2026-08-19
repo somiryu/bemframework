@@ -12,13 +12,16 @@ export function createWorkshopSession(
 	let allClassPlayers = $state<any[]>([]);
 	let channel = $state<any>(null);
 
-	const isHost = $derived(player.email === 'javier@f2p.co' || player.role === 'facilitator' || player.is_facilitator === true || player.game_state?.is_facilitator === true);
+	// The admin panel marks the facilitator by writing game_state.is_super_user
+	// (see loginAsSuperUserPlayer in routes/admin/+page.server.ts) — that flag,
+	// not the player's email, is the single source of truth for host status.
+	const isHost = $derived(player.game_state?.is_super_user === true);
 
 	async function loadAllClassPlayers() {
 		if (!supabase) return;
 		const { data: players } = await supabase
 			.from('course_players')
-			.select('id, alias, email, game_state')
+			.select('id, alias, game_state')
 			.eq('instance_code', instance.code);
 		if (players) {
 			allClassPlayers = players;
@@ -80,27 +83,40 @@ export function createWorkshopSession(
 				await channel.track({
 					playerId: player.id,
 					name: player.name,
-					alias: player.alias,
-					email: player.email
+					alias: player.alias
 				});
 			}
 		});
 	}
 
-	async function updatePlayerGameState(newState: any, additionalFields = {}) {
+	async function updatePlayerGameState(newState: any, additionalFields: { coins?: number; avatar?: string } = {}) {
 		player.game_state = newState;
-		if (supabase && player.id) {
-			const { error } = await supabase
-				.from('course_players')
-				.update({
-					game_state: newState,
-					...additionalFields
-				})
-				.eq('id', player.id);
-			if (error) {
-				console.error('Supabase updatePlayerGameState error:', error);
-				throw error;
+		if (player.id) {
+			const formData = new FormData();
+			formData.append('game_state', JSON.stringify(newState));
+			if (additionalFields.coins !== undefined) formData.append('coins', String(additionalFields.coins));
+			if (additionalFields.avatar) formData.append('avatar', additionalFields.avatar);
+
+			const res = await fetch('?/syncPlayerState', { method: 'POST', body: formData });
+			if (!res.ok) {
+				console.error('syncPlayerState error:', res.status, await res.text());
+				throw new Error('Failed to sync player state');
 			}
+		}
+	}
+
+	// Host-only: persists the synchronized workshop state (current slide, mode,
+	// round — shape varies per world) so late entrants and reconnects pick up
+	// where the class is. Server-side this is gated on the caller's own
+	// game_state.is_super_user flag, not on anything the client claims.
+	async function syncWorkshopState(state: any) {
+		const formData = new FormData();
+		formData.append('instance_code', instance.code);
+		formData.append('state', JSON.stringify(state));
+
+		const res = await fetch('?/syncWorkshopState', { method: 'POST', body: formData });
+		if (!res.ok) {
+			console.error('syncWorkshopState error:', res.status, await res.text());
 		}
 	}
 
@@ -123,6 +139,7 @@ export function createWorkshopSession(
 		loadAllClassPlayers,
 		initConnection,
 		updatePlayerGameState,
+		syncWorkshopState,
 		safeSend,
 		cleanup
 	};

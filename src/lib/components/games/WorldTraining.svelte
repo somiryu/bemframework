@@ -25,8 +25,10 @@ import World7Training from './World7Training.svelte';
 		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
 	} = $props();
 
-	// Mentor and world training configurations
-	const trainingConfigs: Record<number, {
+	// Mentor and world training configurations. This is the fallback used only
+	// when course_worlds.training_modules.mentor hasn't been migrated for an
+	// instance yet — the database is the source of truth once it has.
+	const staticTrainingConfigs: Record<number, {
 		title: string;
 		mentorName: string;
 		mentorAvatar: string;
@@ -118,7 +120,7 @@ import World7Training from './World7Training.svelte';
 		}
 	};
 
-	const config = $derived(trainingConfigs[world.id] || {
+	const config = $derived(world.training_modules?.mentor || staticTrainingConfigs[world.id] || {
 		title: 'Entrenamiento del Simulador',
 		mentorName: 'Mentor',
 		mentorAvatar: '/learn_resources/characters/char_sara.png',
@@ -142,9 +144,12 @@ import World7Training from './World7Training.svelte';
 	let driverStats = $state<any>(null);
 	let blockCorrect = $state<any>(null);
 
-	// Lifetime Cap progress tracking
+	// Lifetime Cap progress tracking — mirrors the cap completeTrainingTrivia
+	// enforces server-side, so the UI never promises a number the server
+	// won't honor (SEC-08). World 6's own copy has always promised 15, not 50.
+	const maxLifetimeCoins = $derived(world.training_modules?.mentor?.maxLifetimeCoins ?? (world.id === 6 ? 15 : 50));
 	const lifetimeCoinsEarned = $derived(player.game_state?.[world.id]?.training_coins_gained || 0);
-	const remainingToCap = $derived(Math.max(0, 50 - lifetimeCoinsEarned));
+	const remainingToCap = $derived(Math.max(0, maxLifetimeCoins - lifetimeCoinsEarned));
 	const actualCoinsAwarded = $derived.by(() => {
 		const multiplier = world.id === 6 ? 3 : 5;
 		const coinsEarned = starsCount * multiplier;
@@ -368,7 +373,7 @@ import World7Training from './World7Training.svelte';
 					return async ({ result, update }) => {
 						isSubmitting = false;
 						if (result.type === 'success' && result.data) {
-							onUpdateCoins(result.data.coins, result.data.game_state);
+							onUpdateCoins(result.data.coins as number, result.data.game_state);
 							onComplete();
 						}
 						await update();
@@ -389,6 +394,7 @@ import World7Training from './World7Training.svelte';
 					actualCoinsAwarded={actualCoinsAwarded}
 					lifetimeCoinsEarned={lifetimeCoinsEarned}
 					remainingToCap={remainingToCap}
+					maxLifetimeCoins={maxLifetimeCoins}
 					isSubmitting={isSubmitting}
 					onRetry={handleRetry}
 					customStats={customStats}

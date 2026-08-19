@@ -3,7 +3,9 @@
 	import { fade, slide, fly } from 'svelte/transition';
 	import type { ActionData, PageData } from './$types';
 	import { supabase } from '$lib/supabase';
-	
+	import { deserialize } from '$app/forms';
+	import { goto } from '$app/navigation';
+
 	// Layout components
 	import WorldNavigator from '$lib/components/WorldNavigator.svelte';
 	import NarrativeComponent from '$lib/components/NarrativeComponent.svelte';
@@ -21,6 +23,7 @@
 
 	import { page } from '$app/state';
 	import { learnTranslations } from '$lib/content/learn';
+	import { formatActiveWorlds } from '$lib/utils/worldMapper';
 
 	let { data }: { data: PageData } = $props();
 
@@ -33,8 +36,8 @@
 	let localCoins = $derived(localPlayer?.coins || 0);
 	const isHost = $derived(localPlayer?.email === 'javier@f2p.co');
 
-	// Safe lists
-	const worldsList = $derived(data.worlds || []);
+	// Active filtered and relatively numbered worlds
+	const activeWorlds = $derived(formatActiveWorlds(data.worlds || [], data.instance?.unlocked_worlds || []));
 	const classmatesData = $derived(data.classmates || []);
 
 	// Navigation & Modal triggers
@@ -58,7 +61,7 @@
 	onMount(() => {
 		// Check for unviewed narrative outros first (e.g. returning from workshop)
 		let triggeredOutro = false;
-		for (const world of worldsList) {
+		for (const world of activeWorlds) {
 			const wState = localGameState[world.id] || localGameState[String(world.id)];
 			if (wState?.workshop_completed && !wState?.narrative_outro_viewed) {
 				selectedWorld = world;
@@ -68,11 +71,11 @@
 			}
 		}
 
-		if (!triggeredOutro) {
-			const world1 = worldsList.find((w: any) => w.id === 1);
-			const w1State = localGameState[1] || localGameState['1'];
-			if (world1 && !w1State?.narrative_intro_viewed) {
-				triggerNarrative(world1, 'intro');
+		if (!triggeredOutro && activeWorlds.length > 0) {
+			const firstWorld = activeWorlds[0];
+			const firstWorldState = localGameState[firstWorld.id] || localGameState[String(firstWorld.id)];
+			if (!firstWorldState?.narrative_intro_viewed) {
+				triggerNarrative(firstWorld, 'intro');
 			}
 		}
 
@@ -88,7 +91,7 @@
 				}, (payload: any) => {
 					const updated = payload.new;
 					if (classmatesList) {
-						classmatesList = classmatesList.map(c => c.id === updated.id ? { ...c, ...updated } : c);
+						classmatesList = classmatesList.map((c: any) => c.id === updated.id ? { ...c, ...updated } : c);
 					}
 					if (updated.id === localPlayer.id) {
 						localPlayer = { ...localPlayer, ...updated };
@@ -138,51 +141,49 @@
 		showNarrativeOverlay = true;
 	}
 
+	// Persists narrative-viewed via the server action and syncs localPlayer
+	// from whatever the server actually saved — not from the client's own
+	// optimistic guess — so a failed or divergent save doesn't leave the UI
+	// quietly out of sync with the database.
+	async function saveNarrativeViewed(worldId: number, type: 'intro' | 'outro'): Promise<boolean> {
+		const formData = new FormData();
+		formData.append('world_id', worldId.toString());
+		formData.append('type', type);
+
+		const res = await fetch('?/setNarrativeViewed', {
+			method: 'POST',
+			body: formData
+		});
+
+		const result = deserialize(await res.text());
+
+		if (result.type === 'success' && result.data) {
+			localPlayer.game_state = (result.data as any).game_state;
+			return true;
+		}
+
+		console.error('Failed to save narrative view state:', result);
+		return false;
+	}
+
 	async function handleNarrativeComplete() {
 		showNarrativeOverlay = false;
-		
+
 		if (!localPlayer) return;
 
-		// Save narrative viewed in player gameState
 		const worldId = selectedWorld.id;
-		const state = localPlayer.game_state ? JSON.parse(JSON.stringify(localPlayer.game_state)) : {};
-		if (!state[worldId]) state[worldId] = {};
 
 		if (narrativeTriggerType === 'intro') {
-			state[worldId].narrative_intro_viewed = true;
-			localPlayer.game_state = state;
-			
-			// Save via server action to bypass client RLS restrictions
-			const formData = new FormData();
-			formData.append('world_id', worldId.toString());
-			formData.append('type', 'intro');
-			const res = await fetch('?/setNarrativeViewed', {
-				method: 'POST',
-				body: formData
-			});
-			if (!res.ok) {
-				console.error('Failed to save narrative view state:', res.status, await res.text());
-			}
+			await saveNarrativeViewed(worldId, 'intro');
 
 			// Open mode selector after intro completes!
 			showModeSelector = true;
 		} else {
 			// Outro finished! World is fully unlocked/finished
-			state[worldId].narrative_outro_viewed = true;
-			localPlayer.game_state = state;
+			await saveNarrativeViewed(worldId, 'outro');
 
-			const formData = new FormData();
-			formData.append('world_id', worldId.toString());
-			formData.append('type', 'outro');
-			const res = await fetch('?/setNarrativeViewed', {
-				method: 'POST',
-				body: formData
-			});
-			if (!res.ok) {
-				console.error('Failed to save narrative view state:', res.status, await res.text());
-			}
-
-			if (!isHost && state[worldId].workshop_completed && !state[worldId].workshop_feedback_submitted) {
+			const worldState = localPlayer.game_state?.[worldId] || {};
+			if (!isHost && worldState.workshop_completed && !worldState.workshop_feedback_submitted) {
 				showFeedbackOverlay = true;
 			} else {
 				selectedWorld = null;
@@ -202,10 +203,11 @@
 		}
 	}
 
-	function handleSelectMode(mode: string) {
+	async function handleSelectMode(mode: string) {
 		showModeSelector = false;
 		if (mode === 'workshop') {
-			window.location.href = `/${lang}/learn/workshop/${data.instance.code}/${selectedWorld.id}`;
+			await goto(`/${lang}/learn/workshop/${data.instance.code}/${selectedWorld.id}`);
+			window.scrollTo({ top: 0, behavior: 'instant' });
 			return;
 		}
 		activeGameMode = mode;
@@ -270,9 +272,9 @@
 					<span class="alias-name">"{localPlayer.alias}"</span>
 				</div>
 
-				<div class="coin-balance-pill" onclick={() => showJournal = true}>
+				<button type="button" class="coin-balance-pill" onclick={() => showJournal = true}>
 					🪙 <strong>{localCoins} {t.coins}</strong>
-				</div>
+				</button>
 				
 				<button type="button" class="btn-solar-primary" onclick={() => showJournal = true}>
 					📔 {t.journalBtn}
@@ -304,8 +306,7 @@
 			</div>
 			
 			<WorldNavigator 
-				worlds={data.worlds} 
-				unlockedWorldIds={data.instance.unlocked_worlds} 
+				worlds={activeWorlds} 
 				playerGameState={localGameState}
 				onSelectWorld={handleSelectWorld}
 			/>
@@ -344,7 +345,7 @@
 			<JournalComponent 
 				player={localPlayer} 
 				classmates={classmatesList} 
-				worlds={data.worlds}
+				worlds={activeWorlds}
 				onCloseJournal={() => showJournal = false}
 			/>
 		{/if}
@@ -367,8 +368,8 @@
 				<div class="viewport-card glass-card">
 					<div class="viewport-header">
 						<div class="meta-row">
-							<span class="m-badge">{lang === 'es' ? 'MUNDO' : 'WORLD'} {selectedWorld.order_index} • {activeGameMode.toUpperCase()}</span>
-							<h3>{selectedWorld.title}</h3>
+							<span class="m-badge">{selectedWorld.displayWorldNumber ?? `${lang === 'es' ? 'MUNDO' : 'WORLD'} ${selectedWorld.displayNumber || selectedWorld.order_index}`} • {activeGameMode.toUpperCase()}</span>
+							<h3>{selectedWorld.displayTitle ?? selectedWorld.title}</h3>
 						</div>
 						<button type="button" class="btn-solar-secondary btn-sm flex items-center gap-1.5" onclick={handleCloseGame}>
 							<MapIcon size={16} /> {t.backToMap}
@@ -516,10 +517,16 @@
 		font-weight: 850;
 		font-size: 0.95rem;
 		padding: 0.5rem 1.25rem;
+		border: none;
 		border-radius: 12px;
 		cursor: pointer;
 		box-shadow: var(--shadow-solar-sm);
 		transition: all 0.2s ease;
+	}
+
+	.coin-balance-pill:focus-visible {
+		outline: 2px solid var(--color-solar-green-dark);
+		outline-offset: 2px;
 	}
 
 	.coin-balance-pill:hover {

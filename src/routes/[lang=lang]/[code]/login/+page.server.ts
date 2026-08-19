@@ -1,26 +1,18 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { supabase } from '$lib/supabase';
+import { db } from '$lib/server/db';
 import { learnTranslations } from '$lib/content/learn';
 
 export const load: PageServerLoad = async ({ params, cookies }) => {
 	const code = params.code.trim().toUpperCase();
 	const lang = (params.lang as 'es' | 'en') ?? 'es';
 
-	if (!supabase) {
-		return { 
-			valid: false, 
-			message: lang === 'es' ? 'Supabase no está configurado.' : 'Supabase is not configured.', 
-			code 
-		};
-	}
-
 	// Verify if this class code exists
-	const { data: instance, error } = await supabase
+	const { data: instance, error } = await db
 		.from('course_instances')
 		.select('*')
 		.eq('code', code)
-		.single();
+		.maybeSingle();
 
 	if (error || !instance) {
 		return {
@@ -38,11 +30,11 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 
 	if (activePlayerId && activeInstanceCode === code) {
 		// Verify in DB that student still exists
-		const { data: player } = await supabase
+		const { data: player } = await db
 			.from('course_players')
 			.select('id')
 			.eq('id', activePlayerId)
-			.single();
+			.maybeSingle();
 
 		if (player) {
 			// Already authenticated, redirect directly to learn map!
@@ -63,13 +55,6 @@ export const actions: Actions = {
 		const lang = (params.lang as 'es' | 'en') ?? 'es';
 		const t = learnTranslations[lang].login;
 
-		if (!supabase) {
-			return fail(500, {
-				success: false,
-				message: lang === 'es' ? 'Supabase no está configurado.' : 'Supabase is not configured.'
-			});
-		}
-
 		const formData = await request.formData();
 		const email = (formData.get('email') as string) || '';
 
@@ -80,7 +65,7 @@ export const actions: Actions = {
 		const cleanEmail = email.trim().toLowerCase();
 
 		// Check if player already exists in this course instance
-		const { data: player, error } = await supabase
+		const { data: player, error } = await db
 			.from('course_players')
 			.select('*')
 			.eq('instance_code', code)
@@ -129,13 +114,6 @@ export const actions: Actions = {
 		const lang = (params.lang as 'es' | 'en') ?? 'es';
 		const t = learnTranslations[lang].login;
 
-		if (!supabase) {
-			return fail(500, {
-				success: false,
-				message: lang === 'es' ? 'Supabase no está configurado.' : 'Supabase is not configured.'
-			});
-		}
-
 		const formData = await request.formData();
 		const email = (formData.get('email') as string) || '';
 		const name = (formData.get('name') as string) || '';
@@ -150,7 +128,7 @@ export const actions: Actions = {
 		const cleanAlias = alias.trim();
 
 		// Double-check if the player already exists to prevent duplicate registration
-		const { data: existingPlayer } = await supabase
+		const { data: existingPlayer } = await db
 			.from('course_players')
 			.select('id')
 			.eq('instance_code', code)
@@ -165,7 +143,7 @@ export const actions: Actions = {
 		}
 
 		// Insert student into course_players (no upsert, protecting existing records)
-		const { data: player, error } = await supabase
+		const { data: player, error } = await db
 			.from('course_players')
 			.insert({
 				instance_code: code,
@@ -183,7 +161,9 @@ export const actions: Actions = {
 			console.error('Registration insert error:', error);
 			return fail(400, {
 				success: false,
-				message: lang === 'es' ? `Error de registro: ${error.message}` : `Registration error: ${error.message}`
+				message: lang === 'es' 
+					? `Error de registro: ${error?.message || 'Error desconocido'}` 
+					: `Registration error: ${error?.message || 'Unknown error'}`
 			});
 		}
 
@@ -208,4 +188,3 @@ export const actions: Actions = {
 		throw redirect(303, `/${params.lang}/learn`);
 	}
 };
-

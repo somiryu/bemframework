@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { goalsTriviaQuestions, type GoalsTriviaQuestion } from '$lib/content/goalsTrivia';
-	import { supabase } from '$lib/supabase';
+	import { goalsTriviaQuestions as staticGoalsTriviaQuestions, type GoalsTriviaQuestion } from '$lib/content/goalsTrivia';
 
-	let { 
-		world, 
-		player, 
-		onGameComplete, 
-		onUpdateCoins 
-	}: { 
-		world: any; 
-		player: any; 
-		onGameComplete: (results: any) => void; 
-		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
+	let {
+		world,
+		player,
+		onGameComplete,
+		onUpdateCoins
+	}: {
+		world: any;
+		player: any;
+		onGameComplete: (results: any) => void;
+		onUpdateCoins: (newCoinsCount: number, newState: any) => void
 	} = $props();
+
+	// Content lives in course_worlds.training_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const goalsTriviaQuestions: GoalsTriviaQuestion[] = world.training_modules?.questions?.length
+		? world.training_modules.questions
+		: staticGoalsTriviaQuestions;
 
 	// Shuffle the 21 questions on load
 	const shuffled = [...goalsTriviaQuestions];
@@ -69,11 +74,11 @@
 
 		onUpdateCoins(player.coins, state);
 
-		if (supabase && player.id) {
-			await supabase
-				.from('course_players')
-				.update({ game_state: state })
-				.eq('id', player.id);
+		// Save via server action — the browser no longer writes course_players directly
+		if (player.id) {
+			const formData = new FormData();
+			formData.append('game_state', JSON.stringify(state));
+			await fetch('?/syncPlayerState', { method: 'POST', body: formData });
 		}
 	}
 
@@ -419,18 +424,7 @@
 			0 10px 30px rgba(225, 29, 72, 0.08);
 	}
 
-	.feedback-title {
-		font-family: var(--font-solar-header, sans-serif);
-		font-weight: 800;
-		font-size: 1.2rem;
-		letter-spacing: -0.01em;
-	}
 
-	.explanation-text {
-		font-size: 0.85rem;
-		line-height: 1.5;
-		font-weight: 600;
-	}
 
 	.action-row-feedback {
 		margin-top: 2.25rem !important;
@@ -440,14 +434,10 @@
 	.items-start { align-items: flex-start; }
 	.justify-between { justify-content: space-between; }
 	.flex { display: flex; }
-	.flex-shrink-0 { flex-shrink: 0; }
-	.object-cover { object-fit: cover; }
 	.gap-2 { gap: 0.5rem; }
 	.gap-4 { gap: 1rem; }
 	.mb-4 { margin-bottom: 1rem; }
 	.mb-6 { margin-bottom: 1.5rem; }
-	.my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
-	.my-4 { margin-top: 1rem; margin-bottom: 1rem; }
 	.mt-2 { margin-top: 0.5rem; }
 	.mt-4 { margin-top: 1rem; }
 	.mt-6 { margin-top: 1.5rem; }
@@ -517,15 +507,6 @@
 		100% { transform: scale(1); }
 	}
 
-	.mentor-portrait {
-		width: 48px;
-		height: 48px;
-		border-radius: 50%;
-		border: 2px solid var(--color-solar-green-medium, #3d8f68);
-		background-color: #ffffff;
-		flex-shrink: 0;
-		object-fit: cover;
-	}
 
 	.feedback-badge-premium {
 		font-family: var(--font-solar-header, sans-serif);

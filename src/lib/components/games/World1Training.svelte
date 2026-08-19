@@ -2,20 +2,25 @@
 	import { enhance } from '$app/forms';
 	import { tick } from 'svelte';
 	import { fade, slide, fly } from 'svelte/transition';
-	import { trainingQuestionsPool, type TrainingQuestion } from '$lib/content/trivia';
-	import { supabase } from '$lib/supabase';
+	import { trainingQuestionsPool as staticTrainingQuestionsPool, type TrainingQuestion } from '$lib/content/trivia';
 
-	let { 
-		world, 
-		player, 
-		onGameComplete, 
-		onUpdateCoins 
-	}: { 
-		world: any; 
-		player: any; 
-		onGameComplete: (results: any) => void; 
-		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
+	let {
+		world,
+		player,
+		onGameComplete,
+		onUpdateCoins
+	}: {
+		world: any;
+		player: any;
+		onGameComplete: (results: any) => void;
+		onUpdateCoins: (newCoinsCount: number, newState: any) => void
 	} = $props();
+
+	// Content lives in course_worlds.training_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const trainingQuestionsPool: TrainingQuestion[] = world.training_modules?.questions?.length
+		? world.training_modules.questions
+		: staticTrainingQuestionsPool;
 
 	// State to track liked ideas locally
 	let likedIdeas = $state<string[]>(player.game_state?.liked_ideas || []);
@@ -56,12 +61,11 @@
 		// Trigger onUpdateCoins to notify parent component and update local player state
 		onUpdateCoins(player.coins, state);
 
-		// Save to Supabase in the background
-		if (supabase && player.id) {
-			await supabase
-				.from('course_players')
-				.update({ game_state: state })
-				.eq('id', player.id);
+		// Save via server action — the browser no longer writes course_players directly
+		if (player.id) {
+			const formData = new FormData();
+			formData.append('game_state', JSON.stringify(state));
+			await fetch('?/syncPlayerState', { method: 'POST', body: formData });
 		}
 	}
 
@@ -396,43 +400,10 @@
 </div>
 
 <style>
-	.training-game-wrapper {
-		max-width: 720px;
-		margin: 0 auto;
-		padding: 1rem;
-	}
 
-	.agency-tag {
-		display: inline-block;
-		font-size: 0.7rem;
-		font-weight: 800;
-		color: var(--color-solar-sky);
-		background: var(--color-solar-sky-light);
-		padding: 0.2rem 0.6rem;
-		border-radius: 6px;
-		letter-spacing: 0.05em;
-		margin-bottom: 0.5rem;
-	}
 
-	.speech-box {
-		background: var(--color-solar-bg);
-		border-radius: 16px;
-		border: 1px solid rgba(0,0,0,0.05);
-	}
 
-	.solar-bullets {
-		padding-left: 1.2rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-		font-size: 0.85rem;
-		color: var(--color-solar-text);
-		line-height: 1.5;
-	}
 
-	.solar-bullets li {
-		list-style-type: circle;
-	}
 
 	.quiz-screen {
 		max-width: 680px;
@@ -532,32 +503,10 @@
 	}
 
 	/* Choice submission feedback states */
-	.choice-btn.selected {
-		border-color: var(--color-solar-green-medium);
-		background: var(--color-solar-green-light);
-	}
 
-	.choice-btn.correct-feed {
-		border-color: var(--color-solar-green-medium) !important;
-		background: #D1F5E3 !important;
-	}
 
-	.choice-btn.correct-feed .choice-indicator {
-		background: var(--color-solar-green-medium);
-		border-color: var(--color-solar-green-dark);
-		color: white;
-	}
 
-	.choice-btn.wrong-feed {
-		border-color: var(--color-solar-terracotta) !important;
-		background: #FEE2E2 !important;
-	}
 
-	.choice-btn.wrong-feed .choice-indicator {
-		background: var(--color-solar-terracotta);
-		border-color: var(--color-solar-terracotta);
-		color: white;
-	}
 
 	/* FEEDBACK EXPLANATION BOX */
 	.feedback-response-box {
@@ -603,52 +552,11 @@
 	}
 
 	/* STARS DISPLAY */
-	.stars-display {
-		display: flex;
-		justify-content: center;
-		gap: 0.75rem;
-		margin: 2rem 0;
-		position: relative;
-	}
 
-	.stars-display::before {
-		content: '';
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 150px;
-		height: 150px;
-		background: radial-gradient(circle, rgba(255, 209, 102, 0.25) 0%, transparent 70%);
-		z-index: 1;
-		pointer-events: none;
-		animation: solar-glow-pulse 4s ease-in-out infinite;
-	}
 
-	.star-shape {
-		font-size: 3.5rem;
-		color: #E5E7EB;
-		position: relative;
-		z-index: 2;
-		text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-		transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-	}
 
-	.star-shape.active {
-		color: var(--color-solar-yellow);
-		text-shadow: 
-			0 0 15px rgba(255, 209, 102, 0.6),
-			0 0 30px rgba(255, 209, 102, 0.3);
-		transform: scale(1.15) rotate(8deg);
-		animation: star-entrance 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-	}
 
 	/* Dynamic sequential delays for stars count */
-	.star-shape.active:nth-child(1) { animation-delay: 0.1s; }
-	.star-shape.active:nth-child(2) { animation-delay: 0.2s; }
-	.star-shape.active:nth-child(3) { animation-delay: 0.3s; }
-	.star-shape.active:nth-child(4) { animation-delay: 0.4s; }
-	.star-shape.active:nth-child(5) { animation-delay: 0.5s; }
 
 	@keyframes star-entrance {
 		from {
@@ -667,89 +575,17 @@
 	}
 
 	/* SUMMARY SCREEN */
-	.success-badge {
-		font-size: 4rem;
-		margin-bottom: 0.5rem;
-	}
 
-	.summary-screen h3 {
-		font-family: var(--font-solar-header);
-		font-size: 1.75rem;
-		font-weight: 800;
-		color: var(--color-solar-green-dark);
-		margin: 0;
-	}
 
-	.summary-desc {
-		font-size: 0.95rem;
-		color: var(--color-solar-text-muted);
-		margin: 0.25rem 0 1.5rem 0;
-		font-weight: 550;
-	}
 
-	.score-card-stats {
-		max-width: 100%;
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 1rem;
-		margin: 2rem 0;
-		padding: 0;
-		background: transparent;
-		border: none;
-		box-shadow: none;
-	}
 
-	.score-row {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		padding: 1.25rem 1rem;
-		border-radius: 20px;
-		background: rgba(255, 255, 255, 0.7);
-		border: 1px solid var(--color-solar-card-border);
-		box-shadow: var(--shadow-solar-sm);
-		transition: all 0.3s ease;
-	}
 
-	.score-row:hover {
-		transform: translateY(-2px);
-		box-shadow: var(--shadow-solar-md);
-		background: white;
-	}
 
-	.score-row span:first-child {
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		font-weight: 800;
-		margin-bottom: 0.35rem;
-	}
 
-	.score-val {
-		font-family: var(--font-solar-header);
-		font-size: 1.5rem;
-		font-weight: 800;
-		color: var(--color-solar-text);
-	}
 
-	.score-val.correct { color: var(--color-solar-green-medium); }
-	.score-val.wrong { color: var(--color-solar-terracotta); }
 
 	/* KARMA INTERACTIVE PROGRESS BARS */
-	.karma-section {
-		background: rgba(255,255,255,0.7);
-		border-radius: 24px;
-		border: 1px solid var(--color-solar-card-border);
-	}
 
-	.karma-title {
-		font-family: var(--font-solar-header);
-		font-size: 1.15rem;
-		font-weight: 800;
-		color: var(--color-solar-green-dark);
-		letter-spacing: 0.05em;
-	}
 
 	.karma-bar-item {
 		display: flex;
@@ -809,21 +645,8 @@
 		z-index: 10;
 	}
 
-	.karma-fill {
-		top: 0;
-		height: 100%;
-		border-radius: 9999px;
-		z-index: 5;
-		transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-	}
 
-	.negative-fill {
-		background: linear-gradient(to left, rgba(224, 122, 95, 0.6), var(--color-solar-terracotta));
-	}
 
-	.positive-fill {
-		background: linear-gradient(to right, rgba(61, 143, 104, 0.6), var(--color-solar-green-medium));
-	}
 
 	.karma-dot {
 		position: absolute;
@@ -875,113 +698,28 @@
 	.score-indicator-pill.green { background: var(--color-solar-green-light); color: var(--color-solar-green-dark); }
 	.score-indicator-pill.red { background: #fee2e2; color: #b91c1c; }
 
-	.coins-earned-summary {
-		background: rgba(255, 209, 102, 0.08);
-		border: 1px solid rgba(255, 209, 102, 0.25);
-		border-radius: 20px;
-	}
 
-	.coin-badge-label {
-		font-size: 0.8rem;
-		font-weight: 800;
-		color: var(--color-solar-green-dark);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
 
 	/* GIOCHI Bot Portrait styling */
-	.giochi-avatar-container {
-		display: flex;
-		justify-content: center;
-	}
 
-	.giochi-bot {
-		width: 80px;
-		height: 70px;
-		background: var(--color-solar-sky-light, #e1f4fc);
-		border: 3px solid var(--color-solar-sky, #188db5);
-		border-radius: 22px;
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		box-shadow: var(--shadow-solar-md);
-	}
 
-	.giochi-eyes {
-		display: flex;
-		gap: 0.5rem;
-	}
 
-	.giochi-eyes .eye {
-		width: 16px;
-		height: 16px;
-		background: var(--color-solar-green-dark, #1e4533);
-		border-radius: 50%;
-		border: 2.5px solid white;
-		position: relative;
-	}
 
-	.giochi-eyes .eye::after {
-		content: '';
-		width: 4px;
-		height: 4px;
-		background: white;
-		border-radius: 50%;
-		position: absolute;
-		top: 2px;
-		left: 2px;
-	}
 
-	.giochi-body {
-		width: 40px;
-		height: 8px;
-		background: var(--color-solar-yellow, #ffd166);
-		border-radius: 4px;
-		position: absolute;
-		bottom: -4px;
-		border: 2.5px solid var(--color-solar-sky, #188db5);
-	}
 
-	.giochi-antenna {
-		width: 4px;
-		height: 14px;
-		background: var(--color-solar-sky, #188db5);
-		position: absolute;
-		top: -14px;
-		border-radius: 2px;
-	}
 
-	.giochi-antenna::before {
-		content: '';
-		width: 10px;
-		height: 10px;
-		background: var(--color-solar-yellow, #ffd166);
-		border-radius: 50%;
-		position: absolute;
-		top: -8px;
-		left: -3px;
-		box-shadow: 0 0 8px var(--color-solar-yellow, #ffd166);
-	}
 
 	.w-full { width: 100%; }
-	.justify-center { justify-content: center; }
 	.items-center { align-items: center; }
 	.justify-between { justify-content: space-between; }
 	.flex-col { flex-direction: column; }
 	.gap-2 { gap: 0.5rem; }
 	.gap-3 { gap: 0.75rem; }
-	.gap-4 { gap: 1rem; }
 	.mb-3 { margin-bottom: 0.75rem; }
 	.mb-4 { margin-bottom: 1rem; }
 	.mb-6 { margin-bottom: 1.5rem; }
-	.mt-1 { margin-top: 0.25rem; }
 	.mt-2 { margin-top: 0.5rem; }
 	.mt-4 { margin-top: 1rem; }
-	.mt-6 { margin-top: 1.5rem; }
-	.border-t { border-top: 1px solid var(--color-solar-card-border); }
-	.pt-2 { padding-top: 0.5rem; }
 
 	/* LIKE IDEA BUTTON STYLES */
 	.idea-btn-container {

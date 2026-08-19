@@ -38,7 +38,7 @@
 			<span class="solar-ornament">
 				{lang === 'es' ? '💬 EVALUACIÓN DE SESIÓN' : '💬 SESSION EVALUATION'}
 			</span>
-			<h2>{t.title} {world.order_index}</h2>
+			<h2>{t.title} {world.displayNumber ?? world.order_index}</h2>
 			<p>{t.subtitle}</p>
 		</div>
 

@@ -7,7 +7,7 @@
 	import GameUIWrapper from '$lib/components/workshop/GameUIWrapper.svelte';
 	import MentorExplain from '$lib/components/games/MentorExplain.svelte';
 
-	import { world4WorkshopSlides } from '$lib/content/world4WorkshopData';
+	import { world4WorkshopSlides as staticWorld4WorkshopSlides, type WorkshopSlide } from '$lib/content/world4WorkshopData';
 	import confetti from 'canvas-confetti';
 
 	// Templates
@@ -19,15 +19,25 @@
 	let {
 		player: initialPlayer,
 		instance,
+		world = null,
 		onComplete
 	}: {
 		player: any;
 		instance: any;
+		world?: any;
 		onComplete: () => void;
 	} = $props();
 
+	// Content lives in course_worlds.workshop_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const world4WorkshopSlides: WorkshopSlide[] = world?.workshop_modules?.slides?.length ? world.workshop_modules.slides : staticWorld4WorkshopSlides;
+
 	// Initialize the shared workshop session for World 4
 	const session = createWorkshopSession(initialPlayer, instance, 4, onComplete);
+
+	// Without this, navigating away with goto() (instead of a full page
+	// reload) would leave the realtime channel subscribed indefinitely.
+	onDestroy(() => session.cleanup());
 
 	// Slide navigation states
 	let currentSlideIndex = $state(1);
@@ -210,19 +220,12 @@
 				payload: { slideIndex: index, mode }
 			});
 
-			if (supabase) {
-				await supabase
-					.from('course_instances')
-					.update({
-						current_workshop_state: {
-							world_id: 4,
-							slide_index: index,
-							mode,
-							votes: {}
-						}
-					})
-					.eq('code', instance.code);
-			}
+			await session.syncWorkshopState({
+				world_id: 4,
+				slide_index: index,
+				mode,
+				votes: {}
+			});
 		}
 	}
 
@@ -322,12 +325,7 @@
 		if (confirm('¿Estás seguro de que deseas reiniciar el taller del Mundo 4?')) {
 			if (session.channel) {
 				await session.channel.send({ type: 'broadcast', event: 'workshop-reset', payload: {} });
-				if (supabase) {
-					await supabase
-						.from('course_instances')
-						.update({ current_workshop_state: { world_id: 4, slide_index: 1, mode: 'actividad' } })
-						.eq('code', instance.code);
-				}
+				await session.syncWorkshopState({ world_id: 4, slide_index: 1, mode: 'actividad' });
 			}
 			currentSlideIndex = 1;
 			activeMode = 'actividad';
@@ -359,12 +357,7 @@
 		if (session.channel) {
 			await session.channel.send({ type: 'broadcast', event: 'workshop-complete', payload: {} });
 			// Clear instance workshop state in the DB
-			if (supabase) {
-				await supabase
-					.from('course_instances')
-					.update({ current_workshop_state: null })
-					.eq('code', instance.code);
-			}
+			await session.syncWorkshopState(null);
 		}
 		
 		if (session.isHost) {

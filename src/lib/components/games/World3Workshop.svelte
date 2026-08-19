@@ -6,14 +6,16 @@
 	import FacilitatorControlPanel from '$lib/components/workshop/FacilitatorControlPanel.svelte';
 	import GameUIWrapper from '$lib/components/workshop/GameUIWrapper.svelte';
 
-	let { 
-		player, 
-		instance, 
-		onComplete 
-	}: { 
-		player: any; 
-		instance: any; 
-		onComplete: () => void 
+	let {
+		player,
+		instance,
+		world = null,
+		onComplete
+	}: {
+		player: any;
+		instance: any;
+		world?: any;
+		onComplete: () => void
 	} = $props();
 
 	// Initialize session
@@ -152,6 +154,9 @@
 
 	onDestroy(() => {
 		stopTimer();
+		// Without this, navigating away with goto() (instead of a full page
+		// reload) would leave the realtime channel subscribed indefinitely.
+		session.cleanup();
 	});
 
 	function startLocalTimer(seconds: number) {
@@ -205,22 +210,17 @@
 	}
 
 	async function saveWorkshopState() {
-		await supabase
-			.from('course_instances')
-			.update({
-				current_workshop_state: {
-					world_id: 3,
-					phase: activePhase,
-					round: roundIndex,
-					ideas: submittedIdeas,
-					votes: studentVoteMap,
-					mentorAssignments,
-					score: collectiveScore,
-					timeLeft: activePhase === 2 ? timer : null,
-					rounds: roundHistory
-				}
-			})
-			.eq('code', instance.code);
+		await session.syncWorkshopState({
+			world_id: 3,
+			phase: activePhase,
+			round: roundIndex,
+			ideas: submittedIdeas,
+			votes: studentVoteMap,
+			mentorAssignments,
+			score: collectiveScore,
+			timeLeft: activePhase === 2 ? timer : null,
+			rounds: roundHistory
+		});
 	}
 
 	// Student submitting ideas
@@ -336,21 +336,13 @@
 
 	async function handleResetWorkshop() {
 		if (confirm('¿Estás seguro de reiniciar el taller del Mundo 3? Se borrarán todas las respuestas.')) {
-			// Clear all students game_state world 3 data
-			const { data: players } = await supabase
-				.from('course_players')
-				.select('id, game_state')
-				.eq('instance_code', instance.code);
-
-			if (players) {
-				for (const p of players) {
-					const newState = p.game_state || {};
-					delete newState[3];
-					await supabase
-						.from('course_players')
-						.update({ game_state: newState })
-						.eq('id', p.id);
-				}
+			// Clear all students game_state world 3 data (host-only, server-enforced)
+			const formData = new FormData();
+			formData.append('world_id', '3');
+			formData.append('instance_code', instance.code);
+			const res = await fetch('?/resetWorldProgress', { method: 'POST', body: formData });
+			if (!res.ok) {
+				console.error('resetWorldProgress error:', res.status, await res.text());
 			}
 
 			if (session.channel) {
@@ -459,7 +451,7 @@
 		<!-- Rounds Tracker Header -->
 		<header class="rounds-tracker">
 			<div class="tracker-left">
-				<span class="m-badge">⚙️ MUNDO 3 · WORKSHOP</span>
+				<span class="m-badge">⚙️ {world?.displayWorldNumber ?? 'MUNDO 3'} · WORKSHOP</span>
 				<span class="round-label">Ronda {roundIndex}</span>
 				<span class="phase-label">
 					{#if activePhase === 1}

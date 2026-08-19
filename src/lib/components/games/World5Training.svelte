@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { attentionTriviaQuestions, type AttentionTriviaQuestion } from '$lib/content/attentionTrivia';
-	import { supabase } from '$lib/supabase';
+	import { attentionTriviaQuestions as staticAttentionTriviaQuestions, type AttentionTriviaQuestion } from '$lib/content/attentionTrivia';
 
-	let { 
-		world, 
-		player, 
-		onGameComplete, 
-		onUpdateCoins 
-	}: { 
-		world: any; 
-		player: any; 
-		onGameComplete: (results: any) => void; 
-		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
+	let {
+		world,
+		player,
+		onGameComplete,
+		onUpdateCoins
+	}: {
+		world: any;
+		player: any;
+		onGameComplete: (results: any) => void;
+		onUpdateCoins: (newCoinsCount: number, newState: any) => void
 	} = $props();
+
+	// Content lives in course_worlds.training_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const attentionTriviaQuestions: AttentionTriviaQuestion[] = world.training_modules?.questions?.length
+		? world.training_modules.questions
+		: staticAttentionTriviaQuestions;
 
 	// Shuffle the 21 questions on load
 	const shuffled = [...attentionTriviaQuestions];
@@ -69,11 +74,11 @@
 
 		onUpdateCoins(player.coins, state);
 
-		if (supabase && player.id) {
-			await supabase
-				.from('course_players')
-				.update({ game_state: state })
-				.eq('id', player.id);
+		// Save via server action — the browser no longer writes course_players directly
+		if (player.id) {
+			const formData = new FormData();
+			formData.append('game_state', JSON.stringify(state));
+			await fetch('?/syncPlayerState', { method: 'POST', body: formData });
 		}
 	}
 
@@ -447,15 +452,6 @@
 		border-left: 5px solid var(--color-solar-terracotta, #e11d48);
 	}
 
-	.feedback-badge {
-		font-family: var(--font-solar-header, sans-serif);
-		font-size: 0.65rem;
-		font-weight: 900;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		padding: 0.25rem 0.75rem;
-		border-radius: var(--radius-solar-xs, 6px);
-	}
 
 	.correct-badge {
 		background: var(--color-solar-green-light);
@@ -503,25 +499,8 @@
 		margin-bottom: 1.25rem !important;
 	}
 
-	.response-pill {
-		padding: 1rem 1.25rem;
-		border-radius: 16px;
-		border: 1.5px solid transparent;
-	}
 
-	.response-pill .pill-label {
-		font-size: 0.6rem;
-		font-weight: 800;
-		letter-spacing: 0.05em;
-		display: block;
-		margin-bottom: 0.25rem;
-	}
 
-	.response-pill .pill-text {
-		font-size: 0.85rem;
-		margin: 0;
-		line-height: 1.4;
-	}
 
 	.user-correct {
 		background: hsla(142, 70%, 90%, 0.4);
@@ -542,23 +521,7 @@
 	}
 
 	/* MENTOR SPEECH CARD */
-	.mentor-speech-card {
-		background: white;
-		border: 1px solid var(--color-solar-card-border, rgba(0,0,0,0.06));
-		padding: 1.25rem;
-		border-radius: 20px;
-		box-sizing: border-box;
-		box-shadow: var(--shadow-solar-sm);
-	}
 
-	.mentor-portrait-circle {
-		width: 52px;
-		height: 52px;
-		border-radius: 50%;
-		border: 2.5px solid var(--color-solar-green-medium);
-		object-fit: cover;
-		flex-shrink: 0;
-	}
 
 	.speech-bubble-body {
 		text-align: left;

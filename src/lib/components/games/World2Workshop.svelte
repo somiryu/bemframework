@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { fade, fly, slide, scale } from 'svelte/transition';
 	import { supabase } from '$lib/supabase';
-	import { workshopCards, type GFRCard } from '$lib/content/gfrCards';
+	import { workshopCards as staticWorkshopCards, type GFRCard } from '$lib/content/gfrCards';
 	import confetti from 'canvas-confetti';
 	import { createWorkshopSession } from '$lib/utils/workshop.svelte';
 	import FacilitatorControlPanel from '$lib/components/workshop/FacilitatorControlPanel.svelte';
@@ -25,18 +25,28 @@
 		return true;
 	}
 
-	let { 
-		player: initialPlayer, 
-		instance, 
-		onComplete 
-	}: { 
-		player: any; 
-		instance: any; 
-		onComplete: () => void 
+	let {
+		player: initialPlayer,
+		instance,
+		world = null,
+		onComplete
+	}: {
+		player: any;
+		instance: any;
+		world?: any;
+		onComplete: () => void
 	} = $props();
+
+	// Content lives in course_worlds.workshop_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const workshopCards: GFRCard[] = world?.workshop_modules?.cards?.length ? world.workshop_modules.cards : staticWorkshopCards;
 
 	// Initialize the shared workshop session
 	const session = createWorkshopSession(initialPlayer, instance, 2, onComplete);
+
+	// Without this, navigating away with goto() (instead of a full page
+	// reload) would leave the realtime channel subscribed indefinitely.
+	onDestroy(() => session.cleanup());
 
 	// Real-time synchronization
 	let currentRound = $state(0); // 0 to 11
@@ -370,10 +380,7 @@
 							card_order: newOrder
 						};
 
-						await supabase
-							.from('course_instances')
-							.update({ current_workshop_state: currentWorkshopState })
-							.eq('code', instance.code);
+						await session.syncWorkshopState(currentWorkshopState);
 					} else if (currentWorkshopState && currentWorkshopState.world_id === 2) {
 						currentRound = currentWorkshopState.round_index ?? 0;
 						activeMode = currentWorkshopState.mode ?? 'actividad';
@@ -458,8 +465,10 @@
 				.subscribe();
 
 			return () => {
-				supabase.removeChannel(playersChannel);
-				supabase.removeChannel(instancesChannel);
+				if (supabase) {
+					supabase.removeChannel(playersChannel);
+					supabase.removeChannel(instancesChannel);
+				}
 			};
 		}
 	});
@@ -489,17 +498,12 @@
 				payload: { roundIndex: index, mode, cardOrder }
 			});
 
-			await supabase
-				.from('course_instances')
-				.update({
-					current_workshop_state: { 
-						world_id: 2, 
-						round_index: index, 
-						mode,
-						card_order: cardOrder
-					}
-				})
-				.eq('code', instance.code);
+			await session.syncWorkshopState({
+				world_id: 2,
+				round_index: index,
+				mode,
+				card_order: cardOrder
+			});
 		}
 	}
 
@@ -664,22 +668,12 @@
 
 	async function handleResetWorkshop() {
 		if (confirm('¿Estás seguro de reiniciar el taller del Mundo 2? Esto borrará todas las respuestas del Mundo 2 en todos los estudiantes.')) {
-			const { data: players } = await supabase
-				.from('course_players')
-				.select('id, game_state')
-				.eq('instance_code', instance.code);
-
-			if (players) {
-				const updatePromises = players.map(p => {
-					const newState = p.game_state ? { ...p.game_state } : {};
-					delete newState['2'];
-					delete newState[2];
-					return supabase
-						.from('course_players')
-						.update({ game_state: newState })
-						.eq('id', p.id);
-				});
-				await Promise.all(updatePromises);
+			const formData = new FormData();
+			formData.append('world_id', '2');
+			formData.append('instance_code', instance.code);
+			const res = await fetch('?/resetWorldProgress', { method: 'POST', body: formData });
+			if (!res.ok) {
+				console.error('resetWorldProgress error:', res.status, await res.text());
 			}
 
 			const newOrder = generateRandomOrder(workshopCards.length);
@@ -724,13 +718,16 @@
 		onComplete();
 	}
 
-	const colLabels = {
+	const rowsList = ['regulatorio', 'integrado', 'intrinseco'] as const;
+	const colsList = ['meta', 'retroalimentacion', 'recompensa'] as const;
+
+	const colLabels: Record<string, string> = {
 		meta: 'Meta (Goal)',
 		retroalimentacion: 'Retroalimentación (Feedback)',
 		recompensa: 'Recompensa (Reward)'
 	};
 
-	const rowLabels = {
+	const rowLabels: Record<string, string> = {
 		regulatorio: 'Regulatorio',
 		intrinseco: 'Intrínseco',
 		integrado: 'Integrado'
@@ -836,10 +833,10 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each ['regulatorio', 'integrado', 'intrinseco'] as r}
+						{#each rowsList as r}
 							<tr>
 								<td class="row-header">{rowLabels[r]}</td>
-								{#each ['meta', 'retroalimentacion', 'recompensa'] as c}
+								{#each colsList as c}
 									{@const cellKey = `${r}-${c}`}
 									<td class="matrix-cell">
 										<div class="cell-content">
@@ -962,10 +959,10 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each ['regulatorio', 'integrado', 'intrinseco'] as r}
+							{#each rowsList as r}
 								<tr>
 									<td class="row-header">{rowLabels[r]}</td>
-									{#each ['meta', 'retroalimentacion', 'recompensa'] as c}
+									{#each colsList as c}
 										{@const cellKey = `${r}-${c}`}
 										{@const isSelected = selectedRow === r && selectedCol === c}
 										{@const isCorrectCell = activeCard && activeCard.rii === r && activeCard.gfr === c}
@@ -1158,13 +1155,6 @@
 		gap: 0.5rem;
 	}
 
-	.host-title span {
-		font-size: 0.65rem;
-		font-weight: 900;
-		color: var(--color-solar-yellow);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
 
 	.host-actions-row {
 		align-items: center;
@@ -1176,16 +1166,6 @@
 		align-items: center;
 	}
 
-	.host-controls-banner button {
-		padding: 0.25rem 0.65rem !important;
-		font-size: 0.75rem !important;
-		border-radius: 6px !important;
-		font-weight: 800 !important;
-		height: auto !important;
-		min-height: unset !important;
-		margin: 0 0.25rem !important;
-		border: 1px solid rgba(255, 255, 255, 0.15) !important;
-	}
 
 	.presence-tag {
 		font-size: 0.8rem;

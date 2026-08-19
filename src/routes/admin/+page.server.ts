@@ -1,8 +1,21 @@
 import { fail, redirect } from '@sveltejs/kit';
+import type { Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getSubscribers } from '$lib/server/subscribers';
 import { sendNewsletter, isBrevoConfigured } from '$lib/server/mailer';
+import { db, DB_MODE } from '$lib/server/db';
 import { supabase } from '$lib/supabase';
+
+// Re-validates the session cookie against the database on every mutating action.
+// The cookie alone is not proof of privilege — it must still resolve to a row
+// in super_user via the same RPC the page load uses.
+async function requireSuperUser(cookies: Cookies): Promise<string | null> {
+	const superUserEmail = cookies.get('super_user_email') || null;
+	if (!superUserEmail) return null;
+
+	const { data: isSuper } = await db.rpc('is_super_user', { email_to_check: superUserEmail });
+	return isSuper ? superUserEmail : null;
+}
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	const subscribers = await getSubscribers();
@@ -16,34 +29,33 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	let coursePlayers: any[] = [];
 	let feedbackTestimonies: any[] = [];
 
-	if (superUserEmail && supabase) {
+	if (superUserEmail) {
 		// Double check against database using secure server-side RPC
-		const { data: isSuper } = await supabase
-			.rpc('is_super_user', { email_to_check: superUserEmail });
+		const { data: isSuper } = await db.rpc('is_super_user', { email_to_check: superUserEmail });
 
 		if (isSuper) {
 			isSuperUser = true;
 
 			// Fetch BEM course data
-			const { data: worlds } = await supabase
+			const { data: worlds } = await db
 				.from('course_worlds')
 				.select('*')
 				.order('order_index', { ascending: true });
 			courseWorlds = worlds || [];
 
-			const { data: instances } = await supabase
+			const { data: instances } = await db
 				.from('course_instances')
 				.select('*')
 				.order('created_at', { ascending: false });
 			courseInstances = instances || [];
 
-			const { data: players } = await supabase
+			const { data: players } = await db
 				.from('course_players')
 				.select('*')
 				.order('created_at', { ascending: false });
 			coursePlayers = players || [];
 
-			const { data: feedback } = await supabase
+			const { data: feedback } = await db
 				.from('workshop_feedback')
 				.select('*')
 				.order('created_at', { ascending: false });
@@ -123,38 +135,58 @@ export const actions: Actions = {
 		if (!cleanEmail || !cleanPassword) {
 			return fail(400, { success: false, message: 'El correo y la contraseña son requeridos.' });
 		}
-
-		if (!supabase) {
-			return fail(500, { success: false, message: 'Supabase no está configurado.' });
-		}
-
-		// Authenticate using the official Supabase Auth API
-		const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-			email: cleanEmail,
-			password: cleanPassword
-		});
-
-		if (authError || !authData.user) {
-			console.error('Supabase Auth error:', authError);
-			return fail(400, { 
-				success: false, 
-				message: authError 
-					? `Error de autenticación: ${authError.message}` 
-					: 'Credenciales de superusuario incorrectas.' 
+		
+		if (DB_MODE === 'supabase' && supabase) {
+			// Authenticate using the official Supabase Auth API
+			const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+				email: cleanEmail,
+				password: cleanPassword
 			});
-		}
 
-		// Double check if this authenticated user exists in our super_user roles table using secure RPC
-		const { data: isSuper, error: dbError } = await supabase
-			.rpc('is_super_user', { email_to_check: cleanEmail });
+			if (authError || !authData.user) {
+				// Fallback to checking the super_user table in case auth user is configured directly in DB.
+				// password is a pgcrypto hash — verified via RPC, never compared in plaintext.
+				const { data: passwordOk } = await db.rpc('verify_super_user_password', {
+					email_to_check: cleanEmail,
+					password_to_check: cleanPassword
+				});
 
-		if (dbError || !isSuper) {
-			// Sign out immediately if not a super user
-			await supabase.auth.signOut();
-			return fail(403, { 
-				success: false, 
-				message: 'Acceso denegado: Este usuario no posee privilegios de Orquestador/Superusuario.' 
+				if (!passwordOk) {
+					console.error('Supabase Auth error:', authError);
+					return fail(400, {
+						success: false,
+						message: authError
+							? `Error de autenticación: ${authError.message}`
+							: 'Credenciales de superusuario incorrectas.'
+					});
+				}
+			}
+
+			// Double check if this user exists in our super_user roles table using secure RPC
+			const { data: isSuper, error: dbError } = await db
+				.rpc('is_super_user', { email_to_check: cleanEmail });
+
+			if (dbError || !isSuper) {
+				if (supabase.auth) await supabase.auth.signOut();
+				return fail(403, { 
+					success: false, 
+					message: 'Acceso denegado: Este usuario no posee privilegios de Orquestador/Superusuario.' 
+				});
+			}
+		} else {
+			// Local Postgres mode authentication — password is a pgcrypto hash,
+			// verified via RPC, never compared in plaintext.
+			const { data: passwordOk, error: queryError } = await db.rpc('verify_super_user_password', {
+				email_to_check: cleanEmail,
+				password_to_check: cleanPassword
 			});
+
+			if (queryError || !passwordOk) {
+				return fail(400, {
+					success: false,
+					message: 'Credenciales incorrectas para el usuario administrador local.'
+				});
+			}
 		}
 
 		// Set secure cookie using the sanitized email
@@ -175,150 +207,87 @@ export const actions: Actions = {
 	},
 
 	createInstance: async ({ request, cookies }) => {
-		const superUserEmail = cookies.get('super_user_email');
-		if (!superUserEmail || !supabase) {
+		const superUserEmail = await requireSuperUser(cookies);
+		if (!superUserEmail) {
 			return fail(401, { success: false, message: 'No autorizado.' });
 		}
 
 		const formData = await request.formData();
-		const code = (formData.get('code') as string) || '';
+		const rawCode = (formData.get('code') as string) || '';
+		const code = rawCode.trim().toUpperCase().replace(/\s+/g, '-');
 
-		if (!code.trim()) {
-			return fail(400, { success: false, message: 'El código de la clase es requerido.' });
+		if (!code) {
+			return fail(400, { success: false, message: 'El código de clase es requerido.' });
 		}
 
-		const cleanCode = code.trim().toUpperCase().replace(/\s+/g, '-');
-
-		const { error } = await supabase
+		const { error } = await db
 			.from('course_instances')
-			.insert([{ code: cleanCode, unlocked_worlds: [1] }]);
+			.insert({
+				code,
+				unlocked_worlds: [1],
+				current_workshop_state: { world_id: 1, slide_index: 0 }
+			});
 
 		if (error) {
-			return fail(400, { success: false, message: `Error al crear la clase: ${error.message}` });
+			console.error('Create instance error:', error);
+			return fail(400, { success: false, message: `Error al instanciar clase: ${error.message || 'Código duplicado o inválido'}` });
 		}
 
-		return { success: true, message: `Clase '${cleanCode}' creada exitosamente.` };
+		return { success: true, message: `Clase ${code} creada exitosamente con el Mundo 1 desbloqueado.` };
 	},
 
 	toggleWorldUnlock: async ({ request, cookies }) => {
-		const superUserEmail = cookies.get('super_user_email');
-		if (!superUserEmail || !supabase) {
+		const superUserEmail = await requireSuperUser(cookies);
+		if (!superUserEmail) {
 			return fail(401, { success: false, message: 'No autorizado.' });
 		}
 
 		const formData = await request.formData();
-		const code = formData.get('instance_code') as string;
-		const worldId = parseInt(formData.get('world_id') as string, 10);
-		const action = formData.get('action') as string; // 'unlock' or 'lock'
+		const instanceCode = (formData.get('instance_code') as string) || '';
+		const worldId = parseInt((formData.get('world_id') as string) || '0', 10);
+		const action = (formData.get('action') as string) || 'unlock';
 
-		if (!code || isNaN(worldId)) {
-			return fail(400, { success: false, message: 'Parámetros inválidos.' });
+		if (!instanceCode || !worldId) {
+			return fail(400, { success: false, message: 'Datos incompletos.' });
 		}
 
-		// Fetch current unlocked worlds
-		const { data: instance } = await supabase
+		const { data: instance } = await db
 			.from('course_instances')
 			.select('unlocked_worlds')
-			.eq('code', code)
-			.single();
+			.eq('code', instanceCode)
+			.maybeSingle();
 
 		if (!instance) {
 			return fail(404, { success: false, message: 'Instancia no encontrada.' });
 		}
 
-		let unlocked: number[] = instance.unlocked_worlds || [];
+		let unlocked: number[] = Array.isArray(instance.unlocked_worlds) ? instance.unlocked_worlds : [];
 
 		if (action === 'unlock') {
 			if (!unlocked.includes(worldId)) {
 				unlocked.push(worldId);
+				unlocked.sort((a, b) => a - b);
 			}
 		} else {
 			unlocked = unlocked.filter((id) => id !== worldId);
 			if (unlocked.length === 0) unlocked = [1]; // Keep world 1 always unlocked
 		}
 
-		const { error } = await supabase
+		const { error } = await db
 			.from('course_instances')
 			.update({ unlocked_worlds: unlocked })
-			.eq('code', code);
+			.eq('code', instanceCode);
 
 		if (error) {
 			return fail(400, { success: false, message: `Error al actualizar: ${error.message}` });
 		}
 
-		return { success: true, message: `Mundo actualizado correctamente para la clase ${code}.` };
-	},
-
-	updateWorldContent: async ({ request, cookies }) => {
-		const superUserEmail = cookies.get('super_user_email');
-		if (!superUserEmail || !supabase) {
-			return fail(401, { success: false, message: 'No autorizado.' });
-		}
-
-		const formData = await request.formData();
-		const worldIdStr = formData.get('world_id') as string;
-		const orderIndex = parseInt(formData.get('order_index') as string, 10);
-		const title = formData.get('title') as string;
-		const narrativePlace = formData.get('narrative_place') as string;
-		const narrativeObjective = formData.get('narrative_objective') as string;
-		const narrativeMentor = formData.get('narrative_mentor') as string;
-
-		// JSON fields
-		const narrativeIntroStr = formData.get('narrative_intro') as string;
-		const narrativeOutroStr = formData.get('narrative_outro') as string;
-		const workshopModulesStr = formData.get('workshop_modules') as string;
-		const trainingModulesStr = formData.get('training_modules') as string;
-		const designModulesStr = formData.get('design_modules') as string;
-		const wikiModulesStr = formData.get('wiki_modules') as string;
-
-		if (!title || !narrativePlace || !narrativeObjective || !narrativeMentor || isNaN(orderIndex)) {
-			return fail(400, { success: false, message: 'Campos obligatorios vacíos.' });
-		}
-
-		try {
-			const payload = {
-				order_index: orderIndex,
-				title,
-				narrative_place: narrativePlace,
-				narrative_objective: narrativeObjective,
-				narrative_mentor: narrativeMentor,
-				narrative_intro: JSON.parse(narrativeIntroStr || '[]'),
-				narrative_outro: JSON.parse(narrativeOutroStr || '[]'),
-				workshop_modules: JSON.parse(workshopModulesStr || '{}'),
-				training_modules: JSON.parse(trainingModulesStr || '{}'),
-				design_modules: JSON.parse(designModulesStr || '{}'),
-				wiki_modules: JSON.parse(wikiModulesStr || '[]')
-			};
-
-			let error;
-
-			if (worldIdStr && worldIdStr !== 'new') {
-				const worldId = parseInt(worldIdStr, 10);
-				const { error: err } = await supabase
-					.from('course_worlds')
-					.update(payload)
-					.eq('id', worldId);
-				error = err;
-			} else {
-				const { error: err } = await supabase
-					.from('course_worlds')
-					.insert([payload]);
-				error = err;
-			}
-
-			if (error) {
-				return fail(400, { success: false, message: `Error al guardar en base de datos: ${error.message}` });
-			}
-
-			return { success: true, message: 'Contenido del mundo guardado correctamente.' };
-		} catch (e: any) {
-			return fail(400, { success: false, message: `Error de formato JSON: ${e.message}` });
-		}
+		return { success: true, message: `Mundo ${worldId} ${action === 'unlock' ? 'desbloqueado' : 'bloqueado'} para la clase ${instanceCode}.` };
 	},
 
 	loginAsSuperUserPlayer: async ({ request, cookies }) => {
-		const superUserEmail = cookies.get('super_user_email');
-		if (!superUserEmail || !supabase) {
+		const superUserEmail = await requireSuperUser(cookies);
+		if (!superUserEmail) {
 			return fail(401, { success: false, message: 'No autorizado.' });
 		}
 
@@ -332,11 +301,11 @@ export const actions: Actions = {
 		const cleanCode = code.trim().toUpperCase();
 
 		// Check if player already exists to avoid wiping progress
-		const { data: existingPlayer } = await supabase
+		const { data: existingPlayer } = await db
 			.from('course_players')
 			.select('*')
 			.eq('instance_code', cleanCode)
-			.eq('email', 'javier@f2p.co')
+			.eq('email', superUserEmail)
 			.maybeSingle();
 
 		let player;
@@ -346,11 +315,11 @@ export const actions: Actions = {
 			player = existingPlayer;
 		} else {
 			// Create Javier player profile only if it does not exist
-			const { data: newPlayer, error: insertError } = await supabase
+			const { data: newPlayer, error: insertError } = await db
 				.from('course_players')
 				.insert({
 					instance_code: cleanCode,
-					email: 'javier@f2p.co',
+					email: superUserEmail,
 					name: 'Javier Velásquez (Superuser)',
 					alias: 'JavierBEM',
 					avatar: 'eco-engineer',
@@ -369,10 +338,10 @@ export const actions: Actions = {
 			return fail(400, { success: false, message: `Error al crear jugador superusuario: ${error ? error.message : 'No data'}` });
 		}
 
-		// Save player session in secure cookies
+		// Set player session cookies
 		cookies.set('player_id', player.id, {
 			path: '/',
-			maxAge: 60 * 60 * 24 * 30, // 30 days
+			maxAge: 60 * 60 * 24 * 7,
 			httpOnly: true,
 			sameSite: 'lax',
 			secure: process.env.NODE_ENV === 'production'
@@ -380,7 +349,7 @@ export const actions: Actions = {
 
 		cookies.set('player_instance_code', cleanCode, {
 			path: '/',
-			maxAge: 60 * 60 * 24 * 30,
+			maxAge: 60 * 60 * 24 * 7,
 			httpOnly: true,
 			sameSite: 'lax',
 			secure: process.env.NODE_ENV === 'production'

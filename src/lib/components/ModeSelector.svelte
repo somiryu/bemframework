@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { fade, fly } from 'svelte/transition';
 	import { resolveCharacterByName } from '$lib/content/characters';
+	import type { DisplayWorld } from '$lib/utils/worldMapper';
 
 	interface World {
 		id: number;
@@ -9,6 +10,10 @@
 		narrative_place: string;
 		narrative_mentor: string;
 		narrative_objective: string;
+		displayNumber?: number;
+		displayWorldNumber?: string;
+		displayTitle?: string;
+		[key: string]: any;
 	}
 
 	let { 
@@ -18,7 +23,7 @@
 		onSelectMode,
 		onReplayIntro
 	}: { 
-		world: World; 
+		world: World | DisplayWorld | any; 
 		playerGameState: any; 
 		onClose: () => void; 
 		onSelectMode: (mode: string) => void;
@@ -69,8 +74,8 @@
 		<div class="popup-grid">
 			<!-- LEFT COLUMN: SETTING & MENTOR -->
 			<div class="sidebar-details">
-				<span class="m-badge">MUNDO {world.order_index}</span>
-				<h2 class="w-title">{world.title}</h2>
+				<span class="m-badge">{world.displayWorldNumber ?? `MUNDO ${world.order_index}`}</span>
+				<h2 class="w-title">{world.displayTitle ?? world.title}</h2>
 				
 				<div class="detail-item">
 					<div class="lbl">📍 Lugar de Juego</div>

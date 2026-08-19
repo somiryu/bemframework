@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { decisionsTriviaQuestions, type DecisionsTriviaQuestion } from '$lib/content/decisionsTrivia';
-	import { supabase } from '$lib/supabase';
+	import { decisionsTriviaQuestions as staticDecisionsTriviaQuestions, type DecisionsTriviaQuestion } from '$lib/content/decisionsTrivia';
 
-	let { 
-		world, 
-		player, 
-		onGameComplete, 
-		onUpdateCoins 
-	}: { 
-		world: any; 
-		player: any; 
-		onGameComplete: (results: any) => void; 
-		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
+	let {
+		world,
+		player,
+		onGameComplete,
+		onUpdateCoins
+	}: {
+		world: any;
+		player: any;
+		onGameComplete: (results: any) => void;
+		onUpdateCoins: (newCoinsCount: number, newState: any) => void
 	} = $props();
+
+	// Content lives in course_worlds.training_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const decisionsTriviaQuestions: DecisionsTriviaQuestion[] = world.training_modules?.questions?.length
+		? world.training_modules.questions
+		: staticDecisionsTriviaQuestions;
 
 	// Shuffle the 15 questions on load
 	const shuffled = [...decisionsTriviaQuestions];
@@ -69,11 +74,11 @@
 
 		onUpdateCoins(player.coins, state);
 
-		if (supabase && player.id) {
-			await supabase
-				.from('course_players')
-				.update({ game_state: state })
-				.eq('id', player.id);
+		// Save via server action — the browser no longer writes course_players directly
+		if (player.id) {
+			const formData = new FormData();
+			formData.append('game_state', JSON.stringify(state));
+			await fetch('?/syncPlayerState', { method: 'POST', body: formData });
 		}
 	}
 

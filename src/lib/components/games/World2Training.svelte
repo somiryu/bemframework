@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { fade, scale, fly } from 'svelte/transition';
-	import { trainingCards, type GFRCard } from '$lib/content/gfrCards';
-	import { supabase } from '$lib/supabase';
+	import { trainingCards as staticTrainingCards, type GFRCard } from '$lib/content/gfrCards';
 
-	let { 
-		world, 
-		player, 
-		onGameComplete, 
-		onUpdateCoins 
-	}: { 
-		world: any; 
-		player: any; 
-		onGameComplete: (results: any) => void; 
-		onUpdateCoins: (newCoinsCount: number, newState: any) => void 
+	let {
+		world,
+		player,
+		onGameComplete,
+		onUpdateCoins
+	}: {
+		world: any;
+		player: any;
+		onGameComplete: (results: any) => void;
+		onUpdateCoins: (newCoinsCount: number, newState: any) => void
 	} = $props();
+
+	// Content lives in course_worlds.training_modules; the static import is
+	// only a fallback for an instance this DB hasn't been migrated on yet.
+	const trainingCards: GFRCard[] = world.training_modules?.questions?.length
+		? world.training_modules.questions
+		: staticTrainingCards;
 
 	// Initialize 10 random cards from training cards pool on load
 	const shuffled = [...trainingCards];
@@ -74,12 +79,11 @@
 		// Trigger onUpdateCoins to notify parent component and update local player state
 		onUpdateCoins(player.coins, state);
 
-		// Save to Supabase in the background
-		if (supabase && player.id) {
-			await supabase
-				.from('course_players')
-				.update({ game_state: state })
-				.eq('id', player.id);
+		// Save via server action — the browser no longer writes course_players directly
+		if (player.id) {
+			const formData = new FormData();
+			formData.append('game_state', JSON.stringify(state));
+			await fetch('?/syncPlayerState', { method: 'POST', body: formData });
 		}
 	}
 
@@ -150,13 +154,16 @@
 		}
 	}
 
-	const rowLabels = {
+	const rowsList = ['regulatorio', 'integrado', 'intrinseco'] as const;
+	const colsList = ['meta', 'retroalimentacion', 'recompensa'] as const;
+
+	const rowLabels: Record<string, string> = {
 		regulatorio: 'Regulatorio',
 		integrado: 'Integrado',
 		intrinseco: 'Intrínseco'
 	};
 
-	const colLabels = {
+	const colLabels: Record<string, string> = {
 		meta: 'Meta (Goal)',
 		retroalimentacion: 'Retroalimentación (Feedback)',
 		recompensa: 'Recompensa (Reward)'
@@ -302,13 +309,13 @@
 					</div>
 
 					<!-- Matrix Rows -->
-					{#each ['regulatorio', 'integrado', 'intrinseco'] as r}
+					{#each rowsList as r}
 						<div class="grid-row">
 							<div class="row-header">
 								<span class="row-badge {r}">{rowLabels[r]}</span>
 							</div>
 
-							{#each ['meta', 'retroalimentacion', 'recompensa'] as c}
+							{#each colsList as c}
 								{@const isCorrectCell = activeCard.rii === r && activeCard.gfr === c}
 								{@const isChosenCell = selectedRow === r && selectedCol === c}
 								
