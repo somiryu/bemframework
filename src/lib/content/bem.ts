@@ -12,7 +12,7 @@ export const bemContent = {
 			description:
 				'Behavior • Experience • Meaning (BEM) is a systemic design discipline grounded in intrinsic motivation and architectural coherence.',
 			buttons: [
-				{ text: 'For Learning', link: '/en/learning', type: 'primary' },
+				{ text: 'For Learning', link: '/en/academy/manifesto', type: 'primary' },
 				{ text: 'Answer Trivia', link: '#trivia', type: 'secondary' }
 			]
 		},
@@ -156,7 +156,7 @@ export const bemContent = {
 			title: 'Un Marco Estructural para la Gamificación Avanzada',
 			description: 'Behavior • Experience • Meaning (BEM) es una disciplina de diseño sistémico basada en motivación intrínseca.',
 			buttons: [
-				{ text: 'Para Aprender', link: '/es/learning', type: 'primary' },
+				{ text: 'Para Aprender', link: '/es/academy/manifesto', type: 'primary' },
 				{ text: 'Responder Trivia', link: '#trivia', type: 'secondary' }
 			]
 		},

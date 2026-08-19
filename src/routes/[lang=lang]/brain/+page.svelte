@@ -53,7 +53,7 @@
 			titleEs: 'Subframework Fail Smart',
 			descEn: 'The 5 pillars of designing failure as a psychological learning mechanism.',
 			descEs: 'Los 5 pilares para diseñar el fallo como mecanismo de aprendizaje psicológico.',
-			href: `/${lang}/learning`
+			href: `/${lang}/academy/manifesto`
 		},
 		{
 			id: 'sugarcoating',

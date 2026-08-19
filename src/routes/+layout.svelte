@@ -32,15 +32,19 @@
 				{ label: lang === 'en' ? 'Compare BEM' : 'Comparar BEM', href: `/${lang}/framework/compare` }
 			]
 		},
-		{ 
+		{
 			label: lang === 'en' ? 'BEM Brain' : 'BEM Brain',
 			href: `/${lang}/brain`
 		},
-		{ 
+		{
+			label: 'BEM AI',
+			href: `/${lang}/ai`
+		},
+		{
 			label: lang === 'en' ? 'Academy' : 'Academia',
-			href: `/${lang}/learning`,
+			href: `/${lang}/academy/manifesto`,
 			submenu: [
-				{ label: lang === 'en' ? 'Pedagogical Architecture' : 'Arquitectura Pedagógica', href: `/${lang}/learning` },
+				{ label: lang === 'en' ? 'Pedagogical Architecture' : 'Arquitectura Pedagógica', href: `/${lang}/academy/manifesto` },
 				{ label: lang === 'en' ? 'Gamified Portal' : 'Portal Gamificado', href: `/${lang}/academy/portal` }
 			]
 		},
@@ -67,14 +71,16 @@
 		}
 	]);
 
-	const isGamifiedRoute = $derived(
-		page.url.pathname.includes('/login') || (
-			!page.url.pathname.includes('/learning') && (
-				page.url.pathname.includes('/learn/') || 
-				page.url.pathname.endsWith('/learn') ||
-				page.url.pathname.includes('/academy/portal')
-			)
-		)
+	// Routes that render without the public marketing chrome: the gamified
+	// student experience (/learn, /login) and the internal admin console
+	// (/admin — single-facilitator tool, no lang prefix, own layout).
+	// /learning now only ever redirects (see its +page.server.ts), so it never
+	// reaches this layout render — no need to special-case it here anymore.
+	const isChromelessRoute = $derived(
+		page.url.pathname.startsWith('/admin') ||
+		page.url.pathname.includes('/login') ||
+		page.url.pathname.includes('/learn/') ||
+		page.url.pathname.endsWith('/learn')
 	);
 </script>
 
@@ -87,7 +93,7 @@
 	/>
 </svelte:head>
 
-{#if isGamifiedRoute}
+{#if isChromelessRoute}
 	<main class="learn-theme">
 		{@render children()}
 	</main>
