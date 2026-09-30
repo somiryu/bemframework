@@ -39,7 +39,7 @@ export const CASES: TallerCase[] = [
 		id: 'escape',
 		title: 'El laboratorio contaminado',
 		who: 'Laura · Química · grado décimo',
-		image: '/taller/caso-escape.jpg',
+		image: '/taller/caso-escape.webp',
 		story:
 			'Un viernes a las 10 p. m., Laura le pidió a la IA: «Diseña un escape room de 50 minutos sobre estequiometría, con narrativa y cinco candados». En veinte minutos tenía un laboratorio contaminado, un científico desaparecido, cinco candados numéricos cuyas claves eran resultados de balancear ecuaciones y una carta final escrita con tinta invisible. Imprimió todo, compró tres candados de verdad y el lunes armó el salón. Sus estudiantes pidieron repetirlo y dos colegas ya le pidieron la plantilla.',
 		lean: 'i',
@@ -53,7 +53,7 @@ export const CASES: TallerCase[] = [
 		id: 'remedios',
 		title: 'Doña Remedios, telegrafista',
 		who: 'Andrés · Historia de Colombia · universidad',
-		image: '/taller/caso-remedios.jpg',
+		image: '/taller/caso-remedios.webp',
 		story:
 			'Andrés escribió en dos páginas a Doña Remedios, telegrafista en Bogotá el 9 de abril de 1948. Vio pasar mensajes que nadie debía leer, le teme a los militares, desprecia a los políticos de ambos partidos, miente cuando le preguntan por su hermano y solo cuenta algo nuevo si el estudiante le demuestra que entendió lo que ella ya dijo. Configuró la IA con esa ficha. Cada grupo la entrevista por chat, descubre un fragmento distinto y en clase arman el rompecabezas.',
 		lean: 'c',
@@ -69,7 +69,7 @@ export const CASES: TallerCase[] = [
 		id: 'ensayos',
 		title: 'Tres preguntas en vez de correcciones',
 		who: 'Marcela · Escritura argumentativa · 60 ensayos por corte',
-		image: '/taller/caso-ensayos.jpg',
+		image: '/taller/caso-ensayos.webp',
 		story:
 			'Marcela dejó de llenar los ensayos de comentarios al margen. Escribió un banco de 30 preguntas organizadas por los seis errores argumentativos que más ve en su grupo, como «¿Qué tendría que ser cierto para que tu conclusión fuera falsa?». La IA lee cada ensayo, identifica el error dominante y le asigna al estudiante tres preguntas de ese tipo. Nadie recibe nota hasta responderlas y reescribir un párrafo.',
 		lean: 'c',
@@ -85,7 +85,7 @@ export const CASES: TallerCase[] = [
 		id: 'podcast',
 		title: 'Aristóteles contra la influencer',
 		who: 'Camilo · Ética · primer semestre',
-		image: '/taller/caso-podcast.jpg',
+		image: '/taller/caso-podcast.webp',
 		story:
 			'A Camilo se le ocurrió enfrentar a Aristóteles con una influencer de bienestar de 23 años en un debate sobre la felicidad. Le pidió a la IA un guion de 12 minutos con tres falacias escondidas en cada lado y generó las voces con otra herramienta. Lo publicó como episodio de podcast. Los estudiantes lo escuchan en el bus y llegan a clase con las falacias cazadas. La discusión más larga fue sobre si la influencer tenía razón.',
 		lean: 'g',
@@ -101,7 +101,7 @@ export const CASES: TallerCase[] = [
 		id: 'minuto50',
 		title: 'El minuto 50',
 		who: 'Sofía · Cálculo · clases de dos horas',
-		image: '/taller/caso-minuto50.jpg',
+		image: '/taller/caso-minuto50.webp',
 		story:
 			'Sofía notaba que su clase se caía siempre después del minuto 50. Grabó el audio de tres sesiones, lo transcribió y le pidió a la IA una sola cosa: marcar minuto a minuto quién hablaba, qué tipo de tarea había y cuántas preguntas hacían los estudiantes. Descubrió que hablaba 38 minutos seguidos antes del primer cambio de actividad y que solo le preguntaban en los primeros 15 minutos. Con ese mapa rediseñó la clase en bloques de 12 minutos.',
 		lean: 'c',
@@ -117,7 +117,7 @@ export const CASES: TallerCase[] = [
 		id: 'rubrica',
 		title: 'La rúbrica que escribieron los errores',
 		who: 'Julián · Proyecto final integrador · ingeniería',
-		image: '/taller/caso-rubrica.jpg',
+		image: '/taller/caso-rubrica.webp',
 		story:
 			'Julián sentía que su rúbrica no distinguía un trabajo correcto de uno memorable. Le pasó a la IA los 40 proyectos del semestre anterior con sus notas y le pidió encontrar qué tenían en común los que sacaron más de 4,5 y qué les faltaba a los que quedaron entre 3,5 y 4. La IA encontró cinco rasgos. Julián descartó dos, reformuló los otros tres y los convirtió en los criterios de la nueva rúbrica.',
 		lean: 'g',

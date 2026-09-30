@@ -5,8 +5,9 @@
 		c,
 		index,
 		total,
-		label = 'Interacción'
-	}: { c: TallerCase; index: number; total: number; label?: string } = $props();
+		label = 'Interacción',
+		showImage = false
+	}: { c: TallerCase; index: number; total: number; label?: string; showImage?: boolean } = $props();
 </script>
 
 <header class="head">
@@ -15,7 +16,9 @@
 </header>
 <h2>{c.title}</h2>
 
-{#if c.image}
+<!-- Results only: each illustration draws the protagonist as centaur or
+     inverted centaur, so showing it while the group votes would give away a reading. -->
+{#if showImage && c.image}
 	<div class="case-art">
 		<img src={c.image} alt={c.title} loading="lazy" />
 	</div>

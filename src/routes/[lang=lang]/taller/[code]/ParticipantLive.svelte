@@ -70,7 +70,7 @@
 					/>
 				{/key}
 			{:else}
-				<CaseStory c={slide.case} index={slide.index} total={CASES.length} label="Lo que dijo el grupo" />
+				<CaseStory c={slide.case} index={slide.index} total={CASES.length} label="Lo que dijo el grupo" showImage />
 				{#if view.results}
 					{@const r = view.results as CaseResultsT}
 					<CaseResults c={slide.case} counts={r.counts} scales={r.scales} mine={view.mine} />
