@@ -82,6 +82,11 @@
 		page.url.pathname.includes('/learn/') ||
 		page.url.pathname.endsWith('/learn')
 	);
+
+	// Live workshops (/es/taller/...) bring their own full-page frame (the
+	// client's slide style), so they skip both the marketing chrome and the
+	// learn-theme wrapper.
+	const isTallerRoute = $derived(/^\/(es|en)\/taller(\/|$)/.test(page.url.pathname));
 </script>
 
 <svelte:head>
@@ -93,7 +98,9 @@
 	/>
 </svelte:head>
 
-{#if isChromelessRoute}
+{#if isTallerRoute}
+	{@render children()}
+{:else if isChromelessRoute}
 	<main class="learn-theme">
 		{@render children()}
 	</main>
