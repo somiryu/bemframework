@@ -185,6 +185,15 @@ function aggregateCase(rows: any[]) {
 	return { counts, scales };
 }
 
+export async function slideRows(code: string, slideId: string): Promise<any[]> {
+	const { data } = await db
+		.from('taller_responses')
+		.select('participant_id, slide_id, choice, scale, text, updated_at')
+		.eq('session_code', code)
+		.eq('slide_id', slideId);
+	return data || [];
+}
+
 /**
  * Everything a client needs to render the current slide. `participantId` is
  * null for the facilitator.
@@ -196,16 +205,14 @@ export async function buildLiveView(
 	const { state } = session;
 	const slide = SLIDES[state.step];
 
-	const [{ data: participants }, { data: rows }] = await Promise.all([
+	// One slide per query: PostgREST caps every response at 1000 rows, so
+	// fetching the whole room at once would silently drop answers past ~140
+	// participants (7 answers each). Per slide, the cap is the head count.
+	const [{ data: participants }, current] = await Promise.all([
 		db.from('taller_participants').select('id').eq('session_code', session.code),
-		db
-			.from('taller_responses')
-			.select('participant_id, slide_id, choice, scale, text')
-			.eq('session_code', session.code)
+		slideRows(session.code, slide.id)
 	]);
 
-	const all = rows || [];
-	const current = all.filter((r: any) => r.slide_id === slide.id);
 	const mineRow = participantId ? current.find((r: any) => r.participant_id === participantId) : null;
 
 	const view: TallerView = {
@@ -229,8 +236,8 @@ export async function buildLiveView(
 				vueltas: current
 					.map((r: any) => (r.text || '').trim())
 					.filter(Boolean),
-				summary: CASES.map((c) => {
-					const caseRows = all.filter((r: any) => r.slide_id === c.id);
+				summary: (await Promise.all(CASES.map((c) => slideRows(session.code, c.id)))).map((caseRows, i) => {
+					const c = CASES[i];
 					const mine = participantId
 						? caseRows.find((r: any) => r.participant_id === participantId)
 						: null;

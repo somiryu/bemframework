@@ -31,14 +31,35 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 	// normally arrive by ping — polling is just the safety net.
 	const pollMs = role === 'host' ? 3000 : realtime ? 10000 : 3000;
 
+	// Every request is numbered when it's sent, and a response only lands if
+	// nothing newer has landed first. Without this, a poll that left before the
+	// facilitator pressed "Siguiente" could arrive after it and snap the screen
+	// back to the old slide until the next poll.
+	let sent = 0;
+	let applied = 0;
+	function apply(seq: number, next: T) {
+		if (seq < applied) return;
+		applied = seq;
+		// An error message stays up until the room moves on (or the next send
+		// succeeds, see post), not until the next background poll.
+		if (next.state.step !== view.state.step || next.state.phase !== view.state.phase) error = null;
+		view = next;
+	}
+
+	// A refresh asked for while one is in flight isn't dropped: it runs again
+	// right after, so a ping that lands mid-request still gets the new state.
+	let again = false;
 	async function refresh() {
-		if (inFlight) return;
+		if (inFlight) {
+			again = true;
+			return;
+		}
 		inFlight = true;
+		const seq = ++sent;
 		try {
 			const res = await fetch(`/api/taller/${code}`, { cache: 'no-store' });
 			if (res.ok) {
-				view = await res.json();
-				error = null;
+				apply(seq, await res.json());
 			} else if (res.status === 401 || res.status === 403) {
 				location.reload();
 			}
@@ -46,7 +67,24 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 			// Transient network blip — next poll retries.
 		} finally {
 			inFlight = false;
+			if (again) {
+				again = false;
+				refresh();
+			}
 		}
+	}
+
+	// A state ping reaches every participant at the same instant; spreading
+	// their refetches over ~0.8 s keeps a slide change from hitting the server
+	// (and the free-tier database) as one spike. Pings arriving while one is
+	// already scheduled collapse into it.
+	let pingTimer: ReturnType<typeof setTimeout> | null = null;
+	function refreshSoon() {
+		if (pingTimer) return;
+		pingTimer = setTimeout(() => {
+			pingTimer = null;
+			refresh();
+		}, role === 'host' ? 0 : Math.random() * 800);
 	}
 
 	function ping(event: 'state' | 'answer') {
@@ -54,6 +92,7 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 	}
 
 	async function post(body: Record<string, unknown>) {
+		const seq = ++sent;
 		const res = await fetch(`/api/taller/${code}`, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
@@ -65,7 +104,9 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 			await refresh();
 			return false;
 		}
-		view = await res.json();
+		// hostCode is handled by HostLive directly; every body posted here
+		// answers with the full live view.
+		apply(seq, await res.json());
 		error = null;
 		ping(body.type === 'answer' ? 'answer' : 'state');
 		return true;
@@ -78,8 +119,8 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 	function start() {
 		if (supabase) {
 			channel = supabase.channel(`taller_${code}`);
-			channel.on('broadcast', { event: 'state' }, () => refresh());
-			if (role === 'host') channel.on('broadcast', { event: 'answer' }, () => refresh());
+			channel.on('broadcast', { event: 'state' }, refreshSoon);
+			if (role === 'host') channel.on('broadcast', { event: 'answer' }, refreshSoon);
 			channel.subscribe();
 		}
 		timer = setInterval(refresh, pollMs);
@@ -90,6 +131,8 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 	function stop() {
 		if (timer) clearInterval(timer);
 		timer = null;
+		if (pingTimer) clearTimeout(pingTimer);
+		pingTimer = null;
 		document.removeEventListener('visibilitychange', onVisible);
 		if (channel) {
 			supabase?.removeChannel(channel);

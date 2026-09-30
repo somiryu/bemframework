@@ -6,6 +6,9 @@ import { getSession, normalizeCode } from '$lib/server/taller';
 // Anything that isn't a room keeps 404ing like before.
 export const load: PageServerLoad = async ({ params }) => {
 	const code = normalizeCode(params.code);
-	if (code && (await getSession(code))) throw redirect(307, `/es/taller/${code}`);
+	// Room codes are 3–20 chars of A-Z/0-9/-; anything else (favicon.ico,
+	// bot probes) 404s without touching the database.
+	const looksLikeRoom = /^[A-Za-z0-9-]{3,20}$/.test(params.code);
+	if (looksLikeRoom && (await getSession(code))) throw redirect(307, `/es/taller/${code}`);
 	throw error(404, 'Not found');
 };

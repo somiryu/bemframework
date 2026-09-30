@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { CASES, Q1 } from '$lib/content/talleres/quienTieneLaCabeza';
-import { getSession, getHostEmail, normalizeCode } from '$lib/server/taller';
+import { CASES, Q1, SLIDES } from '$lib/content/talleres/quienTieneLaCabeza';
+import { getSession, getHostEmail, normalizeCode, slideRows } from '$lib/server/taller';
 
 // Facilitator-only CSV with every answer — the raw material for the
 // «recetario» that goes out after the webinar.
@@ -13,20 +13,29 @@ export const GET: RequestHandler = async ({ params, cookies }) => {
 	const session = await getSession(code);
 	if (!session) throw error(404, 'Sala no encontrada.');
 
-	const [{ data: participants }, { data: rows }] = await Promise.all([
+	// Per slide, for the same reason as buildLiveView: a single query over the
+	// whole room would be cut at PostgREST's 1000-row cap.
+	const [{ data: participants }, perSlide] = await Promise.all([
 		db.from('taller_participants').select('id, email').eq('session_code', code),
-		db.from('taller_responses').select('*').eq('session_code', code)
+		Promise.all(SLIDES.filter((s) => s.kind !== 'intro').map((s) => slideRows(code, s.id)))
 	]);
+	const rows = perSlide.flat();
 
 	const emailOf = new Map((participants || []).map((p: any) => [p.id, p.email]));
 	const titleOf = new Map<string, string>(CASES.map((c) => [c.id, c.title]));
 	titleOf.set('vuelta', 'Dale la vuelta');
 
-	const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+	// A leading = + - @ (or tab/CR) makes Excel/Sheets run the cell as a
+	// formula; participants write free text, so neutralize it with a quote.
+	const cell = (v: unknown) => {
+		let t = String(v ?? '');
+		if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
+		return `"${t.replace(/"/g, '""')}"`;
+	};
 	const lines = [
 		['email', 'slide', '¿Lo has hecho?', 'Deslizador (0 centauro – 100 invertido)', 'Texto', 'Actualizado'].map(cell).join(',')
 	];
-	for (const r of rows || []) {
+	for (const r of rows) {
 		lines.push(
 			[
 				emailOf.get(r.participant_id),
