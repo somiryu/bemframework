@@ -83,9 +83,13 @@ export const POST: RequestHandler = async ({ params, cookies, request }) => {
 		return json(await buildLiveView({ ...session, state }, null));
 	}
 
+	// Clean slate before the real session: participants go too (their answers
+	// cascade), so test emails stop counting as "en la sala". Anyone still on
+	// the page gets a 401 on the next refresh and lands back on the email form.
 	if (body?.type === 'reset') {
 		const state = normalizeState({ step: 0, phase: 'vote' });
 		await db.from('taller_responses').delete().eq('session_code', code);
+		await db.from('taller_participants').delete().eq('session_code', code);
 		await db.from('taller_sessions').update({ state }).eq('code', code);
 		return json(await buildLiveView({ ...session, state }, null));
 	}

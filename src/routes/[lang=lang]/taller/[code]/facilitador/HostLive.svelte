@@ -31,7 +31,8 @@
 	const isLast = $derived(step === SLIDES.length - 1);
 
 	const lang = $derived(page.params.lang ?? 'es');
-	const joinUrl = $derived(`${page.url.origin}/${lang}/taller/${code}`);
+	// Short link served by routes/[code] — easier to dictate on a call.
+	const joinUrl = $derived(`${page.url.origin}/${code.toLowerCase()}`);
 	const joinUrlShort = $derived(joinUrl.replace(/^https?:\/\//, ''));
 
 	// Designer's reading stays hidden by default — this screen is usually shared.
@@ -68,7 +69,7 @@
 	}
 
 	async function reset() {
-		if (!confirm(`¿Borrar todas las respuestas de la sala ${code} y volver al inicio? No se puede deshacer.`)) return;
+		if (!confirm(`¿Reiniciar la sala ${code}? Se borran todos los participantes y sus respuestas, y la sala vuelve a la apertura. No se puede deshacer.`)) return;
 		busy = true;
 		await live.post({ type: 'reset' });
 		busy = false;
