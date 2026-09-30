@@ -4,8 +4,9 @@ import { db } from '$lib/server/db';
 import { SLIDES } from '$lib/content/talleres/quienTieneLaCabeza';
 import {
 	getSession,
-	getHostEmail,
+	getHostRole,
 	getParticipant,
+	generateHostCode,
 	buildLiveView,
 	saveAnswer,
 	normalizeCode,
@@ -25,7 +26,7 @@ export const GET: RequestHandler = async ({ params, cookies, setHeaders }) => {
 	const participant = await getParticipant(cookies, code);
 	if (participant) return json(await buildLiveView(session, participant.id));
 
-	if (await getHostEmail(cookies)) return json(await buildLiveView(session, null));
+	if (await getHostRole(cookies, session)) return json(await buildLiveView(session, null));
 
 	throw error(401, 'Entra con tu email para ver la sala.');
 };
@@ -73,8 +74,10 @@ export const POST: RequestHandler = async ({ params, cookies, request }) => {
 		return json(await buildLiveView(session, participant.id));
 	}
 
-	// Everything below is the facilitator's.
-	if (!(await getHostEmail(cookies))) throw error(403, 'Solo el facilitador controla la sala.');
+	// Everything below is the facilitators'. A co-facilitator can only drive
+	// the slides; reset and the co-facilitator code stay with the main one.
+	const role = await getHostRole(cookies, session);
+	if (!role) throw error(403, 'Solo el facilitador controla la sala.');
 
 	if (body?.type === 'state') {
 		const state = normalizeState({ step: body.step, phase: body.phase });
@@ -86,6 +89,17 @@ export const POST: RequestHandler = async ({ params, cookies, request }) => {
 	// Clean slate before the real session: participants go too (their answers
 	// cascade), so test emails stop counting as "en la sala". Anyone still on
 	// the page gets a 401 on the next refresh and lands back on the email form.
+	if (role !== 'admin') throw error(403, 'Esta acción es solo del facilitador principal.');
+
+	// Generate (or regenerate — the old code stops working) / revoke the
+	// co-facilitator code. Not part of the live view: only the admin sees it.
+	if (body?.type === 'hostCode') {
+		const hostCode = body.action === 'revoke' ? null : generateHostCode();
+		const { error: dbErr } = await db.from('taller_sessions').update({ host_code: hostCode }).eq('code', code);
+		if (dbErr) throw error(500, 'No se pudo actualizar el código.');
+		return json({ hostCode });
+	}
+
 	if (body?.type === 'reset') {
 		const state = normalizeState({ step: 0, phase: 'vote' });
 		await db.from('taller_responses').delete().eq('session_code', code);

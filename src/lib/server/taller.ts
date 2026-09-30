@@ -16,6 +16,13 @@ import { db } from '$lib/server/db';
 import { SLIDES, CASES, type TallerView } from '$lib/content/talleres/quienTieneLaCabeza';
 
 export const PARTICIPANT_COOKIE = 'taller_pid';
+export const COHOST_COOKIE = 'taller_cohost';
+
+/**
+ * admin: a super_user (full control, reset, CSV, co-facilitator code).
+ * cohost: holds this room's co-facilitator code — can drive the slides only.
+ */
+export type HostRole = 'admin' | 'cohost';
 
 export type Phase = 'vote' | 'results';
 export interface LiveState {
@@ -28,6 +35,7 @@ export interface TallerSession {
 	workshop: string;
 	title: string;
 	state: LiveState;
+	host_code: string | null;
 	created_at: string;
 }
 
@@ -64,6 +72,28 @@ export async function getHostEmail(cookies: Cookies): Promise<string | null> {
 	if (!email) return null;
 	const { data: isSuper } = await db.rpc('is_super_user', { email_to_check: email });
 	return isSuper ? email : null;
+}
+
+/**
+ * Who is driving this room, if anyone. The co-facilitator cookie holds
+ * "<ROOM>:<code>" and is checked against the room's current host_code on
+ * every call, so regenerating or revoking the code cuts access at once.
+ */
+export async function getHostRole(cookies: Cookies, session: TallerSession): Promise<HostRole | null> {
+	if (await getHostEmail(cookies)) return 'admin';
+	const raw = cookies.get(COHOST_COOKIE) || '';
+	if (session.host_code && raw === `${session.code}:${session.host_code}`) return 'cohost';
+	return null;
+}
+
+export function setCohostCookie(cookies: Cookies, session: TallerSession) {
+	cookies.set(COHOST_COOKIE, `${session.code}:${session.host_code}`, {
+		path: '/',
+		maxAge: 60 * 60 * 24 * 14,
+		httpOnly: true,
+		sameSite: 'lax',
+		secure: process.env.NODE_ENV === 'production'
+	});
 }
 
 export async function getParticipant(cookies: Cookies, code: string) {
@@ -217,10 +247,17 @@ export async function buildLiveView(
 	return view;
 }
 
+// No 0/O/1/I so codes read cleanly when dictated on a call.
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
 export function generateCode() {
-	// No 0/O/1/I so the code reads cleanly when dictated on a call.
-	const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 	let out = '';
-	for (let i = 0; i < 5; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+	for (let i = 0; i < 5; i++) out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
 	return out;
+}
+
+/** Co-facilitator code: grants control of a room, so it comes from crypto. */
+export function generateHostCode() {
+	const bytes = crypto.getRandomValues(new Uint8Array(8));
+	return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
 }

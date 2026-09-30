@@ -17,7 +17,19 @@
 	} from '$lib/content/talleres/quienTieneLaCabeza';
 	import { createTallerLive } from '$lib/utils/tallerLive.svelte';
 
-	let { code, initialView }: { code: string; initialView: TallerView } = $props();
+	let {
+		code,
+		initialView,
+		role,
+		initialHostCode = null
+	}: {
+		code: string;
+		initialView: TallerView;
+		role: 'admin' | 'cohost';
+		initialHostCode?: string | null;
+	} = $props();
+
+	const isAdmin = $derived(role === 'admin');
 
 	// svelte-ignore state_referenced_locally
 	const live = createTallerLive<TallerView>(code, initialView, 'host');
@@ -38,6 +50,42 @@
 	// Designer's reading stays hidden by default — this screen is usually shared.
 	let showNotes = $state(false);
 	let busy = $state(false);
+
+	// ---- co-facilitator code (main facilitator only) ----
+	// Masked by default for the same reason as the notes: this screen is shared.
+	// svelte-ignore state_referenced_locally
+	let hostCode = $state<string | null>(initialHostCode);
+	let showHostCode = $state(false);
+	let hostCodeMsg = $state<string | null>(null);
+	const controlsUrl = $derived(`${page.url.origin}/${lang}/taller/${code}/facilitador`);
+
+	async function setHostCode(action: 'generate' | 'revoke') {
+		if (action === 'revoke' && !confirm('¿Revocar el código? El co-facilitador pierde el acceso de inmediato.')) return;
+		if (action === 'generate' && hostCode && !confirm('¿Generar un código nuevo? El actual deja de funcionar.')) return;
+		const res = await fetch(`/api/taller/${code}`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ type: 'hostCode', action })
+		});
+		if (!res.ok) {
+			hostCodeMsg = 'No se pudo actualizar el código.';
+			return;
+		}
+		hostCode = (await res.json()).hostCode;
+		showHostCode = false;
+		hostCodeMsg = action === 'revoke' ? 'Código revocado.' : 'Código nuevo listo. Cópialo para enviarlo.';
+	}
+
+	async function copyHostInvite() {
+		if (!hostCode) return;
+		try {
+			await navigator.clipboard.writeText(`Controles del taller: ${controlsUrl}\nCódigo de co-facilitador: ${hostCode}`);
+			hostCodeMsg = 'Enlace y código copiados.';
+		} catch {
+			showHostCode = true;
+			hostCodeMsg = 'No se pudo copiar; cópialo a mano.';
+		}
+	}
 
 	async function setState(nextStep: number, nextPhase: 'vote' | 'results') {
 		if (busy) return;
@@ -94,7 +142,7 @@
 
 <svelte:window onkeydown={onKey} />
 
-<TallerFrame {code} badge="Facilitador" wide>
+<TallerFrame {code} badge={isAdmin ? 'Facilitador' : 'Co-facilitador'} wide>
 	<div class="tl-stack">
 		<div class="toolbar tl-card" role="toolbar" aria-label="Controles del facilitador">
 			<div class="tb-left">
@@ -127,11 +175,43 @@
 
 			<div class="tb-extra">
 				<label class="toggle"><input type="checkbox" bind:checked={showNotes} /> Notas de facilitación</label>
-				<a href="/{lang}/taller" class="tb-link">Salas</a>
-				<a href="/api/taller/{code}/export" class="tb-link">Descargar CSV</a>
-				<button type="button" class="tb-link danger" onclick={reset} disabled={busy}>Reiniciar sala</button>
+				{#if isAdmin}
+					<a href="/{lang}/taller" class="tb-link">Salas</a>
+					<a href="/api/taller/{code}/export" class="tb-link">Descargar CSV</a>
+					<button type="button" class="tb-link danger" onclick={reset} disabled={busy}>Reiniciar sala</button>
+				{/if}
 				<span class="tl-muted kbd">Flechas ← → para avanzar</span>
 			</div>
+
+			{#if isAdmin}
+				<details class="cohost">
+					<summary>Co-facilitador{hostCode ? ' · activo' : ''}</summary>
+					<div class="cohost-body">
+						{#if hostCode}
+							<p class="tl-muted">
+								Quien tenga este código maneja solo esta sala desde
+								<strong>{controlsUrl.replace(/^https?:\/\//, '')}</strong>. No puede reiniciarla ni descargar el CSV.
+							</p>
+							<div class="cohost-row">
+								<code class="cohost-code">{showHostCode ? hostCode : '••••••••'}</code>
+								<button type="button" class="tb-link" onclick={() => (showHostCode = !showHostCode)}>
+									{showHostCode ? 'Ocultar' : 'Mostrar'}
+								</button>
+								<button type="button" class="tb-link" onclick={copyHostInvite}>Copiar enlace y código</button>
+								<button type="button" class="tb-link" onclick={() => setHostCode('generate')}>Generar otro</button>
+								<button type="button" class="tb-link danger" onclick={() => setHostCode('revoke')}>Revocar</button>
+							</div>
+						{:else}
+							<p class="tl-muted">
+								Genera un código para que otra persona maneje esta sala contigo, sin darle una cuenta de
+								administrador.
+							</p>
+							<div><button type="button" class="tl-btn ghost" onclick={() => setHostCode('generate')}>Generar código</button></div>
+						{/if}
+						{#if hostCodeMsg}<p class="cohost-msg" aria-live="polite">{hostCodeMsg}</p>{/if}
+					</div>
+				</details>
+			{/if}
 			{#if live.error}<p class="tl-error">{live.error}</p>{/if}
 		</div>
 
@@ -276,6 +356,46 @@
 
 	.kbd {
 		font-size: 0.8rem;
+	}
+
+	.cohost {
+		grid-column: 1 / -1;
+		font-size: 0.88rem;
+		border-top: 1px solid var(--tl-line);
+		padding-top: 8px;
+	}
+
+	.cohost summary {
+		cursor: pointer;
+		color: var(--tl-purple-ink);
+		font-weight: 500;
+	}
+
+	.cohost-body {
+		display: grid;
+		gap: 8px;
+		padding-top: 8px;
+	}
+
+	.cohost-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 14px;
+		align-items: center;
+	}
+
+	.cohost-code {
+		font-size: 1.05rem;
+		letter-spacing: 0.16em;
+		font-weight: 600;
+		background: #fff;
+		border: 1px solid var(--tl-line);
+		border-radius: 8px;
+		padding: 4px 10px;
+	}
+
+	.cohost-msg {
+		color: #067647;
 	}
 
 	.join {
