@@ -234,6 +234,10 @@
 		flex-wrap: wrap;
 	}
 
+	.tb-buttons .tl-btn {
+		white-space: nowrap;
+	}
+
 	.tb-extra {
 		display: flex;
 		gap: 14px;
@@ -362,6 +366,15 @@
 		font-size: 1.15rem;
 		line-height: 1.7;
 		max-width: 68ch;
+	}
+
+	/* Laptop-width screens: the secondary links drop to their own row so the
+	   main buttons stay on one line and the sticky bar stays short. */
+	@media (max-width: 1100px) {
+		.tb-extra {
+			grid-column: 1 / -1;
+			justify-content: flex-start;
+		}
 	}
 
 	@media (max-width: 760px) {
