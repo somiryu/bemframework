@@ -152,7 +152,7 @@
 	</div>
 </div>
 
-<p class="mic">{c.mic}</p>
+{#if c.mic}<p class="mic">{c.mic}</p>{/if}
 
 {#if showNotes}
 	<div class="facil">

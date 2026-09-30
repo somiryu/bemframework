@@ -18,7 +18,8 @@ export interface TallerCase {
 	read: string;
 	human: string;
 	machine: string;
-	mic: string;
+	/** Pregunta para abrir micrófono; opcional, algunos casos no la llevan. */
+	mic?: string;
 }
 
 export type TallerSlide =
@@ -43,8 +44,7 @@ export const CASES: TallerCase[] = [
 		read: 'La idea, la narrativa y la estructura salieron de la IA; Laura puso la ejecución física, que fue impecable. Es el caso para abrir: funcionó muy bien y aun así la cabeza fue de la máquina. Suele dividir al grupo.',
 		human:
 			'Laura parte del error de estequiometría que su grupo comete siempre y lo convierte en la trampa del candado 3. Inventa el giro: el científico desaparecido fue su estudiante el año pasado. La IA calcula ecuaciones con resultados exactos para cada candado, redacta las cartas y prueba si las pistas se pueden resolver sin entender el concepto.',
-		machine: 'Lo que hizo Laura: pedir el escape room completo e implementarlo tal como llegó.',
-		mic: 'Si los estudiantes lo disfrutaron y aprendieron, ¿importa quién lo pensó?'
+		machine: 'Lo que hizo Laura: pedir el escape room completo e implementarlo tal como llegó.'
 	},
 	{
 		id: 'remedios',
