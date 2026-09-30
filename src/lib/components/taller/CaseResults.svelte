@@ -22,19 +22,29 @@
 	} = $props();
 
 	const total = $derived(counts.reduce((x, y) => x + y, 0));
-	const maxCount = $derived(Math.max(1, ...counts));
 	const avg = $derived(mean(scales));
 	const [r1, r2] = $derived(readings(counts, scales));
 
 	// Strip plot geometry (viewBox units).
 	const W = 600;
-	const H = 150;
+	const H = 164;
 	const L = 16;
 	const R = 16;
 	const Y0 = 70;
 	const x = (v: number) => L + ((W - L - R) * v) / 100;
-	// Deterministic vertical jitter so dots don't jump on every refresh.
-	const jitter = (i: number) => (((i * 9301 + 49297) % 233280) / 233280 - 0.5) * 44;
+	// Dots that would touch (same or near-same value) stack in rows around the
+	// center line instead of landing on top of each other, so the number of
+	// dots you can see matches the number of answers. Sorted first so the
+	// layout is stable no matter what order the rows come back in.
+	const ROWS = [0, -13, 13, -26, 26, -6, 6, -19, 19, -32, 32];
+	const dots = $derived.by(() => {
+		const placed: { v: number; cy: number }[] = [];
+		for (const v of [...scales].sort((a, b) => a - b)) {
+			const near = placed.filter((p) => Math.abs(x(p.v) - x(v)) < 12).length;
+			placed.push({ v, cy: Y0 + ROWS[near % ROWS.length] });
+		}
+		return placed;
+	});
 	const clampLabel = (px: number, pad: number) => Math.min(Math.max(px, pad), W - pad);
 </script>
 
@@ -51,7 +61,8 @@
 						{#if mine?.choice === i}<span class="you">tú</span>{/if}
 					</span>
 					<span class="val">{n} · {pct}%</span>
-					<div class="tr"><div class="fill" style:width="{(n / maxCount) * 100}%"></div></div>
+					<!-- Bar length is the share of all answers, so it always matches the % shown. -->
+					<div class="tr"><div class="fill" style:width="{total ? (n / total) * 100 : 0}%"></div></div>
 				</div>
 			{/each}
 		</div>
@@ -80,10 +91,10 @@
 				{#each [0, 50, 100] as t (t)}
 					<line x1={x(t)} x2={x(t)} y1={Y0 - 30} y2={Y0 + 32} stroke="var(--tl-line)" stroke-width="1" />
 				{/each}
-				{#each scales as v, i (i)}
+				{#each dots as { v, cy }, i (i)}
 					<circle
 						cx={x(v)}
-						cy={Y0 + jitter(i)}
+						{cy}
 						r="6"
 						fill="var(--tl-purple)"
 						fill-opacity=".55"
@@ -98,17 +109,23 @@
 					promedio
 				</text>
 				{#if mine?.scale != null}
-					<circle cx={x(mine.scale)} cy={Y0} r="11" fill="#fff" stroke="var(--tl-fg)" stroke-width="3">
+					<!-- "tú" sits under the bar, pointing up at the value, so it never
+					     hides another person's dot (your own dot is drawn with the rest). -->
+					<g>
 						<title>Tu respuesta: {zone(mine.scale)}</title>
-					</circle>
-					<text
-						x={clampLabel(x(mine.scale), 20)}
-						y={Y0 + 4}
-						text-anchor="middle"
-						font-size="10"
-						font-weight="600"
-						fill="var(--tl-fg)">tú</text
-					>
+						<path
+							d="M {x(mine.scale)} {Y0 + 44} l -7 11 h 14 z"
+							fill="var(--tl-fg)"
+						/>
+						<text
+							x={clampLabel(x(mine.scale), 14)}
+							y={Y0 + 72}
+							text-anchor="middle"
+							font-size="13"
+							font-weight="600"
+							fill="var(--tl-fg)">tú</text
+						>
+					</g>
 				{/if}
 				<text x={L} y={H - 4} font-size="13" fill="var(--tl-human)">Centauro</text>
 				<text x={W / 2} y={H - 4} font-size="13" text-anchor="middle" fill="var(--tl-fg-3)">Zona gris</text>
