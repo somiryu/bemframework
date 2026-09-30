@@ -10,6 +10,14 @@
 	}: { c: TallerCase; index: number; total: number; label?: string; showImage?: boolean } = $props();
 </script>
 
+<!-- While voting the illustration stays hidden but is fetched ahead, so it's
+     on screen the instant the facilitator reveals the results. -->
+<svelte:head>
+	{#if !showImage && c.image}
+		<link rel="preload" as="image" href={c.image} />
+	{/if}
+</svelte:head>
+
 <header class="head">
 	<span class="kind">Caso {index + 1} de {total} · {label}</span>
 	<span class="who">{c.who}</span>
@@ -20,7 +28,7 @@
      inverted centaur, so showing it while the group votes would give away a reading. -->
 {#if showImage && c.image}
 	<div class="case-art">
-		<img src={c.image} alt={c.title} loading="lazy" />
+		<img src={c.image} alt={c.title} width="1376" height="768" />
 	</div>
 {/if}
 
