@@ -4,7 +4,7 @@
 
 <section class="intro tl-stack" class:compact>
 	<div class="intro-cover">
-		<img src="/taller/portada.jpg" alt="The Scholarly Showdown: Centauro vs Centauro Invertido" width="1280" height="720" />
+		<img src="/taller/portada.webp" alt="Un centauro y un centauro invertido frente a un tablero de ajedrez" width="1376" height="768" />
 	</div>
 	<h1 class="title">Hablemos de centauros</h1>
 

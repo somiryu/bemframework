@@ -28,7 +28,7 @@
 <TallerFrame>
 	<div class="tl-stack entry">
 		<div class="entry-cover">
-			<img src="/taller/portada.jpg" alt="{WORKSHOP_TITLE} · The Scholarly Showdown" width="1280" height="720" />
+			<img src="/taller/portada.webp" alt="Un centauro y un centauro invertido frente a un tablero de ajedrez" width="1376" height="768" />
 		</div>
 		<h1>{WORKSHOP_TITLE}</h1>
 		<p class="lead">
