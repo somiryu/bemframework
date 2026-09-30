@@ -27,6 +27,9 @@
 
 <TallerFrame>
 	<div class="tl-stack entry">
+		<div class="entry-cover">
+			<img src="/taller/portada.jpg" alt="{WORKSHOP_TITLE} · The Scholarly Showdown" width="1280" height="720" />
+		</div>
 		<h1>{WORKSHOP_TITLE}</h1>
 		<p class="lead">
 			Un taller en vivo sobre creatividad e IA. Escribe el código de sala que te dieron los facilitadores.
@@ -119,6 +122,23 @@
 	.lead {
 		font-size: 1.15rem;
 		color: var(--tl-fg-2);
+	}
+
+	.entry-cover {
+		max-width: 580px;
+		margin: 0 auto 8px;
+		border-radius: 14px;
+		overflow: hidden;
+		border: 1px solid var(--tl-line);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+	}
+
+	.entry-cover img {
+		width: 100%;
+		height: auto;
+		display: block;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
 	}
 
 	.join,

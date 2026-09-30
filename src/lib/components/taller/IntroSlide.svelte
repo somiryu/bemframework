@@ -3,6 +3,9 @@
 </script>
 
 <section class="intro tl-stack" class:compact>
+	<div class="intro-cover">
+		<img src="/taller/portada.jpg" alt="The Scholarly Showdown: Centauro vs Centauro Invertido" width="1280" height="720" />
+	</div>
 	<h1 class="title">Hablemos de centauros</h1>
 
 	<div class="trio">
@@ -44,6 +47,27 @@
 </section>
 
 <style>
+	.intro-cover {
+		max-width: 720px;
+		margin: 0 auto;
+		border-radius: 14px;
+		overflow: hidden;
+		border: 1px solid var(--tl-line);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+	}
+
+	.intro-cover img {
+		width: 100%;
+		height: auto;
+		display: block;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+	}
+
+	.compact .intro-cover {
+		max-width: 440px;
+	}
+
 	.title {
 		text-align: center;
 	}

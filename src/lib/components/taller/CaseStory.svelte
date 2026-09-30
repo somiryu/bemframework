@@ -14,6 +14,13 @@
 	<span class="who">{c.who}</span>
 </header>
 <h2>{c.title}</h2>
+
+{#if c.image}
+	<div class="case-art">
+		<img src={c.image} alt={c.title} loading="lazy" />
+	</div>
+{/if}
+
 <p class="story">{c.story}</p>
 
 <style>
@@ -39,6 +46,24 @@
 	.who {
 		color: var(--tl-fg-3);
 		font-size: 0.95rem;
+	}
+
+	.case-art {
+		margin: 12px 0 16px;
+		max-width: 68ch;
+		border-radius: 12px;
+		overflow: hidden;
+		border: 1px solid var(--tl-line);
+		box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+		background: #111;
+	}
+
+	.case-art img {
+		width: 100%;
+		height: auto;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+		display: block;
 	}
 
 	.story {
