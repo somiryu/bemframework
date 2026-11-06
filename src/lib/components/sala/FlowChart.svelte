@@ -4,6 +4,7 @@
 	let {
 		flow,
 		correct,
+		options = [],
 		w = 520,
 		h = 250,
 		small = false,
@@ -11,6 +12,8 @@
 	}: {
 		flow: number[][];
 		correct: number;
+		/** Texto de cada opción: aparece al pasar el cursor sobre su letra. */
+		options?: string[];
 		w?: number;
 		h?: number;
 		small?: boolean;
@@ -108,13 +111,17 @@
 			y={layout.p1[i].y + layout.p1[i].h / 2 + 4}
 			text-anchor="end"
 			font-size={layout.fs}
-			fill={ok ? 'var(--brass-hi)' : 'var(--muted)'}>{L[i]} {layout.c1[i]}</text
+			fill={ok ? 'var(--brass-hi)' : 'var(--muted)'}
+			>{#if options[i]}<title>{L[i]}. {options[i]}</title>{/if}{L[i]}
+			{layout.c1[i]}</text
 		>
 		<text
 			x={layout.x1 + layout.nw + 6}
 			y={layout.p2[i].y + layout.p2[i].h / 2 + 4}
 			font-size={layout.fs}
-			fill={ok ? 'var(--brass-hi)' : 'var(--muted)'}>{L[i]} {layout.c2[i]}</text
+			fill={ok ? 'var(--brass-hi)' : 'var(--muted)'}
+			>{#if options[i]}<title>{L[i]}. {options[i]}</title>{/if}{L[i]}
+			{layout.c2[i]}</text
 		>
 	{/each}
 </svg>

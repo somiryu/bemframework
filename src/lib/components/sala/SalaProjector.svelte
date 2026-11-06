@@ -475,7 +475,13 @@
 									<div class="mrow rise" style="--d:{i * 0.12}s">
 										<span class="letter">{L[i]}</span>
 										<div style="min-width:0">
-											<div class="sm paper ell" style="margin-bottom:.25em">{cs.options[i]}</div>
+											<div
+												class="sm paper ell"
+												style="margin-bottom:.25em"
+												title="{L[i]}. {cs.options[i]}"
+											>
+												{cs.options[i]}
+											</div>
 											<div class="stack growx" style="--d:{0.3 + i * 0.12}s">
 												{#each GUILDS as g (g.id)}
 													{@const k = d.dist[i][g.id] ?? 0}
@@ -509,10 +515,10 @@
 									{#if q}
 										<div class="quote rise" style="--d:{0.6 + j * 0.15}s">
 											<small
-												><span class="letter mini">{L[a.i]}</span>{#if q.guild}<span
-														class="dot"
-														style="background:{fam(q.guild)}"
-													></span>un cadete de {G[q.guild].name}{:else}argumento frecuente{/if}</small
+												><span class="letter mini" title="{L[a.i]}. {cs.options[a.i]}"
+													>{L[a.i]}</span
+												>{#if q.guild}<span class="dot" style="background:{fam(q.guild)}"></span>un
+													cadete de {G[q.guild].name}{:else}argumento frecuente{/if}</small
 											>
 											«{q.text}»
 										</div>
@@ -555,6 +561,7 @@
 								<div style="flex:1; min-height:0">
 									{#if s.n}<FlowChart
 											flow={s.flow}
+											options={cs.options}
 											correct={s.correct}
 											delay="var(--rv)"
 										/>{:else}<p class="muted">Nadie respondió en esta ronda.</p>{/if}

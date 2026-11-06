@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import SalaProjector from './SalaProjector.svelte';
 	import { createTallerLive } from '$lib/utils/tallerLive.svelte';
-	import { OPTION_LETTERS as L } from '$lib/content/talleres/salaDeCrisis';
 
 	// Controles del facilitador: avanzar fases, cerrar las rondas y ver en
 	// miniatura lo que muestra el proyector. Pensado para el portátil del docente.
@@ -131,12 +130,6 @@
 		await live.post({ type: 'reset' });
 		msg = 'Sala reiniciada: sin cadetes ni respuestas.';
 	}
-
-	const correctNote = $derived.by(() => {
-		const cs = view.data?.case;
-		if (!cs || !['case', 'mirror'].includes(view.stage)) return null;
-		return `${L[cs.correct]}. ${cs.options[cs.correct]}`;
-	});
 </script>
 
 <svelte:window onkeydown={onKey} />
@@ -180,10 +173,6 @@
 		>
 		{#if live.error}<span class="err" role="alert">{live.error}</span>{/if}
 	</div>
-
-	{#if correctNote}
-		<p class="note">Solo para ti · respuesta: <b>{correctNote}</b></p>
-	{/if}
 
 	<SalaProjector {view} {qrSvg} {joinUrl} />
 
