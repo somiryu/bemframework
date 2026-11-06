@@ -1,0 +1,290 @@
+/* «OMIE · Sala de Crisis». Tema propio, oscuro a propósito: sala de crisis de
+   la OMIE, latón sobre tinta. Todo queda bajo .sala para no tocar el resto del sitio.
+   Los colores lila, verde, naranja y rojo están reservados a las familias de
+   drivers (código cromático BEM): solo los usan los gremios. */
+
+.sala {
+	color-scheme: dark;
+	--ink: #0b1011;
+	--stage: #10171a;
+	--panel: #172124;
+	--panel-2: #1d292c;
+	--line: #2b3a3d;
+	--paper: #ece6d6;
+	--muted: #98a39f;
+	--faint: #66716e;
+	--brass: #c9a25b;
+	--brass-hi: #e6c785;
+	--steel: #87abc0;
+	--lila: #a78bd9;
+	--verde: #5fb68e;
+	--naranja: #e49a4e;
+	--rojo: #d9654f;
+	--f-display: 'Chakra Petch', 'Rajdhani', system-ui, sans-serif;
+	--f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+	background: var(--ink);
+	color: var(--paper);
+	font-family: var(--f-body);
+	line-height: 1.45;
+	min-height: 100vh;
+	min-height: 100dvh;
+}
+.sala *,
+.sala *::before,
+.sala *::after {
+	box-sizing: border-box;
+}
+.sala button {
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+.sala :is(button, input, textarea, a):focus-visible {
+	outline: 2px solid var(--brass-hi);
+	outline-offset: 2px;
+}
+/* app.css da tamaño, color y ancho máximo a h1–h3 y p en todo el sitio: aquí se anulan. */
+.sala h1,
+.sala h2,
+.sala h3 {
+	font-family: var(--f-display);
+	font-weight: 600;
+	line-height: 1.1;
+	margin: 0;
+	color: inherit;
+	text-wrap: balance;
+}
+.sala p {
+	margin: 0;
+	font-size: inherit;
+	color: inherit;
+	max-width: none;
+}
+.sala .eyebrow {
+	font-family: var(--f-mono);
+	font-size: 0.72em;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--brass);
+}
+.sala .muted {
+	color: var(--muted);
+}
+.sala .faint {
+	color: var(--faint);
+}
+.sala .dot {
+	width: 0.62em;
+	height: 0.62em;
+	border-radius: 50%;
+	display: inline-block;
+	flex: none;
+}
+.sala .bar {
+	height: 0.55em;
+	background: var(--panel-2);
+	border-radius: 99px;
+	overflow: hidden;
+}
+.sala .bar > i {
+	display: block;
+	height: 100%;
+	background: var(--brass);
+	border-radius: 99px;
+	transition: width 0.5s ease;
+}
+.sala .letter {
+	flex: none;
+	font-family: var(--f-display);
+	font-weight: 700;
+	width: 1.7em;
+	height: 1.7em;
+	border-radius: 0.35em;
+	display: grid;
+	place-items: center;
+	background: var(--panel-2);
+	color: var(--brass);
+}
+.sala .tag {
+	display: inline-block;
+	font-family: var(--f-mono);
+	font-size: 10.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	padding: 2px 7px;
+	border-radius: 5px;
+}
+.sala .tag.ok {
+	background: color-mix(in srgb, var(--brass) 22%, transparent);
+	color: var(--brass-hi);
+}
+.sala .tag.rev {
+	background: color-mix(in srgb, var(--steel) 20%, transparent);
+	color: var(--steel);
+}
+
+/* Animaciones */
+@keyframes sala-rise {
+	from {
+		opacity: 0;
+		transform: translateY(0.8em);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@keyframes sala-grow {
+	from {
+		transform: scaleX(0);
+	}
+	to {
+		transform: scaleX(1);
+	}
+}
+@keyframes sala-growy {
+	from {
+		transform: scaleY(0);
+	}
+	to {
+		transform: scaleY(1);
+	}
+}
+@keyframes sala-draw {
+	from {
+		stroke-dashoffset: 1;
+	}
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+@keyframes sala-wipe {
+	from {
+		clip-path: inset(0 100% 0 0);
+	}
+	to {
+		clip-path: inset(0 0 0 0);
+	}
+}
+@keyframes sala-pop {
+	0% {
+		transform: scale(0.2);
+		opacity: 0;
+	}
+	70% {
+		transform: scale(1.25);
+	}
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+@keyframes sala-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@keyframes sala-flip {
+	from {
+		transform: perspective(600px) rotateY(80deg);
+		opacity: 0;
+	}
+	to {
+		transform: none;
+		opacity: 1;
+	}
+}
+@keyframes sala-stamp {
+	0% {
+		transform: scale(2.4) rotate(-14deg);
+		opacity: 0;
+	}
+	60% {
+		transform: scale(0.92) rotate(-8deg);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(1) rotate(-8deg);
+		opacity: 1;
+	}
+}
+@keyframes sala-glow {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--brass) 0%, transparent);
+	}
+	50% {
+		box-shadow: 0 0 0 0.35em color-mix(in srgb, var(--brass) 35%, transparent);
+	}
+}
+@keyframes sala-shine {
+	0% {
+		transform: translateX(-120%) skewX(-20deg);
+	}
+	100% {
+		transform: translateX(220%) skewX(-20deg);
+	}
+}
+@keyframes sala-ring {
+	from {
+		stroke-dashoffset: 0;
+	}
+	to {
+		stroke-dashoffset: 1;
+	}
+}
+.sala .rise {
+	animation: sala-rise 0.6s ease both;
+	animation-delay: var(--d, 0s);
+}
+.sala .growx {
+	transform-origin: left;
+	animation: sala-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+	animation-delay: var(--d, 0s);
+}
+.sala .growy {
+	transform-box: fill-box;
+	transform-origin: bottom;
+	animation: sala-growy 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+	animation-delay: var(--d, 0s);
+}
+.sala .drawp {
+	stroke-dasharray: 1;
+	stroke-dashoffset: 1;
+	animation: sala-draw 1.8s ease forwards;
+	animation-delay: var(--d, 0s);
+}
+.sala .wipe {
+	animation: sala-wipe 1.6s ease both;
+	animation-delay: var(--d, 0s);
+}
+.sala .popin {
+	animation: sala-pop 0.5s ease both;
+	animation-delay: var(--d, 0s);
+	transform-box: fill-box;
+	transform-origin: center;
+}
+.sala .spin-slow {
+	transform-origin: 50% 50%;
+	animation: sala-spin 14s linear infinite;
+}
+.sala .flipin {
+	animation: sala-flip 0.7s ease both;
+	animation-delay: var(--d, 0s);
+}
+.sala .glow {
+	animation: sala-glow 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sala *,
+	.sala *::before,
+	.sala *::after {
+		animation: none !important;
+		transition: none !important;
+	}
+	.sala .drawp {
+		stroke-dashoffset: 0;
+	}
+}

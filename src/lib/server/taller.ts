@@ -14,6 +14,7 @@
 import type { Cookies } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { SLIDES, CASES, type TallerView } from '$lib/content/talleres/quienTieneLaCabeza';
+import { WORKSHOP_ID as SALA_ID } from '$lib/content/talleres/salaDeCrisis';
 
 export const PARTICIPANT_COOKIE = 'taller_pid';
 export const COHOST_COOKIE = 'taller_cohost';
@@ -64,6 +65,8 @@ export function normalizeState(raw: any): LiveState {
 export async function getSession(code: string): Promise<TallerSession | null> {
 	const { data } = await db.from('taller_sessions').select('*').eq('code', code).maybeSingle();
 	if (!data) return null;
+	// «Sala de Crisis» tiene su propio estado (salaDeCrisis.ts normaliza el suyo).
+	if (data.workshop === SALA_ID) return data as TallerSession;
 	return { ...data, state: normalizeState(data.state) };
 }
 

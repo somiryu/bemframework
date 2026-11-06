@@ -3,6 +3,9 @@
 	import { page } from '$app/state';
 	import TallerFrame from '$lib/components/taller/TallerFrame.svelte';
 	import HostLive from './HostLive.svelte';
+	import SalaHost from '$lib/components/sala/SalaHost.svelte';
+	import SalaFonts from '$lib/components/sala/SalaFonts.svelte';
+	import '$lib/components/sala/sala.css';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -14,8 +17,25 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-{#if data.role && data.view}
-	<HostLive code={data.code} initialView={data.view} role={data.role} initialHostCode={data.hostCode} />
+{#if data.role && data.isSala && data.salaView}
+	<SalaFonts />
+	<div class="sala">
+		<SalaHost
+			code={data.code}
+			initialView={data.salaView}
+			role={data.role}
+			initialHostCode={data.hostCode}
+			qrSvg={data.qr}
+			joinUrl={data.joinUrl}
+		/>
+	</div>
+{:else if data.role && data.view}
+	<HostLive
+		code={data.code}
+		initialView={data.view}
+		role={data.role}
+		initialHostCode={data.hostCode}
+	/>
 {:else}
 	<TallerFrame code={data.code} badge="Facilitador">
 		<div class="tl-stack gate">
@@ -37,7 +57,8 @@
 				<button class="tl-btn" type="submit">Entrar a los controles</button>
 			</form>
 			<p class="tl-muted">
-				¿Eres el facilitador principal? <a href="/{lang}/taller?facilitador">Entra con tu cuenta</a>.
+				¿Eres el facilitador principal? <a href="/{lang}/taller?facilitador">Entra con tu cuenta</a
+				>.
 			</p>
 		</div>
 	</TallerFrame>

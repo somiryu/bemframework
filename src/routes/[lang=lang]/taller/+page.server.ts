@@ -3,7 +3,18 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, DB_MODE } from '$lib/server/db';
 import { supabase } from '$lib/supabase';
 import { WORKSHOP_ID, WORKSHOP_TITLE } from '$lib/content/talleres/quienTieneLaCabeza';
-import { getHostEmail, getSession, normalizeCode, generateCode, normalizeState } from '$lib/server/taller';
+import {
+	WORKSHOP_ID as SALA_ID,
+	WORKSHOP_TITLE as SALA_TITLE
+} from '$lib/content/talleres/salaDeCrisis';
+import { initialState, normalizeSalaState } from '$lib/server/salaDeCrisis';
+import {
+	getHostEmail,
+	getSession,
+	normalizeCode,
+	generateCode,
+	normalizeState
+} from '$lib/server/taller';
 
 // Entry point for /[lang]/taller: participants type the room code here;
 // the facilitator (super_user) also gets the list of rooms and can open one.
@@ -16,7 +27,11 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			.from('taller_sessions')
 			.select('*')
 			.order('created_at', { ascending: false });
-		sessions = (data || []).map((s: any) => ({ ...s, state: normalizeState(s.state) }));
+		sessions = (data || []).map((s: any) =>
+			s.workshop === SALA_ID
+				? { ...s, state: normalizeSalaState(s.state) }
+				: { ...s, state: normalizeState(s.state) }
+		);
 	}
 
 	return {
@@ -34,7 +49,8 @@ export const actions: Actions = {
 		if (!code) return fail(400, { joinError: 'Escribe el código de la sala.', code });
 
 		const session = await getSession(code);
-		if (!session) return fail(404, { joinError: `No encontramos la sala «${code}». Revisa el código.`, code });
+		if (!session)
+			return fail(404, { joinError: `No encontramos la sala «${code}». Revisa el código.`, code });
 
 		throw redirect(303, `/${params.lang}/taller/${code}`);
 	},
@@ -60,7 +76,8 @@ export const actions: Actions = {
 		}
 
 		const { data: isSuper } = await db.rpc('is_super_user', { email_to_check: email });
-		if (!ok || !isSuper) return fail(400, { hostError: 'Credenciales de facilitador incorrectas.' });
+		if (!ok || !isSuper)
+			return fail(400, { hostError: 'Credenciales de facilitador incorrectas.' });
 
 		cookies.set('super_user_email', email, {
 			path: '/',
@@ -77,14 +94,20 @@ export const actions: Actions = {
 		if (!hostEmail) return fail(403, { createError: 'Solo el facilitador puede crear salas.' });
 
 		const form = await request.formData();
-		const title = ((form.get('title') as string) || '').trim() || WORKSHOP_TITLE;
+		const workshop = form.get('workshop') === SALA_ID ? SALA_ID : WORKSHOP_ID;
+		const title =
+			((form.get('title') as string) || '').trim() ||
+			(workshop === SALA_ID ? SALA_TITLE : WORKSHOP_TITLE);
 		let code = normalizeCode((form.get('code') as string) || '');
 
 		if (code) {
 			if (code.length < 3 || code.length > 20) {
-				return fail(400, { createError: 'El código debe tener entre 3 y 20 caracteres (letras y números).' });
+				return fail(400, {
+					createError: 'El código debe tener entre 3 y 20 caracteres (letras y números).'
+				});
 			}
-			if (await getSession(code)) return fail(400, { createError: `Ya existe una sala «${code}».` });
+			if (await getSession(code))
+				return fail(400, { createError: `Ya existe una sala «${code}».` });
 		} else {
 			do code = generateCode();
 			while (await getSession(code));
@@ -92,9 +115,9 @@ export const actions: Actions = {
 
 		const { error } = await db.from('taller_sessions').insert({
 			code,
-			workshop: WORKSHOP_ID,
+			workshop,
 			title,
-			state: { step: 0, phase: 'vote' },
+			state: workshop === SALA_ID ? initialState() : { step: 0, phase: 'vote' },
 			created_by: hostEmail
 		});
 		if (error) return fail(500, { createError: `No se pudo crear la sala: ${error.message}` });

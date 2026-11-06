@@ -170,6 +170,9 @@ CREATE TABLE IF NOT EXISTS public.taller_participants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_code TEXT NOT NULL REFERENCES public.taller_sessions(code) ON DELETE CASCADE,
     email TEXT NOT NULL,
+    alias TEXT,
+    guild TEXT,
+    mentor TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     CONSTRAINT taller_participants_session_email_key UNIQUE (session_code, email)
 );

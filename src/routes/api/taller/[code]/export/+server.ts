@@ -3,15 +3,27 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { CASES, Q1, SLIDES } from '$lib/content/talleres/quienTieneLaCabeza';
 import { getSession, getHostEmail, normalizeCode, slideRows } from '$lib/server/taller';
+import { WORKSHOP_ID as SALA_ID } from '$lib/content/talleres/salaDeCrisis';
+import { salaCsv } from '$lib/server/salaDeCrisis';
 
 // Facilitator-only CSV with every answer — the raw material for the
 // «recetario» that goes out after the webinar.
 export const GET: RequestHandler = async ({ params, cookies }) => {
-	if (!(await getHostEmail(cookies))) throw error(403, 'Solo el facilitador puede descargar las respuestas.');
+	if (!(await getHostEmail(cookies)))
+		throw error(403, 'Solo el facilitador puede descargar las respuestas.');
 
 	const code = normalizeCode(params.code);
 	const session = await getSession(code);
 	if (!session) throw error(404, 'Sala no encontrada.');
+
+	if (session.workshop === SALA_ID) {
+		return new Response('\uFEFF' + (await salaCsv(session)), {
+			headers: {
+				'content-type': 'text/csv; charset=utf-8',
+				'content-disposition': `attachment; filename="sala-de-crisis-${code}.csv"`
+			}
+		});
+	}
 
 	// Per slide, for the same reason as buildLiveView: a single query over the
 	// whole room would be cut at PostgREST's 1000-row cap.
@@ -33,7 +45,16 @@ export const GET: RequestHandler = async ({ params, cookies }) => {
 		return `"${t.replace(/"/g, '""')}"`;
 	};
 	const lines = [
-		['email', 'slide', '¿Lo has hecho?', 'Deslizador (0 centauro – 100 invertido)', 'Texto', 'Actualizado'].map(cell).join(',')
+		[
+			'email',
+			'slide',
+			'¿Lo has hecho?',
+			'Deslizador (0 centauro – 100 invertido)',
+			'Texto',
+			'Actualizado'
+		]
+			.map(cell)
+			.join(',')
 	];
 	for (const r of rows) {
 		lines.push(

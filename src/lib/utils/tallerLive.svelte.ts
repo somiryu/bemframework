@@ -57,7 +57,11 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 		inFlight = true;
 		const seq = ++sent;
 		try {
-			const res = await fetch(`/api/taller/${code}`, { cache: 'no-store' });
+			// ?as=host: quien controla la sala ve la vista del facilitador aunque en ese
+			// mismo navegador también haya entrado como participante.
+			const res = await fetch(`/api/taller/${code}${role === 'host' ? '?as=host' : ''}`, {
+				cache: 'no-store'
+			});
 			if (res.ok) {
 				apply(seq, await res.json());
 			} else if (res.status === 401 || res.status === 403) {
@@ -81,10 +85,13 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 	let pingTimer: ReturnType<typeof setTimeout> | null = null;
 	function refreshSoon() {
 		if (pingTimer) return;
-		pingTimer = setTimeout(() => {
-			pingTimer = null;
-			refresh();
-		}, role === 'host' ? 0 : Math.random() * 800);
+		pingTimer = setTimeout(
+			() => {
+				pingTimer = null;
+				refresh();
+			},
+			role === 'host' ? 0 : Math.random() * 800
+		);
 	}
 
 	function ping(event: 'state' | 'answer') {

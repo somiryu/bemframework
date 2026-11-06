@@ -12,16 +12,20 @@ import {
 	normalizeCode,
 	normalizeState
 } from '$lib/server/taller';
+import { WORKSHOP_ID as SALA_ID } from '$lib/content/talleres/salaDeCrisis';
+import { salaGET, salaPOST } from '$lib/server/salaDeCrisisApi';
 
 // Polled by both views (and pinged over Supabase broadcast when available).
 // The response is the whole truth for the current slide — clients never
 // trust a broadcast payload, they only use it as a hint to refetch.
-export const GET: RequestHandler = async ({ params, cookies, setHeaders }) => {
+export const GET: RequestHandler = async ({ params, cookies, setHeaders, url }) => {
 	const code = normalizeCode(params.code);
 	const session = await getSession(code);
 	if (!session) throw error(404, 'Sala no encontrada.');
 
 	setHeaders({ 'cache-control': 'no-store' });
+	if (session.workshop === SALA_ID)
+		return salaGET(session, cookies, url.searchParams.get('as') === 'host');
 
 	const participant = await getParticipant(cookies, code);
 	if (participant) return json(await buildLiveView(session, participant.id));
@@ -45,6 +49,8 @@ export const POST: RequestHandler = async ({ params, cookies, request }) => {
 		throw error(400, 'Solicitud inválida.');
 	}
 
+	if (session.workshop === SALA_ID) return salaPOST(session, cookies, body);
+
 	if (body?.type === 'answer') {
 		const participant = await getParticipant(cookies, code);
 		if (!participant) throw error(401, 'Entra con tu email para responder.');
@@ -58,14 +64,26 @@ export const POST: RequestHandler = async ({ params, cookies, request }) => {
 		if (slide.kind === 'case') {
 			const choice = Number(body.choice);
 			const scale = Number(body.scale);
-			if (!Number.isInteger(choice) || choice < 0 || choice > 2) throw error(400, 'Respuesta 1 inválida.');
-			if (!Number.isInteger(scale) || scale < 0 || scale > 100) throw error(400, 'Respuesta 2 inválida.');
-			const { error: dbErr } = await saveAnswer(code, participant.id, slide.id, { choice, scale, text: null });
+			if (!Number.isInteger(choice) || choice < 0 || choice > 2)
+				throw error(400, 'Respuesta 1 inválida.');
+			if (!Number.isInteger(scale) || scale < 0 || scale > 100)
+				throw error(400, 'Respuesta 2 inválida.');
+			const { error: dbErr } = await saveAnswer(code, participant.id, slide.id, {
+				choice,
+				scale,
+				text: null
+			});
 			if (dbErr) throw error(500, 'No se pudo guardar tu respuesta.');
 		} else if (slide.kind === 'closing') {
-			const text = String(body.text ?? '').trim().slice(0, MAX_TEXT);
+			const text = String(body.text ?? '')
+				.trim()
+				.slice(0, MAX_TEXT);
 			if (!text) throw error(400, 'Escribe tu respuesta antes de enviarla.');
-			const { error: dbErr } = await saveAnswer(code, participant.id, slide.id, { choice: null, scale: null, text });
+			const { error: dbErr } = await saveAnswer(code, participant.id, slide.id, {
+				choice: null,
+				scale: null,
+				text
+			});
 			if (dbErr) throw error(500, 'No se pudo guardar tu respuesta.');
 		} else {
 			throw error(400, 'Este slide no recibe respuestas.');
@@ -95,7 +113,10 @@ export const POST: RequestHandler = async ({ params, cookies, request }) => {
 	// co-facilitator code. Not part of the live view: only the admin sees it.
 	if (body?.type === 'hostCode') {
 		const hostCode = body.action === 'revoke' ? null : generateHostCode();
-		const { error: dbErr } = await db.from('taller_sessions').update({ host_code: hostCode }).eq('code', code);
+		const { error: dbErr } = await db
+			.from('taller_sessions')
+			.update({ host_code: hostCode })
+			.eq('code', code);
 		if (dbErr) throw error(500, 'No se pudo actualizar el código.');
 		return json({ hostCode });
 	}

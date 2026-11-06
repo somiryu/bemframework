@@ -3,6 +3,10 @@
 	import { page } from '$app/state';
 	import TallerFrame from '$lib/components/taller/TallerFrame.svelte';
 	import { SLIDES, WORKSHOP_TITLE } from '$lib/content/talleres/quienTieneLaCabeza';
+	import {
+		WORKSHOP_ID as SALA_ID,
+		WORKSHOP_TITLE as SALA_TITLE
+	} from '$lib/content/talleres/salaDeCrisis';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -10,6 +14,31 @@
 	const lang = $derived(page.params.lang ?? 'es');
 	// svelte-ignore state_referenced_locally
 	let showHostLogin = $state(data.showHostLogin);
+
+	const SALA_STAGES: Record<string, string> = {
+		lobby: 'Entrada',
+		guild: 'Gremios',
+		exp0: 'Expediente 0',
+		exp0r: 'El giro',
+		vote: 'Votación',
+		case: 'Caso',
+		mirror: 'Espejo',
+		reveal: 'Revelación',
+		budget: 'Gremio repara',
+		budgetr: 'Consecuencias',
+		integ: 'Integración',
+		close: 'Cierre'
+	};
+
+	function roomLabel(s: any) {
+		if (s.workshop === SALA_ID) {
+			const round = ['vote', 'case', 'mirror', 'reveal'].includes(s.state.stage)
+				? `Ronda ${s.state.round + 1} · `
+				: '';
+			return `${SALA_TITLE} · ${round}${SALA_STAGES[s.state.stage] ?? ''}`;
+		}
+		return stepLabel(s.state.step, s.state.phase);
+	}
 
 	function stepLabel(step: number, phase: string) {
 		const s = SLIDES[step];
@@ -28,11 +57,17 @@
 <TallerFrame>
 	<div class="tl-stack entry">
 		<div class="entry-cover">
-			<img src="/taller/portada.webp" alt="Un centauro y un centauro invertido frente a un tablero de ajedrez" width="1376" height="768" />
+			<img
+				src="/taller/portada.webp"
+				alt="Un centauro y un centauro invertido frente a un tablero de ajedrez"
+				width="1376"
+				height="768"
+			/>
 		</div>
 		<h1>{WORKSHOP_TITLE}</h1>
 		<p class="lead">
-			Un taller en vivo sobre creatividad e IA. Escribe el código de sala que te dieron los facilitadores.
+			Un taller en vivo sobre creatividad e IA. Escribe el código de sala que te dieron los
+			facilitadores.
 		</p>
 
 		<form method="POST" action="?/join" class="tl-card join" use:enhance>
@@ -65,6 +100,13 @@
 
 				<form method="POST" action="?/create" class="tl-card create" use:enhance>
 					<h3>Nueva sala</h3>
+					<label>
+						<span class="tl-eyebrow">Juego</span>
+						<select name="workshop" class="tl-input">
+							<option value="quien-tiene-la-cabeza">{WORKSHOP_TITLE}</option>
+							<option value={SALA_ID}>{SALA_TITLE}</option>
+						</select>
+					</label>
 					<div class="grid2">
 						<label>
 							<span class="tl-eyebrow">Nombre (opcional)</span>
@@ -72,7 +114,12 @@
 						</label>
 						<label>
 							<span class="tl-eyebrow">Código (opcional)</span>
-							<input name="code" class="tl-input" placeholder="Se genera solo" autocapitalize="characters" />
+							<input
+								name="code"
+								class="tl-input"
+								placeholder="Se genera solo"
+								autocapitalize="characters"
+							/>
 						</label>
 					</div>
 					{#if form?.createError}<p class="tl-error">{form.createError}</p>{/if}
@@ -86,10 +133,18 @@
 								<div>
 									<strong class="scode">{s.code}</strong>
 									<span>{s.title}</span>
-									<span class="tl-muted">{stepLabel(s.state.step, s.state.phase)} · {new Date(s.created_at).toLocaleDateString('es-CO')}</span>
+									<span class="tl-muted"
+										>{roomLabel(s)} · {new Date(s.created_at).toLocaleDateString('es-CO')}</span
+									>
 								</div>
 								<div class="links">
 									<a class="tl-btn" href="/{lang}/taller/{s.code}/facilitador">Controles</a>
+									{#if s.workshop === SALA_ID}<a
+											class="tl-btn ghost"
+											href="/{lang}/taller/{s.code}/proyector"
+											target="_blank"
+											rel="noopener">Proyector</a
+										>{/if}
 									<a class="tl-btn ghost" href="/api/taller/{s.code}/export">CSV</a>
 								</div>
 							</li>
@@ -102,13 +157,29 @@
 		{:else if showHostLogin}
 			<form method="POST" action="?/hostLogin" class="tl-card hostlogin" use:enhance>
 				<h3>Entrar como facilitador</h3>
-				<input name="email" type="email" class="tl-input" placeholder="Correo" autocomplete="username" required />
-				<input name="password" type="password" class="tl-input" placeholder="Contraseña" autocomplete="current-password" required />
+				<input
+					name="email"
+					type="email"
+					class="tl-input"
+					placeholder="Correo"
+					autocomplete="username"
+					required
+				/>
+				<input
+					name="password"
+					type="password"
+					class="tl-input"
+					placeholder="Contraseña"
+					autocomplete="current-password"
+					required
+				/>
 				{#if form?.hostError}<p class="tl-error">{form.hostError}</p>{/if}
 				<div><button class="tl-btn" type="submit">Entrar</button></div>
 			</form>
 		{:else}
-			<button class="linkish facil-link" type="button" onclick={() => (showHostLogin = true)}>Soy facilitador</button>
+			<button class="linkish facil-link" type="button" onclick={() => (showHostLogin = true)}
+				>Soy facilitador</button
+			>
 		{/if}
 	</div>
 </TallerFrame>
