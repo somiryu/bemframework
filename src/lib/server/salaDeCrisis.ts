@@ -515,7 +515,12 @@ export async function advance(
 			case 'exp0r':
 				return enter(s, 'vote', 0);
 			case 'vote': {
-				s.picks[r] = await decidePick(session, s, r);
+				// Si se volvió de Caso a Votación y la ronda ya tiene respuestas, se conserva
+				// el expediente elegido: recalcularlo evaluaría esas respuestas contra otro caso.
+				const answered = s.picks[r]
+					? (await slideRows(session.code, slot(r, 'v1'))).length > 0
+					: false;
+				if (!answered) s.picks[r] = await decidePick(session, s, r);
 				s.picks = s.picks.slice(0, r + 1);
 				s.summaries = s.summaries.slice(0, r);
 				return enter(s, 'case');

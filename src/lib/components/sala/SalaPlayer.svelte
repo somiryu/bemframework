@@ -98,8 +98,12 @@
 
 	async function send(body: Record<string, unknown>) {
 		sending = true;
-		const ok = await live.post(body);
-		sending = false;
+		let ok = false;
+		try {
+			ok = await live.post(body);
+		} finally {
+			sending = false;
+		}
 		if (ok) {
 			editing = false;
 			changing = null;

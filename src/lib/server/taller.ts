@@ -170,12 +170,24 @@ export async function saveAnswer(code: string, participantId: string, slideId: s
 	if (existing) {
 		return db.from('taller_responses').update(values).eq('id', existing.id);
 	}
-	return db.from('taller_responses').insert({
+	const inserted = await db.from('taller_responses').insert({
 		session_code: code,
 		participant_id: participantId,
 		slide_id: slideId,
 		...values
 	});
+	if (!inserted.error) return inserted;
+	// Doble envío simultáneo: el otro ya insertó la fila (restricción única), así
+	// que esta respuesta la actualiza en vez de reportar un error falso.
+	const { data: again } = await db
+		.from('taller_responses')
+		.select('id')
+		.eq('session_code', code)
+		.eq('participant_id', participantId)
+		.eq('slide_id', slideId)
+		.maybeSingle();
+	if (!again) return inserted;
+	return db.from('taller_responses').update(values).eq('id', again.id);
 }
 
 function aggregateCase(rows: any[]) {

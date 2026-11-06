@@ -82,8 +82,13 @@
 
 	async function move(to: 'next' | 'prev' | 'final') {
 		busy = true;
-		await live.post({ type: 'advance', to });
-		busy = false;
+		try {
+			// `from`: la fase que estoy viendo. Si otro facilitador (o un doble clic) ya
+			// la movió, el servidor no avanza dos veces.
+			await live.post({ type: 'advance', to, from: view.state.step });
+		} finally {
+			busy = false;
+		}
 	}
 
 	// Avanzar con la barra espaciadora o la flecha derecha (útil con un presentador inalámbrico).
@@ -111,8 +116,8 @@
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ type: 'hostCode', action })
-		});
-		if (!res.ok) {
+		}).catch(() => null);
+		if (!res || !res.ok) {
 			msg = 'No se pudo actualizar el código.';
 			return;
 		}

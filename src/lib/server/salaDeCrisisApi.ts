@@ -70,6 +70,10 @@ export async function salaPOST(session: TallerSession, cookies: Cookies, body: a
 	if (!role) throw error(403, 'Solo el facilitador controla la sala.');
 
 	if (body?.type === 'advance') {
+		// Doble clic o dos facilitadores a la vez: solo avanza quien veía la fase actual.
+		if (Number.isInteger(body.from) && body.from !== state.seq) {
+			throw error(409, 'La sala ya cambió de fase. Revisa la pantalla antes de avanzar otra vez.');
+		}
 		const to = body.to === 'prev' ? 'prev' : body.to === 'final' ? 'final' : 'next';
 		const next = await advance(session, state, to);
 		const { error: dbErr } = await db

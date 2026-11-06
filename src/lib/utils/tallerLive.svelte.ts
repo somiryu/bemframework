@@ -100,11 +100,19 @@ export function createTallerLive<T extends { state: { step: number; phase: strin
 
 	async function post(body: Record<string, unknown>) {
 		const seq = ++sent;
-		const res = await fetch(`/api/taller/${code}`, {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(body)
-		});
+		let res: Response;
+		try {
+			res = await fetch(`/api/taller/${code}`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+		} catch {
+			// Sin red (wifi del aula, celular en reposo): el envío no llegó. Sin esto la
+			// promesa fallaba sin aviso y el botón quedaba en «Enviando…» para siempre.
+			error = 'No hay conexión. Revisa tu red e intenta de nuevo.';
+			return false;
+		}
 		if (!res.ok) {
 			const msg = await res.json().catch(() => null);
 			error = msg?.message || 'No se pudo enviar. Intenta de nuevo.';
