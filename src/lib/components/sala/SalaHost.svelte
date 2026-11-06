@@ -304,15 +304,6 @@
 	.err {
 		color: var(--steel);
 	}
-	.note {
-		font-size: 13px;
-		color: var(--muted);
-		border-left: 3px solid var(--brass);
-		padding-left: 10px;
-	}
-	.note b {
-		color: var(--paper);
-	}
 	.hint {
 		font-size: 12px;
 		color: var(--faint);
